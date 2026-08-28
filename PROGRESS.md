@@ -6,12 +6,11 @@
 
 Last updated: **2026-08-28**
 
-**Repo:** https://github.com/aravindh-bloop/boinky (branch `main`). Pushed 2026-08-28.
-**EAS builds (2026-08-28):** Expo project `boinks` linked. `expo-updates` + OTA configured.
-`eas.json`: `development` (you, hot reload via `npx expo start`), `preview`/`production`
-(friend, standalone; channel `production`). Push to friend: `eas update --branch production`.
-First builds queued: dev `065e5b8b`, preview `8aca35b4` — watch at
-expo.dev/accounts/boinkyyys-team/projects/boinks/builds. `.agents/` + `.claude/` gitignored.
+**Repo:** https://github.com/aravindh-bloop/boinky (branch `main`).
+**Farmer app runs via `npx expo start` + Expo Go** (SDK 57). The EAS build / APK /
+`expo-updates` OTA route was tried on 2026-08-28 and **reverted** (2026-08-29) — both cloud
+builds errored and it added friction. No `eas.json`, no `expo-dev-client`, no `expo-updates`.
+`.agents/` + `.claude/` gitignored.
 
 **Deployed backend:** https://agripod-backend.onrender.com (Render, Singapore, free plan —
 `render.yaml` Blueprint). Co-located with Neon Singapore → backend↔DB ~1ms, phone→backend

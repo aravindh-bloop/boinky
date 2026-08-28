@@ -1,47 +1,37 @@
 # Running the AgriPod farmer app
 
-Expo dev-client build (SDK 57 / RN 0.86.3). The dev-client APK is already built and
-installed on the phone (`com.agripod.farmer`). You only rebuild the APK when native
-deps change — day to day you just start the dev server.
+Standard Expo app (SDK 57 / RN 0.86.3). Runs in **Expo Go** — no native build, no APK.
 
 ## Every session
 
-**Terminal 1 — backend**
-```
-cd D:\E-Farmer\backend
-npm run dev
-```
-
-**Terminal 2 — the app** (this is the one with live logs + interactive keys)
 ```
 cd D:\E-Farmer\farmer-expo
-adb reverse tcp:4000 tcp:4000
-adb reverse tcp:8081 tcp:8081
-npx expo start --dev-client
+npx expo start
 ```
 
-Then either:
-- press **`a`** to open the app on the connected Android device, or
-- open the **AgriPod** app on the phone manually (it reconnects to the dev server)
+Then on the phone: open **Expo Go** and scan the QR code from the terminal.
 
-`npx expo start` interactive keys: `r` reload · `j` open debugger · `m` toggle dev menu ·
-`a` open on Android. **App `console.log` / warnings / errors stream into this terminal.**
+The app talks to the **deployed backend** (`https://agripod-backend.onrender.com`) by
+default, so the phone just needs internet — no cable, no `adb reverse`, no local backend.
 
-> The phone reaches the backend through `adb reverse` over the USB cable. Keep the cable
-> connected. If requests start failing with "Cannot reach the server", re-run the two
-> `adb reverse` commands (they drop when the phone reconnects).
+`npx expo start` interactive keys: `r` reload · `j` open debugger · `m` toggle dev menu.
+App `console.log` / warnings / errors stream into this terminal.
 
-## Rebuild the dev-client APK (only after adding a native module)
+If the bundler gets into a weird state: `npx expo start --clear`.
+
+## Running against a local backend instead
 
 ```
-cd D:\E-Farmer\farmer-expo\android
-.\gradlew.bat app:assembleDebug -PreactNativeArchitectures=arm64-v8a
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+cd D:\E-Farmer\backend && npm run dev          # terminal 1
 ```
-(`npx expo run:android` also works but can choke on `gradlew.bat` under Git Bash — use
-PowerShell for the gradle command.)
+```
+cd D:\E-Farmer\farmer-expo
+adb reverse tcp:4000 tcp:4000                   # phone on USB
+set EXPO_PUBLIC_API_URL=http://localhost:4000
+npx expo start
+```
 
 ## Config
 
-- Backend URL: `src/config.ts` → `API_BASE_URL` (currently `http://localhost:4000` via adb reverse).
-  For WiFi instead of USB, set it to your PC's LAN IP and make sure the phone is on the same network.
+- Backend URL: `src/config.ts` → `API_BASE_URL`. Defaults to the Render URL; override with
+  the `EXPO_PUBLIC_API_URL` env var.

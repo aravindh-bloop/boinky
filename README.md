@@ -88,54 +88,27 @@ The full API surface is documented in **`backend/README.md`**.
 
 ## 2. Farmer app
 
-Expo **dev client** (it uses native modules — Skia, image-picker — so Expo Go won't work; you
-build the dev client once, then iterate over the JS bundle).
+Standard Expo app (SDK 57) — runs in **Expo Go**, no native build.
 
 ```bash
 cd farmer-expo
 npm install
-
-# generate the native android/ project from app.json + package.json
-npx expo prebuild --platform android
-
-# build & install the dev-client APK on a connected device (first build ~8 min)
-#   Windows / Git Bash: run the gradle command from PowerShell if `expo run` chokes on gradlew.bat
-npx expo run:android
-#   …or manually:
-#   cd android && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+npx expo start
 ```
 
-### Every session after that
+Open **Expo Go** on the phone and scan the QR code.
 
-```bash
-# terminal 1 — backend
-cd backend && npm run dev
-
-# terminal 2 — Metro bundler + the app
-cd farmer-expo
-adb reverse tcp:4000 tcp:4000     # phone reaches the backend over USB
-adb reverse tcp:8081 tcp:8081     # phone reaches Metro
-npx expo start --dev-client
-#   press `a`, or open the AgriPod app on the phone
-```
-
-`npx expo start` shows live JS logs and interactive keys (`r` reload, `j` debugger).
+The app points at the deployed backend (`https://agripod-backend.onrender.com`) by default,
+so the phone only needs internet.
 
 ### Config
 
-`farmer-expo/src/config.ts` → `API_BASE_URL` defaults to `http://localhost:4000` (works via
-`adb reverse`). For a device on the same Wi-Fi instead of USB, set it to your machine's LAN IP.
+`farmer-expo/src/config.ts` → `API_BASE_URL` defaults to the Render URL. To run against a
+local backend, set `EXPO_PUBLIC_API_URL=http://localhost:4000` before `npx expo start`
+(with `adb reverse tcp:4000 tcp:4000` if the phone is on USB).
 
-### Faster / for a demo — release build
-
-```bash
-cd farmer-expo/android
-./gradlew assembleRelease           # signed with the debug key via Expo prebuild config
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-A release APK bundles the JS (no Metro needed) and runs ~2× faster than the dev build, but
-does not hot-reload.
+`npx expo start` shows live JS logs and interactive keys (`r` reload, `j` debugger). If the
+bundler misbehaves: `npx expo start --clear`.
 
 ---
 
