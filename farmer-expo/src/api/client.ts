@@ -126,10 +126,27 @@ async function upload<T>(
  * Kept separate from the scan submit so the farmer sees the transcript and can
  * fix it before anything is diagnosed.
  */
+const AUDIO_MIME: Record<string, string> = {
+  m4a: 'audio/m4a',
+  mp4: 'audio/mp4',
+  aac: 'audio/aac',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  webm: 'audio/webm',
+  ogg: 'audio/ogg',
+  opus: 'audio/opus',
+  caf: 'audio/x-caf',
+};
+
 async function transcribe(
   uri: string,
   opts: { mimeType?: string; language?: string } = {},
 ): Promise<{ transcript: string; language: string | null }> {
+  // Derive from the recording's own extension rather than assuming m4a — the
+  // preset differs by platform. (The native uploader still labels the multipart
+  // part application/octet-stream, so the server falls back to the filename.)
+  const ext = uri.split('.').pop()?.toLowerCase() ?? '';
+  const mimeType = opts.mimeType ?? AUDIO_MIME[ext] ?? 'audio/m4a';
   const token = await loadToken();
   let result: FileSystem.FileSystemUploadResult;
   try {
@@ -137,7 +154,7 @@ async function transcribe(
       httpMethod: 'POST',
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       fieldName: 'audio',
-      mimeType: opts.mimeType ?? 'audio/m4a',
+      mimeType,
       parameters: opts.language ? { language: opts.language } : {},
       headers: {
         Accept: 'application/json',

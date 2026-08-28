@@ -315,6 +315,13 @@ like at dawn, what they already sprayed) now reach the diagnosis.
   "What you told us". Mic permission string added to the `expo-audio` plugin config.
 - Tested: transcribe endpoint 604ms end-to-end on real Tamil audio; wrong MIME → 400;
   missing file → 400; note stored with language; scan with vs without a note compared.
+- 🐛 **Gotcha (hit on the first real device recording, fixed):** RN's native uploader
+  (`expo-file-system` `uploadAsync`) labels the multipart part **`application/octet-stream`
+  regardless of the `mimeType` option**, so a genuine recording was rejected by the audio
+  MIME allowlist → `400 Unsupported audio type`. `audioUpload` now falls back to the
+  **filename extension** when the type is `octet-stream`/empty, and the error message
+  reports both the type and the filename. Junk (a `.jpg`) is still rejected.
+  Sarvam sniffs the real container, confirmed by sending WAV bytes named `.m4a` → 200.
 - ⚠️ **Known limit, worth knowing before the demo:** the note reliably shapes `summary`
   and steers `recommendedInputs` away from a product the farmer said had failed
   (Mancozeb → Dimethomorph after "I sprayed Mancozeb twice, still spreading"), but it is
