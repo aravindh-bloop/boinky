@@ -7,6 +7,11 @@
 Last updated: **2026-08-28**
 
 **Repo:** https://github.com/aravindh-bloop/boinky (branch `main`). Pushed 2026-08-28.
+**Deployed backend:** https://agripod-backend.onrender.com (Render, Singapore, free plan —
+`render.yaml` Blueprint). Co-located with Neon Singapore → backend↔DB ~1ms, phone→backend
+one ~80ms hop. `/health` green, all integrations OK. Free tier sleeps after 15min idle —
+keep a cron pinging `/health` every 10min. App (`farmer-expo/src/config.ts`) now defaults
+to this URL; `EXPO_PUBLIC_API_URL=http://localhost:4000` overrides for local dev.
 `.env` is gitignored — real keys live only in `backend/.env` locally. `farmer-app/`
 (abandoned bare-RN) and `farmer-expo/android` are gitignored (regenerate android with
 `npx expo prebuild`). Root `README.md` has full setup steps.
