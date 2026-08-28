@@ -1,13 +1,22 @@
 {
   "expo": {
     "name": "AgriPod",
-    "slug": "agripod-farmer",
+    "slug": "boinks",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "agripod",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/1176dd2d-b788-4a97-bd9c-cc0984c84982"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.agripod.farmer"
@@ -16,7 +25,10 @@
       "package": "com.agripod.farmer",
       "usesCleartextTraffic": true,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#2e7d32",
@@ -39,6 +51,12 @@
       ],
       "expo-image",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1176dd2d-b788-4a97-bd9c-cc0984c84982"
+      }
+    },
+    "owner": "boinkyyys-team"
   }
 }

@@ -19,6 +19,7 @@
     "expo-image-picker": "~57.0.14",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.19",
     "lottie-react-native": "~7.3.8",
     "phosphor-react-native": "^3.0.6",
     "react": "19.2.3",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.9",
+    "eas-cli": "^23.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
