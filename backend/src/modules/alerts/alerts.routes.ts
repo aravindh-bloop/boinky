@@ -3,6 +3,7 @@ import { asyncHandler, z } from '../../http/handler.js';
 import { requireAuth } from '../../http/auth.js';
 import { getUserById } from '../auth/auth.service.js';
 import * as alerts from './alerts.service.js';
+import { buildFarmerAlertFeed } from './alerts.feed.js';
 
 export const alertsRouter = Router();
 
@@ -56,13 +57,10 @@ alertsRouter.get(
       return res.json({ alerts: list });
     }
 
-    const { since, limit } = z
-      .object({
-        since: z.string().datetime().optional(),
-        limit: z.coerce.number().int().min(1).max(100).default(50),
-      })
+    const { since } = z
+      .object({ since: z.string().datetime().optional() })
       .parse(req.query);
-    const list = await alerts.listFarmerAlerts({ farmerId: req.user!.sub, since, limit });
+    const list = await buildFarmerAlertFeed(req.user!.sub, { live: true, since });
     res.json({ alerts: list });
   }),
 );

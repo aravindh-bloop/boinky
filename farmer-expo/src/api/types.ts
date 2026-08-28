@@ -85,16 +85,21 @@ export interface FieldRisk {
   outlook: OutlookDay[];
 }
 
+export type AlertSource = 'office' | 'weather' | 'forewarning' | 'outbreak';
+
 export interface Alert {
   id: string;
   title: string;
   message: string;
-  region: string | null;
-  crop: string | null;
+  region?: string | null;
+  crop?: string | null;
   severity: 'low' | 'medium' | 'high' | null;
   created_at: string;
-  match_reason?: string;
-  official_name?: string;
+  match_reason?: string | null;
+  official_name?: string | null;
+  /** present on the farmer feed — which detector produced this alert */
+  source?: AlertSource;
+  field_id?: string | null;
 }
 
 export interface CalendarTask {

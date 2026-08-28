@@ -107,7 +107,12 @@ function deriveAdvisories(f: DetailedForecast): AgroAdvisory[] {
   const next7 = f.daily.slice(0, 7);
 
   const rain3 = sum(next3.map((d) => d.precipMm ?? 0));
-  const heavyDay = next7.find((d) => (d.precipMm ?? 0) >= 35 || (d.precipProbPct ?? 0) >= 80);
+  // "Heavy rain" must mean a real accumulation — a high chance of light drizzle
+  // (common in the monsoon) is not a warning.
+  const heavyDay = next7.find((d) => (d.precipMm ?? 0) >= 35);
+  const wetDay =
+    !heavyDay &&
+    next7.find((d) => (d.precipMm ?? 0) >= 12 && (d.precipProbPct ?? 0) >= 60);
   const hotDay = next7.find((d) => (d.tempMaxC ?? 0) >= 38);
   const coldDay = next7.find((d) => (d.tempMinC ?? 99) <= 4);
   const windyDay = next7.find((d) => (d.windMaxKph ?? 0) >= 35);
@@ -119,6 +124,13 @@ function deriveAdvisories(f: DetailedForecast): AgroAdvisory[] {
       severity: 'warning',
       title: `Heavy rain expected ${friendlyDay(heavyDay.date)}`,
       detail: `About ${Math.round(heavyDay.precipMm ?? 0)} mm. Delay spraying and fertiliser application, clear field drainage, and stake or support vulnerable plants.`,
+    });
+  } else if (wetDay) {
+    out.push({
+      key: 'wet_spell',
+      severity: 'watch',
+      title: `Wet weather ${friendlyDay(wetDay.date)}`,
+      detail: `Around ${Math.round(wetDay.precipMm ?? 0)} mm likely. Hold off on spraying and top-dressing, and check that field drains are clear.`,
     });
   }
 

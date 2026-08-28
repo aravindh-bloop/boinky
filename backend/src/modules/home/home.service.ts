@@ -2,7 +2,7 @@ import { query, queryMaybe, queryOne } from '../../db/query.js';
 import { getUserById } from '../auth/auth.service.js';
 import { getFarmerTasks } from '../farm/tasks.service.js';
 import { getWeather } from '../weather/weather.service.js';
-import { listFarmerAlerts } from '../alerts/alerts.service.js';
+import { buildFarmerAlertFeed } from '../alerts/alerts.feed.js';
 import { getNearbyOutbreaksForFarmer } from '../hotspots/hotspots.service.js';
 import { logger } from '../../lib/logger.js';
 
@@ -12,7 +12,7 @@ export async function getHome(farmerId: string) {
     getUserById(farmerId),
     fieldRiskOverview(farmerId),
     getFarmerTasks(farmerId, 7),
-    listFarmerAlerts({ farmerId, limit: 3 }).catch(() => []),
+    buildFarmerAlertFeed(farmerId, { live: true }).catch(() => []),
     getNearbyOutbreaksForFarmer(farmerId).catch(() => null),
     financeSnapshot(farmerId),
     countLowStock(farmerId),
