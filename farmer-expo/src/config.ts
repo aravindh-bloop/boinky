@@ -1,10 +1,14 @@
 /**
  * Backend base URL.
  *
- * On a USB-connected Android device we run `adb reverse tcp:4000 tcp:4000`, so
- * localhost on the phone tunnels to the dev machine's backend.
- * For a real network / deployed backend, change this to the LAN IP or public URL.
+ * Default: the deployed backend on Render (Singapore, next to the DB) — works from
+ * any network, so a release APK just runs.
+ *
+ * For local development against `npm run dev`, set EXPO_PUBLIC_API_URL, e.g.
+ *   EXPO_PUBLIC_API_URL=http://localhost:4000 npx expo start --dev-client
+ * (with `adb reverse tcp:4000 tcp:4000`), or point it at your machine's LAN IP.
  */
-export const API_BASE_URL = 'http://localhost:4000';
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ?? 'https://agripod-backend.onrender.com';
 
 export const APP_NAME = 'AgriPod';
