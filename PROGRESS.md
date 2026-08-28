@@ -315,6 +315,15 @@ like at dawn, what they already sprayed) now reach the diagnosis.
   "What you told us". Mic permission string added to the `expo-audio` plugin config.
 - Tested: transcribe endpoint 604ms end-to-end on real Tamil audio; wrong MIME → 400;
   missing file → 400; note stored with language; scan with vs without a note compared.
+- ✅ **Working end-to-end on the device (2026-08-29):** recorded Tamil, transcribed correctly.
+- 🐛 **ROOT CAUSE of the device 400s — `audio/m4a`:** Sarvam's `/speech-to-text` enforces a
+  **Content-Type allowlist that excludes `audio/m4a`** (it allows `audio/x-m4a`, `audio/mp4`,
+  `application/octet-stream`), and `audio/m4a` is exactly what Android labels an expo-audio
+  recording. `transcribeAudio` forwarded the device MIME straight through, so every real
+  recording was refused upstream. `sarvamContentType()` now maps anything Sarvam won't take
+  onto something it will. **Why it took several rounds: every curl fixture used `audio/wav`,
+  which IS on the list, so no test ever crossed the failing path.** When a device fails but
+  curl passes, make the test send what the device sends.
 - 🐛 **Gotcha (hit on the first real device recording, fixed):** RN's native uploader
   (`expo-file-system` `uploadAsync`) labels the multipart part **`application/octet-stream`
   regardless of the `mimeType` option**, so a genuine recording was rejected by the audio
@@ -480,6 +489,7 @@ warm-tinted shadows. Verified rendering on device.
 | 2026-08-29 | **AI Daily Farm Brief (insights module)** | ✅ FarmContext + Gemini brief + Sarvam localisation, tested mr/en, empty-guard + RBAC verified |
 | 2026-08-29 | **App performance pass 2** | ✅ −2.85MB fonts, persisted cache, non-blocking auth, fewer requests |
 | 2026-08-29 | **Voice note on scan (Sarvam STT, Tamil)** | ✅ verified saaras:v4 + auto-detect; note reaches Gemini + advisory; PHI check still the safety gate |
+| 2026-08-29 | Voice note working on device (Tamil) | ✅ root cause: Sarvam rejects audio/m4a; also fixed launch hang + unhandled rejection |
 
 ---
 
