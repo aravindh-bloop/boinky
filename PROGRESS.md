@@ -4,7 +4,12 @@
 > checkpoint. If context is lost, read this file + `docs/AgriPod_Solution_Document.docx`
 > + `docs/ARCHITECTURE.md` to resume with zero prior conversation.
 
-Last updated: **2026-08-27**
+Last updated: **2026-08-28**
+
+**Repo:** https://github.com/aravindh-bloop/boinky (branch `main`). Pushed 2026-08-28.
+`.env` is gitignored — real keys live only in `backend/.env` locally. `farmer-app/`
+(abandoned bare-RN) and `farmer-expo/android` are gitignored (regenerate android with
+`npx expo prebuild`). Root `README.md` has full setup steps.
 
 ---
 
