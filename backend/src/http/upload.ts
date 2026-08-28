@@ -38,13 +38,15 @@ export const audioUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     const mime = (file.mimetype || '').toLowerCase();
-    if (ALLOWED_AUDIO.has(mime)) return cb(null, true);
 
-    // React Native's native uploader labels the part application/octet-stream no
-    // matter what mimeType the client asks for, so a real recording from the app
-    // never matches the list above. Fall back to the filename, which does carry
-    // the extension (expo-audio writes recording-<uuid>.m4a). Sarvam sniffs the
-    // actual container anyway; this filter only exists to reject obvious junk.
+    // Any audio container is fine — Sarvam sniffs the real format, and platforms
+    // disagree about the exact label (audio/m4a vs audio/x-m4a vs audio/mp4 vs
+    // audio/3gpp). Listing them exhaustively is how this rejected real recordings.
+    if (mime.startsWith('audio/') || ALLOWED_AUDIO.has(mime)) return cb(null, true);
+
+    // Some uploaders send application/octet-stream regardless of the mimeType
+    // requested; fall back to the filename, which carries the extension
+    // (expo-audio writes recording-<uuid>.m4a).
     if ((mime === 'application/octet-stream' || mime === '') && AUDIO_EXT.test(file.originalname || '')) {
       return cb(null, true);
     }

@@ -4,6 +4,7 @@ import { requireAuth } from '../../http/auth.js';
 import { audioUpload, imageUpload } from '../../http/upload.js';
 import { transcribeAudio } from '../../integrations/sarvam.js';
 import { AppError } from '../../http/errors.js';
+import { logger } from '../../lib/logger.js';
 import { getUserById } from '../auth/auth.service.js';
 import { checkScanSafety } from '../pesticides/pesticides.service.js';
 import * as scans from './scans.service.js';
@@ -62,7 +63,34 @@ scansRouter.post(
   '/transcribe',
   audioUpload.single('audio'),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw AppError.badRequest('An audio file is required (field name: audio)');
+    // Log what actually arrived before validating any of it. Every 400 from this
+    // route so far has been guesswork about what the device sends; this puts the
+    // answer in the server log instead.
+    logger.info(
+      {
+        contentType: req.headers['content-type'],
+        contentLength: req.headers['content-length'],
+        hasFile: Boolean(req.file),
+        fieldname: req.file?.fieldname,
+        originalname: req.file?.originalname,
+        mimetype: req.file?.mimetype,
+        size: req.file?.size,
+        bodyKeys: Object.keys(req.body ?? {}),
+      },
+      'transcribe request received',
+    );
+
+    if (!req.file) {
+      throw AppError.badRequest(
+        `No audio file in the upload. Expected multipart field "audio"; got content-type ` +
+          `${req.headers['content-type'] ?? 'none'} and fields ` +
+          `[${Object.keys(req.body ?? {}).join(', ') || 'none'}].`,
+      );
+    }
+    if (req.file.size === 0) {
+      throw AppError.badRequest('The recording was empty (0 bytes). Record again and hold the mic closer.');
+    }
+
     const { language } = z
       .object({ language: z.string().trim().max(10).optional() })
       .parse(req.body ?? {});

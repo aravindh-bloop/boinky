@@ -69,6 +69,38 @@ export interface Transcription {
 }
 
 /**
+ * Content types Sarvam's /speech-to-text will accept, verified from its own
+ * rejection message on 2026-08-29.
+ *
+ * The trap: `audio/m4a` is NOT on this list, and `audio/m4a` is exactly what
+ * Android labels an expo-audio recording. Forwarding the device's own label
+ * therefore made every real recording fail. `audio/x-m4a` and `audio/mp4` are
+ * accepted; so is `application/octet-stream`, which is the safe default since
+ * Sarvam sniffs the real container regardless of the label.
+ */
+const SARVAM_AUDIO_TYPES = new Set([
+  'audio/mpeg', 'audio/mp3', 'audio/mpeg3', 'audio/x-mpeg-3', 'audio/x-mp3',
+  'audio/wav', 'audio/x-wav', 'audio/wave',
+  'audio/pcm_s16le', 'audio/l16', 'audio/raw',
+  'application/octet-stream',
+  'audio/aac', 'audio/x-aac',
+  'audio/aiff', 'audio/x-aiff',
+  'audio/ogg', 'audio/opus', 'audio/flac', 'audio/x-flac',
+  'audio/mp4', 'audio/x-m4a',
+  'audio/amr', 'audio/x-ms-wma',
+  'audio/webm', 'video/webm',
+]);
+
+/** Map anything Sarvam won't accept onto a label it will. */
+function sarvamContentType(mimeType: string): string {
+  const m = (mimeType || '').toLowerCase().trim();
+  if (SARVAM_AUDIO_TYPES.has(m)) return m;
+  if (m === 'audio/m4a' || m === 'audio/mp4a-latm') return 'audio/mp4';
+  if (m === 'audio/3gpp' || m === 'audio/3gpp2') return 'audio/amr';
+  return 'application/octet-stream';
+}
+
+/**
  * Transcribe a spoken recording. Used for the farmer's voice note on a scan —
  * they describe the problem in their own language and we send the text to the
  * vision model with the photo.
@@ -84,7 +116,11 @@ export async function transcribeAudio(
   language = 'unknown',
 ): Promise<Transcription> {
   const form = new FormData();
-  form.append('file', new Blob([new Uint8Array(audio)], { type: mimeType }), filename);
+  form.append(
+    'file',
+    new Blob([new Uint8Array(audio)], { type: sarvamContentType(mimeType) }),
+    filename,
+  );
   form.append('model', 'saaras:v4');
   form.append('language_code', language);
 

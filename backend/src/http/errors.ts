@@ -61,6 +61,21 @@ export function errorHandler(
     return;
   }
 
+  // Multer signals its own limits (file too large, unexpected field name) with a
+  // MulterError, which is neither AppError nor ZodError and was falling through
+  // to a bare 500. Its `code` is the actionable part, so surface it as a 400.
+  if (isMulterError(err)) {
+    logger.warn({ code: err.code, field: err.field, path: req.path }, 'upload rejected');
+    res.status(400).json({
+      error: {
+        code: 'upload_error',
+        message: multerMessage(err),
+        details: { multerCode: err.code, field: err.field },
+      },
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     if (err.status >= 500) {
       logger.error({ err, path: req.path }, err.message);
@@ -80,4 +95,31 @@ export function errorHandler(
       message: isProd ? 'Internal server error' : String((err as Error)?.message ?? err),
     },
   });
+}
+
+interface MulterLikeError extends Error {
+  code: string;
+  field?: string;
+}
+
+/** Duck-typed so this file needs no multer import. */
+function isMulterError(err: unknown): err is MulterLikeError {
+  return (
+    err instanceof Error &&
+    err.name === 'MulterError' &&
+    typeof (err as MulterLikeError).code === 'string'
+  );
+}
+
+function multerMessage(err: MulterLikeError): string {
+  switch (err.code) {
+    case 'LIMIT_FILE_SIZE':
+      return 'That file is too large.';
+    case 'LIMIT_UNEXPECTED_FILE':
+      return `Unexpected upload field "${err.field ?? 'unknown'}".`;
+    case 'LIMIT_FILE_COUNT':
+      return 'Too many files in one upload.';
+    default:
+      return `Upload rejected (${err.code}).`;
+  }
 }
