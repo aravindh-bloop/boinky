@@ -11,13 +11,21 @@
 import { query } from '../../db/query.js';
 import { logger } from '../../lib/logger.js';
 import { fetchWeatherWindow, type WeatherDay } from '../../integrations/weather.js';
-import { computeRisk } from '../risk/risk.model.js';
+import { computeRisk, type RiskResult } from '../risk/risk.model.js';
 import { cropProfile } from '../risk/crop-profiles.js';
 import { getWeather } from '../weather/weather.service.js';
 import { getNearbyOutbreaksForFarmer } from '../hotspots/hotspots.service.js';
 import { listFarmerAlerts } from './alerts.service.js';
 
 export type AlertSource = 'office' | 'weather' | 'forewarning' | 'outbreak';
+
+export type ReasonKind = 'humidity' | 'weather' | 'stage' | 'pest' | 'history' | 'score';
+
+/** One line of the "why we're flagging this" strip on an alert card. */
+export interface AlertReason {
+  kind: ReasonKind;
+  text: string;
+}
 
 export interface FeedAlert {
   id: string;
@@ -29,6 +37,21 @@ export interface FeedAlert {
   official_name: string | null;
   field_id: string | null;
   created_at: string;
+  /** Present on computed alerts (weather / forewarning): the evidence behind it. */
+  reasons?: AlertReason[];
+  /** 0-100 risk score, forewarning only. */
+  score?: number;
+}
+
+function classifyFactor(f: string): AlertReason {
+  const t = f.toLowerCase();
+  if (t.includes('outbreak') || t.includes('confirmed')) return { kind: 'history', text: f };
+  if (t.includes('pest') || t.includes('favour')) return { kind: 'pest', text: f };
+  if (t.includes('vulnerable stage') || t.includes('growth stage') || t.includes('day '))
+    return { kind: 'stage', text: f };
+  if (t.includes('humid') || t.includes('leaf wetness') || t.includes('rain'))
+    return { kind: 'humidity', text: f };
+  return { kind: 'weather', text: f };
 }
 
 /**
@@ -221,14 +244,14 @@ async function fieldForewarnings(fields: LocatedField[]): Promise<FeedAlert[]> {
     if (!win.length) continue;
     const nearbyOutbreaks = nearbyByGrid.get(g) ?? 0;
 
-    let worst: { score: number; level: string; reason: string } | null = null;
+    let worst: (RiskResult & { date: string }) | null = null;
     for (const d of win) {
       const offset =
         f.days == null
           ? null
           : f.days + Math.round((Date.parse(d.date) - Date.parse(today)) / 86_400_000);
       const r = computeRisk({ weather: d, crop: f.crop, daysSinceSown: offset, nearbyOutbreaks });
-      if (!worst || r.score > worst.score) worst = r;
+      if (!worst || r.score > worst.score) worst = { ...r, date: d.date };
     }
     if (!worst) continue;
 
@@ -242,19 +265,41 @@ async function fieldForewarnings(fields: LocatedField[]): Promise<FeedAlert[]> {
 
     const threat = profile.mainThreats[0] ?? 'crop disease';
     const where = f.name || f.crop;
+    const peakSoon = worst.date !== today;
+
+    const reasons: AlertReason[] = [
+      { kind: 'score', text: `Risk score ${worst.score}/100 (${worst.level})` },
+      ...worst.factors.map(classifyFactor),
+    ];
+    if (peakSoon) {
+      reasons.push({
+        kind: 'weather',
+        text: `Forecast keeps conditions favourable through ${friendlyDate(worst.date)}`,
+      });
+    }
+
     out.push({
       id: `forewarn:${f.id}`,
       source: 'forewarning',
       severity: worst.level === 'high' ? 'high' : 'medium',
+      score: worst.score,
       title: `${cap(threat)} risk ${worst.level === 'high' ? 'is high' : 'building'} — ${where}`,
-      message: `${worst.reason} Scout the field now and line up inputs so you can act quickly if it worsens.`,
+      message:
+        `Your ${f.crop} is in the growth stage this threat targets and the weather ` +
+        `favours it${peakSoon ? ' over the next few days' : ''}. Scout the field now and ` +
+        `line up inputs so you can act quickly if it worsens.`,
       match_reason: `${f.crop} · early warning from weather + crop stage`,
       official_name: null,
       field_id: f.id,
       created_at: new Date().toISOString(),
+      reasons,
     });
   }
   return out;
+}
+
+function friendlyDate(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
