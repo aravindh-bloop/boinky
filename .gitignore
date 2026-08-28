@@ -44,3 +44,7 @@ Thumbs.db
 .idea/
 .vscode/
 scratchpad/
+
+# Claude Code / Expo agent skills (local tooling, not app code)
+.agents/
+.claude/
