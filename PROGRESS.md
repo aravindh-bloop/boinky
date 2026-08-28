@@ -7,6 +7,12 @@
 Last updated: **2026-08-28**
 
 **Repo:** https://github.com/aravindh-bloop/boinky (branch `main`). Pushed 2026-08-28.
+**EAS builds (2026-08-28):** Expo project `boinks` linked. `expo-updates` + OTA configured.
+`eas.json`: `development` (you, hot reload via `npx expo start`), `preview`/`production`
+(friend, standalone; channel `production`). Push to friend: `eas update --branch production`.
+First builds queued: dev `065e5b8b`, preview `8aca35b4` — watch at
+expo.dev/accounts/boinkyyys-team/projects/boinks/builds. `.agents/` + `.claude/` gitignored.
+
 **Deployed backend:** https://agripod-backend.onrender.com (Render, Singapore, free plan —
 `render.yaml` Blueprint). Co-located with Neon Singapore → backend↔DB ~1ms, phone→backend
 one ~80ms hop. `/health` green, all integrations OK. Free tier sleeps after 15min idle —
