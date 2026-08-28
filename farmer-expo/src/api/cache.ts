@@ -83,7 +83,13 @@ export const cache = {
   },
   setInflight(key: string, p: Promise<unknown>) {
     inflight.set(key, p);
-    p.finally(() => inflight.delete(key));
+    // Deliberately not `p.finally(...)`: that returns a *new* promise which
+    // rejects alongside `p` with nothing attached to it, so a failed request
+    // surfaced as "Uncaught (in promise)" even though the caller handled the
+    // error correctly. Passing both handlers to `then` settles the derived
+    // promise instead.
+    const done = () => inflight.delete(key);
+    p.then(done, done);
   },
   subscribe(key: string, fn: () => void) {
     let set = listeners.get(key);
