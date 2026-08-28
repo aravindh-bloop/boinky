@@ -79,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await persistUser(null);
           setUser(null);
         }
+        // Anything else (offline, timeout) leaves the cached profile in place if
+        // we had one. With no cached profile there is nothing to show, so the
+        // login screen is the honest fallback — never an endless spinner.
       } finally {
         setLoading(false);
       }

@@ -16,9 +16,23 @@ export default function App() {
 
   // Runs in parallel with font loading, so restoring the cache costs nothing —
   // and the first screen then paints with real data instead of skeletons.
+  // Raced against a short timer: a cache that will not load is a reason to start
+  // without it, never a reason to hold the app on a spinner.
   React.useEffect(() => {
     warmUp();
-    hydrateCache().finally(() => setCacheReady(true));
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        setCacheReady(true);
+      }
+    };
+    const bail = setTimeout(finish, 2000);
+    hydrateCache().finally(() => {
+      clearTimeout(bail);
+      finish();
+    });
+    return () => clearTimeout(bail);
   }, []);
 
   const ready = fontsLoaded && cacheReady;

@@ -36,10 +36,20 @@ interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
   auth?: boolean;
+  /** Override the default request timeout, in ms. */
+  timeoutMs?: number;
 }
 
+/**
+ * Generous, but never infinite. The free Render instance can take tens of
+ * seconds to wake, so this must not be tight — but a request with no timeout at
+ * all can hang forever, and anything awaiting it (the launch sequence, for one)
+ * hangs with it.
+ */
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, query, auth = true } = opts;
+  const { method = 'GET', body, query, auth = true, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
 
   let url = `${API_BASE_URL}${path}`;
   if (query) {
@@ -57,15 +67,27 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   let res: Response;
   try {
     res = await fetch(url, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch (e) {
-    throw new ApiError(0, `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`);
+    const aborted = (e as Error)?.name === 'AbortError';
+    throw new ApiError(
+      0,
+      aborted
+        ? `The server took too long to answer (${Math.round(timeoutMs / 1000)}s).\n(${API_BASE_URL})`
+        : `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`,
+    );
+  } finally {
+    clearTimeout(timer);
   }
 
   const text = await res.text();
