@@ -98,7 +98,7 @@ export default function ScanScreen() {
             Diagnosing your crop
           </Text>
           <Text variant="body" muted center>
-            Checking the photo for diseases and pests, then writing advice in your language. About 15 seconds.
+            Checking the photo for diseases and pests. Just a few seconds.
           </Text>
         </View>
       </View>

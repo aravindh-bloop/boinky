@@ -136,12 +136,12 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
       },
     );
 
-    // 4. Localised advisory (skip for non-plant images)
+    // 4. Localised advisory is generated in the BACKGROUND (see finishAdvisory
+    //    below) so this request returns in ~5s instead of ~25s. The row lands
+    //    with advisory_text = NULL; the client polls GET /api/scans/:id until it
+    //    is filled. Only plant images get an advisory.
     const lang = toSarvamLang(input.farmerLanguage);
-    let advisoryText: string | null = null;
-    if (diagnosis.isPlant) {
-      advisoryText = await generateAdvisory(diagnosis, lang, { crop: ctxCrop });
-    }
+    const advisoryText: string | null = null;
 
     // 5. Risk score
     const riskScore = await deriveRiskScore(input.fieldId ?? null, diagnosis);
@@ -195,12 +195,52 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
     ) {
       await addScanFollowup(input.fieldId, diagnosis.label);
     }
+
+    // Fire-and-forget the localised advisory. Render runs a normal long-lived
+    // Node process, so this keeps running after the response is sent.
+    if (diagnosis.isPlant) {
+      void finishAdvisory(row.id, diagnosis, toSarvamLang(input.farmerLanguage), ctxCrop);
+    }
     return row;
   } catch (err) {
-    // AI/advisory failed after the image was stored — clean it up, don't keep an orphan.
+    // Diagnosis/upload failed before the row was written — clean up the image.
     await deleteImage(uploaded.publicId);
     throw err;
   }
+}
+
+/**
+ * Generate the localised advisory out-of-band and patch it onto the scan row.
+ * Never throws — a failure just leaves advisory_text NULL and the client shows
+ * a "couldn't generate advice" state with a retry.
+ */
+async function finishAdvisory(
+  scanId: string,
+  diagnosis: DiagnosisResult,
+  lang: string,
+  crop: string | null,
+): Promise<void> {
+  try {
+    const text = await generateAdvisory(diagnosis, lang, { crop });
+    await query(
+      `UPDATE scans SET advisory_text = $1, advisory_language = $2
+         WHERE id = $3 AND advisory_text IS NULL`,
+      [text, lang, scanId],
+    );
+    logger.info({ scanId }, 'scan advisory attached');
+  } catch (err) {
+    logger.error({ err, scanId }, 'scan advisory generation failed');
+  }
+}
+
+/** Re-run advisory generation for a scan whose advisory is still missing. */
+export async function retryAdvisory(scanId: string, farmerId: string): Promise<ScanRow> {
+  const scan = await getScan(scanId, farmerId, { includeRaw: true });
+  if (scan.advisory_text) return scan;
+  const diagnosis = (scan.raw_model_response ?? null) as DiagnosisResult | null;
+  if (!diagnosis || !diagnosis.isPlant) return scan;
+  await finishAdvisory(scanId, diagnosis, scan.advisory_language ?? 'en-IN', null);
+  return getScan(scanId, farmerId);
 }
 
 export interface ListScansFilter {

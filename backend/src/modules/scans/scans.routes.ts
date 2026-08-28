@@ -67,6 +67,15 @@ scansRouter.get(
   }),
 );
 
+scansRouter.post(
+  '/:id/advisory/retry',
+  asyncHandler(async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const scan = await scans.retryAdvisory(id, req.user!.sub);
+    res.json({ scan });
+  }),
+);
+
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 
 scansRouter.get(

@@ -82,6 +82,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 /** Multipart upload for the scan image. */
 async function upload<T>(path: string, form: FormData): Promise<T> {
   const token = await loadToken();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 45_000);
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
@@ -91,9 +93,16 @@ async function upload<T>(path: string, form: FormData): Promise<T> {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: form,
+      signal: ctrl.signal,
     });
-  } catch (e) {
-    throw new ApiError(0, `Cannot reach the server. Is the backend running?`);
+  } catch (e: any) {
+    const msg =
+      e?.name === 'AbortError'
+        ? `The server took too long to respond.\n(${API_BASE_URL})`
+        : `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`;
+    throw new ApiError(0, msg);
+  } finally {
+    clearTimeout(timer);
   }
   const textBody = await res.text();
   const json = textBody ? safeParse(textBody) : null;

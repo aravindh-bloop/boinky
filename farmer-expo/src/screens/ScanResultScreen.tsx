@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,10 +48,29 @@ export default function ScanResultScreen() {
   const { data, loading, error, reload } = useApi<{ scan: Scan }>(`/api/scans/${scanId}`);
   const [safety, setSafety] = useState<SafetyReport | null>(null);
   const [safetyBusy, setSafetyBusy] = useState(false);
+  const [advisoryBusy, setAdvisoryBusy] = useState(false);
+
+  const scan = data?.scan;
+  // The advisory is written in the background after the scan lands. Poll until it
+  // shows up (or we give up). Rejected / non-plant scans never get one.
+  const awaitingAdvisory =
+    !!scan && scan.status !== 'rejected' && !scan.advisory_text;
+  const pollCount = useRef(0);
+  useEffect(() => {
+    if (!awaitingAdvisory) {
+      pollCount.current = 0;
+      return;
+    }
+    if (pollCount.current >= 12) return; // ~36s, then show retry
+    const t = setTimeout(() => {
+      pollCount.current += 1;
+      reload();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [awaitingAdvisory, data, reload]);
 
   if (loading) return <LoaderScreen label="Loading diagnosis" />;
-  if (error) return <ErrorState message={error} onRetry={reload} />;
-  const scan = data!.scan;
+  if (error || !scan) return <ErrorState message={error ?? 'Scan not found'} onRetry={reload} />;
   const st = STATUS[scan.status] ?? { label: scan.status, color: palette.textMuted };
   const conf = scan.confidence != null ? Math.round(scan.confidence * 100) : null;
   const sev = scan.severity as 'low' | 'medium' | 'high' | null;
@@ -118,6 +137,43 @@ export default function ScanResultScreen() {
                 <Text variant="body" style={{ lineHeight: 24 }}>
                   {scan.advisory_text}
                 </Text>
+              </Card>
+            </Reveal>
+          ) : awaitingAdvisory ? (
+            <Reveal index={1}>
+              <Card accent={palette.leaf}>
+                <Text variant="subhead">What to do</Text>
+                {pollCount.current >= 12 ? (
+                  <View style={{ gap: space.sm }}>
+                    <Text variant="body" muted>
+                      Advice is taking longer than usual to write.
+                    </Text>
+                    <Button
+                      title="Try again"
+                      variant="soft"
+                      loading={advisoryBusy}
+                      onPress={async () => {
+                        setAdvisoryBusy(true);
+                        try {
+                          await api.request(`/api/scans/${scanId}/advisory/retry`, { method: 'POST' });
+                          pollCount.current = 0;
+                          reload();
+                        } catch (e) {
+                          Alert.alert('Still failed', e instanceof ApiError ? e.message : '');
+                        } finally {
+                          setAdvisoryBusy(false);
+                        }
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <Row gap={space.sm}>
+                    <ActivityIndicator color={palette.primary} />
+                    <Text variant="body" muted>
+                      Writing advice in your language…
+                    </Text>
+                  </Row>
+                )}
               </Card>
             </Reveal>
           ) : null}
