@@ -11,6 +11,7 @@
     "@react-navigation/native-stack": "^7.18.10",
     "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.18",
+    "expo-audio": "~57.0.4",
     "expo-blur": "~57.0.2",
     "expo-file-system": "~57.0.6",
     "expo-font": "~57.0.2",
@@ -19,7 +20,6 @@
     "expo-image-picker": "~57.0.14",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",
-    "lottie-react-native": "~7.3.8",
     "phosphor-react-native": "^3.0.6",
     "react": "19.2.3",
     "react-native": "0.86.3",
@@ -38,7 +38,8 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:fast": "expo start --no-dev --minify"
   },
   "private": true
 }

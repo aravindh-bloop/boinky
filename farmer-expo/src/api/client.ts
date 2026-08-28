@@ -119,6 +119,45 @@ async function upload<T>(
   return json as T;
 }
 
+/**
+ * Send a recorded voice note for transcription.
+ *
+ * Same native uploader as the scan image, under a different multipart field.
+ * Kept separate from the scan submit so the farmer sees the transcript and can
+ * fix it before anything is diagnosed.
+ */
+async function transcribe(
+  uri: string,
+  opts: { mimeType?: string; language?: string } = {},
+): Promise<{ transcript: string; language: string | null }> {
+  const token = await loadToken();
+  let result: FileSystem.FileSystemUploadResult;
+  try {
+    result = await FileSystem.uploadAsync(`${API_BASE_URL}/api/scans/transcribe`, uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'audio',
+      mimeType: opts.mimeType ?? 'audio/m4a',
+      parameters: opts.language ? { language: opts.language } : {},
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  } catch {
+    throw new ApiError(0, 'Could not reach the server to transcribe your recording.');
+  }
+  const json = result.body ? safeParse(result.body) : null;
+  if (result.status < 200 || result.status >= 300) {
+    throw new ApiError(
+      result.status,
+      json?.error?.message ?? `Transcription failed (${result.status})`,
+      json?.error?.code,
+    );
+  }
+  return json as { transcript: string; language: string | null };
+}
+
 function safeParse(t: string): any {
   try {
     return JSON.parse(t);
@@ -127,4 +166,16 @@ function safeParse(t: string): any {
   }
 }
 
-export const api = { request, upload };
+/**
+ * Nudge the backend awake at launch.
+ *
+ * The free Render instance sleeps after ~15 minutes idle and takes tens of
+ * seconds to come back. Firing this while fonts load and the cached UI paints
+ * means the wake-up overlaps with startup instead of following it. Cheap,
+ * unauthenticated, and failure is irrelevant.
+ */
+export function warmUp(): void {
+  fetch(`${API_BASE_URL}/health`).catch(() => {});
+}
+
+export const api = { request, upload, transcribe };

@@ -15,6 +15,7 @@ import {
   LoaderScreen,
   ErrorState,
   Reveal,
+  Icon,
   Row,
   Text,
   palette,
@@ -129,6 +130,28 @@ export default function ScanResultScreen() {
               ) : null}
             </Card>
           </Reveal>
+
+          {scan.farmer_note ? (
+            <Reveal index={1}>
+              <Card elevation="flat">
+                <Row gap={space.sm}>
+                  <Icon name="mic" size={16} color={palette.textMuted} weight="fill" />
+                  <Text variant="subhead">What you told us</Text>
+                  {scan.farmer_note_language ? (
+                    <Text variant="caption" faint>
+                      {scan.farmer_note_language}
+                    </Text>
+                  ) : null}
+                </Row>
+                <Text variant="body" muted style={{ fontStyle: 'italic' }}>
+                  “{scan.farmer_note}”
+                </Text>
+                <Text variant="caption" faint>
+                  Sent to the diagnosis along with your photo.
+                </Text>
+              </Card>
+            </Reveal>
+          ) : null}
 
           {scan.advisory_text ? (
             <Reveal index={1}>

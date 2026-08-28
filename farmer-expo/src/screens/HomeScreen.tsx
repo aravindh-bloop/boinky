@@ -7,9 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
+import { useDailyBrief } from '../api/useDailyBrief';
 import { api } from '../api/client';
-import type { HomeData, Weather } from '../api/types';
+import type { HomeData, InsightCard, Weather } from '../api/types';
 import {
+  AiBrief,
   Card,
   Icon,
   Reveal,
@@ -35,8 +37,50 @@ export default function HomeScreen() {
   const nav = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refreshing, reload } = useApi<HomeData>('/api/home');
-  // separate, so the dashboard never waits on a live weather fetch
-  const weatherApi = useApi<Weather>('/api/weather');
+  // `/api/home` carries weather whenever the server-side forecast cache is warm.
+  // Only reach for the live endpoint when it isn't — this used to be an extra
+  // request on every single visit to the dashboard.
+  const weatherApi = useApi<Weather>(data && !data.weather ? '/api/weather' : null);
+  // generated in the background and polled — never blocks the dashboard either
+  const briefApi = useDailyBrief();
+
+  /** Route an insight card to the screen it is about. */
+  const openInsight = React.useCallback(
+    (c: InsightCard) => {
+      const field = c.fieldName
+        ? data?.fieldRisk.find((f) => f.name === c.fieldName)
+        : undefined;
+      switch (c.action) {
+        case 'open_field':
+          if (field) nav.navigate('FieldDetail', { fieldId: field.id });
+          else nav.navigate('Tasks');
+          break;
+        case 'open_tasks':
+          nav.navigate('Tasks');
+          break;
+        case 'open_weather':
+          nav.navigate('Weather', field ? { fieldId: field.id } : undefined);
+          break;
+        case 'open_scan':
+          nav.navigate('History');
+          break;
+        case 'open_alerts':
+          nav.navigate('Alerts');
+          break;
+        // Stock and Schemes are sibling tabs, so they go through the tab navigator.
+        case 'open_stock':
+          nav.getParent()?.navigate('Stock');
+          break;
+        case 'open_schemes':
+          nav.getParent()?.navigate('Schemes');
+          break;
+        case 'none':
+        default:
+          break;
+      }
+    },
+    [data, nav],
+  );
 
   if (loading)
     return (
@@ -166,6 +210,15 @@ export default function HomeScreen() {
         </LinearGradient>
 
         <View style={{ padding: space.lg, gap: space.md, marginTop: -space.lg }}>
+          {/* ── AI daily brief — leads the dashboard when there is something to say ── */}
+          <AiBrief
+            brief={briefApi.brief}
+            loading={briefApi.loading}
+            working={briefApi.working}
+            onRefresh={briefApi.refresh}
+            onAction={openInsight}
+          />
+
           {/* ── quick stat row ── */}
           <Reveal>
             <Row gap={space.sm}>

@@ -15,8 +15,12 @@ const TINTS = {
   calm: { a: '#6FA3A9', b: '#8CA982', base0: '#E6EFEA', base1: '#FBF8F1' },
 };
 
-/** Soft blurred organic blobs behind a header. Purely decorative, cheap to render. */
-export function OrganicBackground({ tint = 'green', height = 260, style }: Props) {
+/**
+ * Soft blurred organic blobs behind a header. Purely decorative and fully static,
+ * so it is memoised — a 40px Skia blur mask is not something to re-record every
+ * time the screen above it re-renders with new data.
+ */
+function OrganicBackgroundBase({ tint = 'green', height = 260, style }: Props) {
   const { width } = useWindowDimensions();
   const t = TINTS[tint];
 
@@ -34,3 +38,5 @@ export function OrganicBackground({ tint = 'green', height = 260, style }: Props
     </Canvas>
   );
 }
+
+export const OrganicBackground = React.memo(OrganicBackgroundBase);

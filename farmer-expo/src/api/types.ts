@@ -54,6 +54,8 @@ export interface Scan {
   risk_score: number | null;
   lat: number | null;
   lng: number | null;
+  farmer_note: string | null;
+  farmer_note_language: string | null;
   created_at: string;
 }
 
@@ -87,6 +89,13 @@ export interface FieldRisk {
 
 export type AlertSource = 'office' | 'weather' | 'forewarning' | 'outbreak';
 
+export type ReasonKind = 'humidity' | 'weather' | 'stage' | 'pest' | 'history' | 'score';
+
+export interface AlertReason {
+  kind: ReasonKind;
+  text: string;
+}
+
 export interface Alert {
   id: string;
   title: string;
@@ -100,6 +109,10 @@ export interface Alert {
   /** present on the farmer feed — which detector produced this alert */
   source?: AlertSource;
   field_id?: string | null;
+  /** computed alerts: the evidence behind the flag */
+  reasons?: AlertReason[];
+  /** forewarning only: 0-100 risk score */
+  score?: number;
 }
 
 export interface CalendarTask {
@@ -325,4 +338,51 @@ export interface HomeData {
   }[];
   lowStockCount: number;
   finance: { spent: number; revenue: number; net: number } | null;
+}
+
+// ── AI daily brief (GET /api/insights/daily) ──
+
+export type InsightUrgency = 'critical' | 'action' | 'watch' | 'info';
+export type InsightCategory =
+  | 'disease'
+  | 'weather'
+  | 'task'
+  | 'risk'
+  | 'outbreak'
+  | 'stock'
+  | 'finance'
+  | 'general';
+export type InsightAction =
+  | 'open_field'
+  | 'open_tasks'
+  | 'open_weather'
+  | 'open_scan'
+  | 'open_stock'
+  | 'open_alerts'
+  | 'open_schemes'
+  | 'none';
+
+export interface InsightCard {
+  title: string;
+  body: string;
+  urgency: InsightUrgency;
+  category: InsightCategory;
+  /** Always a real field of this farmer's, or null. Verified server-side. */
+  fieldName: string | null;
+  action: InsightAction;
+  actionLabel: string | null;
+  /** The specific fact this card rests on — shown behind "Why this?". */
+  basis: string;
+}
+
+export interface DailyBrief {
+  status: 'ready' | 'generating' | 'unavailable';
+  reason?: 'no_fields' | 'ai_unavailable';
+  forDate?: string;
+  headline?: string;
+  cards?: InsightCard[];
+  language?: string;
+  generatedAt?: string;
+  /** A newer brief is being generated; what you see is the previous one. */
+  stale?: boolean;
 }

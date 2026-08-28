@@ -3,7 +3,8 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from './auth/AuthContext';
-import { LoaderScreen, palette, fonts } from './ui';
+import { palette, fonts } from './ui';
+import { BootLoader } from './ui/BootLoader';
 import { TabBar } from './ui/TabBar';
 
 import AuthScreen from './screens/AuthScreen';
@@ -152,7 +153,7 @@ const navTheme = {
 
 export default function RootNavigator() {
   const { user, loading } = useAuth();
-  if (loading) return <LoaderScreen label="AgriPod" />;
+  if (loading) return <BootLoader />;
   return (
     <NavigationContainer theme={navTheme}>
       {user ? <MainTabs /> : <AuthScreen />}

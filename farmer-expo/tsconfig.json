@@ -1,6 +1,14 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "paths": {
+      // Deep phosphor icon imports resolve to the library's .tsx source for Metro
+      // (keeps the bundle small — see src/ui/Icon.tsx). For type-checking, point at
+      // the shipped .d.ts instead so the library's own source isn't type-checked.
+      "phosphor-react-native/src/icons/*": [
+        "./node_modules/phosphor-react-native/lib/typescript/icons/*"
+      ]
+    }
   }
 }

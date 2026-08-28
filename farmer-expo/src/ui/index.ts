@@ -13,6 +13,8 @@ export { Skeleton, SkeletonCard, SkeletonList } from './Skeleton';
 export { Reveal, Stagger } from './Reveal';
 export { AnimatedNumber } from './AnimatedNumber';
 export { RiskGauge } from './RiskGauge';
+export { AiBrief } from './AiBrief';
+export { VoiceNote } from './VoiceNote';
 export { Sparkline } from './Sparkline';
 export { OrganicBackground } from './OrganicBackground';
 export { Loader, LoaderScreen } from './Loader';

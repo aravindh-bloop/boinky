@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ import {
   radius,
   space,
   PressableScale,
+  VoiceNote,
   haptic,
 } from '../ui';
 import type { ScanStackParams } from '../navigation';
@@ -43,6 +44,8 @@ export default function ScanScreen() {
 
   const [image, setImage] = useState<Picked | null>(null);
   const [fieldId, setFieldId] = useState<string | undefined>();
+  const [note, setNote] = useState('');
+  const [noteLanguage, setNoteLanguage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function pick(from: 'camera' | 'library') {
@@ -68,13 +71,20 @@ export default function ScanScreen() {
     if (!image) return;
     setBusy(true);
     try {
+      const fields: Record<string, string> = {};
+      if (fieldId) fields.fieldId = fieldId;
+      if (note.trim()) fields.note = note.trim();
+      if (noteLanguage) fields.noteLanguage = noteLanguage;
+
       const res = await api.upload<{ scan: Scan }>(
         '/api/scans',
         { uri: image.uri, name: image.fileName, type: image.mimeType },
-        fieldId ? { fieldId } : undefined,
+        fields,
       );
       haptic.success();
       setImage(null);
+      setNote('');
+      setNoteLanguage(null);
       nav.navigate('ScanResult', { scanId: res.scan.id });
     } catch (e) {
       haptic.error();
@@ -109,7 +119,20 @@ export default function ScanScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <OrganicBackground tint="green" height={190 + insets.top} />
-      <View style={{ paddingTop: insets.top + space.xl, paddingHorizontal: space.lg, gap: space.md, flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            paddingTop: insets.top + space.xl,
+            paddingHorizontal: space.lg,
+            gap: space.md,
+            paddingBottom: space.xl,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View>
           <Text variant="hero" color={palette.primaryDeep}>
             Scan a crop
@@ -173,11 +196,22 @@ export default function ScanScreen() {
           </Reveal>
         )}
 
-        <View style={{ flex: 1 }} />
-        <View style={{ paddingBottom: insets.bottom + space.md }}>
+          <Reveal index={2}>
+            <Card elevation="flat">
+              <VoiceNote
+                value={note}
+                onChange={setNote}
+                language={noteLanguage}
+                onLanguage={setNoteLanguage}
+              />
+            </Card>
+          </Reveal>
+        </ScrollView>
+
+        <View style={{ paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.md }}>
           <Button title="Diagnose crop" onPress={submit} disabled={!image} size="lg" />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

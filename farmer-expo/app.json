@@ -37,7 +37,13 @@
         }
       ],
       "expo-image",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "AgriPod uses the microphone so you can describe your crop problem in your own language."
+        }
+      ]
     ]
   }
 }

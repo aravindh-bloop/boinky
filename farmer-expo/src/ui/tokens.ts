@@ -83,8 +83,6 @@ export const radius = {
 
 export const fonts = {
   display: 'Fraunces_600SemiBold',
-  displayMedium: 'Fraunces_500Medium',
-  displayLight: 'Fraunces_400Regular',
   body: 'NunitoSans_400Regular',
   bodyMedium: 'NunitoSans_600SemiBold',
   bodyBold: 'NunitoSans_700Bold',
