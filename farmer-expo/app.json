@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "AgriPod",
+    "slug": "agripod-farmer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "agripod",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.agripod.farmer"
+    },
+    "android": {
+      "package": "com.agripod.farmer",
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#2e7d32",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "AgriPod uses the camera to photograph your crop for disease and pest diagnosis.",
+          "photosPermission": "AgriPod needs access to your photos so you can pick a crop photo to diagnose."
+        }
+      ],
+      "expo-image",
+      "expo-font"
+    ]
+  }
+}
