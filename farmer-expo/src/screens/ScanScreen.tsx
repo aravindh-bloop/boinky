@@ -68,10 +68,11 @@ export default function ScanScreen() {
     if (!image) return;
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append('image', { uri: image.uri, type: image.mimeType, name: image.fileName } as any);
-      if (fieldId) form.append('fieldId', fieldId);
-      const res = await api.upload<{ scan: Scan }>('/api/scans', form);
+      const res = await api.upload<{ scan: Scan }>(
+        '/api/scans',
+        { uri: image.uri, name: image.fileName, type: image.mimeType },
+        fieldId ? { fieldId } : undefined,
+      );
       haptic.success();
       setImage(null);
       nav.navigate('ScanResult', { scanId: res.scan.id });

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { API_BASE_URL } from '../config';
 import { cache } from './cache';
 
@@ -79,37 +80,42 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return json as T;
 }
 
-/** Multipart upload for the scan image. */
-async function upload<T>(path: string, form: FormData): Promise<T> {
+/**
+ * Multipart upload for the scan image.
+ *
+ * Uses expo-file-system's native uploader instead of fetch + FormData — RN's
+ * fetch throws "Network request failed" on multipart file bodies often enough
+ * that it never worked reliably here. The native uploader streams the file
+ * straight from disk.
+ */
+async function upload<T>(
+  path: string,
+  file: { uri: string; name: string; type: string },
+  fields: Record<string, string> = {},
+): Promise<T> {
   const token = await loadToken();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45_000);
-  let res: Response;
+  let result: FileSystem.FileSystemUploadResult;
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
+    result = await FileSystem.uploadAsync(`${API_BASE_URL}${path}`, file.uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'image',
+      mimeType: file.type,
+      parameters: fields,
       headers: {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: form,
-      signal: ctrl.signal,
     });
-  } catch (e: any) {
-    const msg =
-      e?.name === 'AbortError'
-        ? `The server took too long to respond.\n(${API_BASE_URL})`
-        : `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`;
-    throw new ApiError(0, msg);
-  } finally {
-    clearTimeout(timer);
+  } catch (e) {
+    throw new ApiError(0, `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`);
   }
-  const textBody = await res.text();
-  const json = textBody ? safeParse(textBody) : null;
-  if (!res.ok) {
+  const json = result.body ? safeParse(result.body) : null;
+  if (result.status < 200 || result.status >= 300) {
     const err = json?.error ?? {};
-    throw new ApiError(res.status, err.message ?? `Upload failed (${res.status})`, err.code);
+    throw new ApiError(result.status, err?.message ?? `Upload failed (${result.status})`, err?.code);
   }
+  cache.clear();
   return json as T;
 }
 
