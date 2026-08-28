@@ -16,6 +16,7 @@
     "migrate:up": "node-pg-migrate up -m migrations --envPath .env",
     "migrate:down": "node-pg-migrate down -m migrations --envPath .env",
     "migrate:redo": "node-pg-migrate redo -m migrations --envPath .env",
+    "migrate:deploy": "node-pg-migrate up -m migrations",
     "migrate:create": "node-pg-migrate create -j sql -m migrations",
     "seed": "tsx src/db/seed.ts",
     "seed:dev": "tsx src/db/dev-seed.ts",

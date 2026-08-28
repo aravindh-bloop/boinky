@@ -104,6 +104,24 @@ on every other call. Two roles: `farmer`, `official`.
 | GET | `/api/official/directory` | `?q=&limit=&offset=` |
 | GET | `/api/official/trends` | `?days=90` — weekly category buckets + top diagnoses |
 
+## Deploy (Render)
+
+`render.yaml` at the repo root is a Render Blueprint. Deploy it **in the Singapore region**
+so it sits next to the Neon Postgres project (also `ap-southeast-1`) — that's what makes
+the app fast (backend↔DB is ~1 ms instead of ~120 ms).
+
+1. Render dashboard → **New + → Blueprint** → pick this repo → Apply.
+2. In the service's **Environment** tab set the secrets (`sync: false` in the yaml):
+   `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `SARVAM_API_KEY`,
+   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+3. Build runs `migrate:deploy` automatically (idempotent). Reference data is already in the
+   Neon DB; to reseed a fresh DB run `npm run seed && npm run seed:dev` locally against it.
+4. **Keep it awake:** Render free spins down after 15 min idle (cold start ~40 s). Add a
+   free cron (cron-job.org / UptimeRobot) hitting `GET https://<app>.onrender.com/health`
+   every 10 min.
+5. Point the app at it: `farmer-expo/src/config.ts` → `API_BASE_URL = 'https://<app>.onrender.com'`,
+   then rebuild the APK.
+
 ## Scripts
 
 - `scripts/try-diagnosis.ts <image> [lang]` — run the Gemini→Sarvam pipeline standalone

@@ -1,0 +1,41 @@
+# Render Blueprint — deploys the AgriPod backend.
+# In Render: New + → Blueprint → connect this repo. Then set the `sync: false`
+# secrets in the dashboard (Environment tab). Region is Singapore to sit next to
+# the Neon Postgres project (also ap-southeast-1).
+services:
+  - type: web
+    name: agripod-backend
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npm run migrate:deploy && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: JWT_EXPIRES_IN
+        value: 30d
+      - key: DB_SSL
+        value: "true"
+      # ── secrets: set these in the Render dashboard ──
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
