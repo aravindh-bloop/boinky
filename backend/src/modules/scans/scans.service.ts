@@ -36,6 +36,8 @@ export interface ScanRow {
   validated_at: string | null;
   validation_note: string | null;
   risk_score: number | null;
+  farmer_note: string | null;
+  farmer_note_language: string | null;
   lat: number | null;
   lng: number | null;
   created_at: string;
@@ -47,6 +49,7 @@ const SCAN_SELECT = `
   s.diagnosis_label, s.diagnosis_category, s.affected_part, s.confidence, s.severity,
   s.advisory_text, s.advisory_language, s.status,
   s.validated_by, s.validated_at, s.validation_note, s.risk_score,
+  s.farmer_note, s.farmer_note_language,
   ST_Y(s.location::geometry) AS lat, ST_X(s.location::geometry) AS lng,
   s.created_at
 `;
@@ -97,6 +100,10 @@ export interface CreateScanInput {
   fieldId?: string;
   lat?: number;
   lng?: number;
+  /** The farmer describing the problem in their own words (spoken or typed). */
+  farmerNote?: string | null;
+  /** Language Sarvam detected in the voice note, e.g. "ta-IN". */
+  farmerNoteLanguage?: string | null;
 }
 
 export async function createScan(input: CreateScanInput): Promise<ScanRow> {
@@ -133,6 +140,7 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
         variety: ctxVariety,
         daysSinceSown,
         region: input.farmerRegion,
+        farmerNote: input.farmerNote ?? null,
       },
     );
 
@@ -153,11 +161,13 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
          INSERT INTO scans (
            field_id, farmer_id, image_url, image_public_id,
            diagnosis_label, diagnosis_category, affected_part, confidence, severity,
-           raw_model_response, advisory_text, advisory_language, status, risk_score, location
+           raw_model_response, advisory_text, advisory_language, status, risk_score,
+           farmer_note, farmer_note_language, location
          ) VALUES (
            $1, $2, $3, $4,
            $5, $6, $7, $8, $9,
            $10, $11, $12, $13, $14,
+           $17, $18,
            CASE WHEN $15::float8 IS NULL OR $16::float8 IS NULL THEN NULL
                 ELSE ST_SetSRID(ST_MakePoint($16, $15), 4326)::geography END
          )
@@ -181,6 +191,8 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
         riskScore,
         lat,
         lng,
+        input.farmerNote?.trim() || null,
+        input.farmerNoteLanguage ?? null,
       ],
     );
     if (!row) throw new Error('Scan insert returned no row');
@@ -199,7 +211,7 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
     // Fire-and-forget the localised advisory. Render runs a normal long-lived
     // Node process, so this keeps running after the response is sent.
     if (diagnosis.isPlant) {
-      void finishAdvisory(row.id, diagnosis, toSarvamLang(input.farmerLanguage), ctxCrop);
+      void finishAdvisory(row.id, diagnosis, toSarvamLang(input.farmerLanguage), ctxCrop, input.farmerNote ?? null);
     }
     return row;
   } catch (err) {
@@ -219,9 +231,10 @@ async function finishAdvisory(
   diagnosis: DiagnosisResult,
   lang: string,
   crop: string | null,
+  farmerNote: string | null,
 ): Promise<void> {
   try {
-    const text = await generateAdvisory(diagnosis, lang, { crop });
+    const text = await generateAdvisory(diagnosis, lang, { crop, farmerNote });
     await query(
       `UPDATE scans SET advisory_text = $1, advisory_language = $2
          WHERE id = $3 AND advisory_text IS NULL`,
@@ -239,7 +252,7 @@ export async function retryAdvisory(scanId: string, farmerId: string): Promise<S
   if (scan.advisory_text) return scan;
   const diagnosis = (scan.raw_model_response ?? null) as DiagnosisResult | null;
   if (!diagnosis || !diagnosis.isPlant) return scan;
-  await finishAdvisory(scanId, diagnosis, scan.advisory_language ?? 'en-IN', null);
+  await finishAdvisory(scanId, diagnosis, scan.advisory_language ?? 'en-IN', null, scan.farmer_note);
   return getScan(scanId, farmerId);
 }
 

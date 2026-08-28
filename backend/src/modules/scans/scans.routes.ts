@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { asyncHandler, validate, z } from '../../http/handler.js';
 import { requireAuth } from '../../http/auth.js';
-import { imageUpload } from '../../http/upload.js';
+import { audioUpload, imageUpload } from '../../http/upload.js';
+import { transcribeAudio } from '../../integrations/sarvam.js';
 import { AppError } from '../../http/errors.js';
 import { getUserById } from '../auth/auth.service.js';
 import { checkScanSafety } from '../pesticides/pesticides.service.js';
@@ -17,6 +18,9 @@ const createBody = z.object({
   fieldId: z.string().uuid().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  /** The farmer's spoken (transcribed) or typed description of the problem. */
+  note: z.string().trim().max(2000).optional(),
+  noteLanguage: z.string().trim().max(10).optional(),
 });
 
 const listQuery = z.object({
@@ -43,8 +47,34 @@ scansRouter.post(
       fieldId: req.body.fieldId,
       lat: req.body.lat,
       lng: req.body.lng,
+      farmerNote: req.body.note,
+      farmerNoteLanguage: req.body.noteLanguage,
     });
     res.status(201).json({ scan });
+  }),
+);
+
+/**
+ * Transcribe a spoken voice note. Separate from POST /api/scans on purpose: the
+ * farmer sees the text and can correct it before it is sent for diagnosis.
+ */
+scansRouter.post(
+  '/transcribe',
+  audioUpload.single('audio'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw AppError.badRequest('An audio file is required (field name: audio)');
+    const { language } = z
+      .object({ language: z.string().trim().max(10).optional() })
+      .parse(req.body ?? {});
+    const result = await transcribeAudio(
+      req.file.buffer,
+      req.file.originalname || 'note.m4a',
+      req.file.mimetype,
+      // Default to auto-detection: a farmer may well speak a different language
+      // than the one set on their profile.
+      language || 'unknown',
+    );
+    res.json({ transcript: result.text, language: result.language });
   }),
 );
 
