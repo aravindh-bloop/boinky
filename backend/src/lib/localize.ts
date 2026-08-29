@@ -35,24 +35,26 @@ export async function localizeMany(texts: string[], lang: string): Promise<strin
   ).catch(() => []);
   for (const row of cached) result.set(row.source_text, row.translated);
 
-  // 2. misses -> Sarvam, in delimiter-joined batches
+  // 2. misses -> Sarvam, in small delimiter-joined batches. Each batch is
+  //    persisted as soon as it completes, so a request that is abandoned
+  //    (client timeout) still leaves progress in the cache for next time.
   const misses = distinct.filter((t) => !result.has(t));
-  if (misses.length > 0) {
+  for (const batch of chunk(misses, 12)) {
     try {
-      for (const batch of chunk(misses, 20)) {
-        const joined = await translate(batch.join(SEP), target);
-        const parts = joined.split(SEP).map((s) => s.trim());
-        const ok = parts.length === batch.length;
-        for (let i = 0; i < batch.length; i++) {
-          const src = batch[i]!;
-          const tr = ok && parts[i] ? parts[i]! : await translate(src, target).catch(() => src);
-          result.set(src, tr);
-        }
+      const joined = await translate(batch.join(SEP), target);
+      const parts = joined.split(SEP).map((s) => s.trim());
+      const ok = parts.length === batch.length;
+      const done: string[] = [];
+      for (let i = 0; i < batch.length; i++) {
+        const src = batch[i]!;
+        const tr = ok && parts[i] ? parts[i]! : await translate(src, target).catch(() => src);
+        result.set(src, tr);
+        done.push(src);
       }
-      await persist(target, result, misses);
+      await persist(target, result, done);
     } catch (err) {
-      logger.warn({ err, lang: target, n: misses.length }, 'localize: translation failed');
-      for (const m of misses) if (!result.has(m)) result.set(m, m);
+      logger.warn({ err, lang: target, n: batch.length }, 'localize: batch failed');
+      for (const m of batch) if (!result.has(m)) result.set(m, m);
     }
   }
 
@@ -62,6 +64,33 @@ export async function localizeMany(texts: string[], lang: string): Promise<strin
 /** Translate a single string. */
 export async function localize(text: string, lang: string): Promise<string> {
   return (await localizeMany([text], lang))[0]!;
+}
+
+/**
+ * Cache-only lookup — never calls Sarvam. Returns a { source: translated } map of
+ * whatever is already cached, plus the list of strings still missing. Used by the
+ * app's UI-string endpoint so it can answer instantly and translate the misses in
+ * the background.
+ */
+export async function localizeCached(
+  texts: string[],
+  lang: string,
+): Promise<{ map: Record<string, string>; missing: string[] }> {
+  const target = toSarvamLang(lang);
+  const distinct = [...new Set(texts.filter((t) => t && t.trim()))];
+  const map: Record<string, string> = {};
+  if (target === 'en-IN' || distinct.length === 0) {
+    for (const t of distinct) map[t] = t;
+    return { map, missing: [] };
+  }
+  const rows = await query<{ source_text: string; translated: string }>(
+    `SELECT source_text, translated FROM translation_cache
+      WHERE lang = $1 AND source_hash = ANY($2)`,
+    [target, distinct.map(hash)],
+  ).catch(() => []);
+  for (const r of rows) map[r.source_text] = r.translated;
+  const missing = distinct.filter((t) => !(t in map));
+  return { map, missing };
 }
 
 async function persist(target: string, result: Map<string, string>, keys: string[]): Promise<void> {

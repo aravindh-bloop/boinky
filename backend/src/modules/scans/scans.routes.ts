@@ -7,7 +7,33 @@ import { AppError } from '../../http/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getUserById } from '../auth/auth.service.js';
 import { checkScanSafety } from '../pesticides/pesticides.service.js';
+import { localizeMany } from '../../lib/localize.js';
+import { toSarvamLang } from '../../integrations/sarvam.js';
 import * as scans from './scans.service.js';
+
+/**
+ * The advisory is stored in the language it was generated in. If the farmer has
+ * since switched languages, translate it on read (cached after the first time).
+ * Disease labels stay in English by design.
+ */
+async function localizeAdvisories<T extends { advisory_text: string | null; advisory_language: string | null }>(
+  rows: T[],
+  farmerId: string,
+): Promise<T[]> {
+  const me = await getUserById(farmerId).catch(() => null);
+  const want = toSarvamLang(me?.preferred_language);
+  if (want === 'en-IN') return rows;
+  const need = rows.filter(
+    (r) => r.advisory_text && toSarvamLang(r.advisory_language) !== want,
+  );
+  if (need.length === 0) return rows;
+  const translated = await localizeMany(need.map((r) => r.advisory_text as string), want);
+  need.forEach((r, i) => {
+    r.advisory_text = translated[i] ?? r.advisory_text;
+    r.advisory_language = want;
+  });
+  return rows;
+}
 
 export const scansRouter = Router();
 
@@ -112,7 +138,7 @@ scansRouter.get(
   asyncHandler(async (req, res) => {
     const q = req.query as unknown as z.infer<typeof listQuery>;
     const list = await scans.listScans({ farmerId: req.user!.sub, ...q });
-    res.json({ scans: list });
+    res.json({ scans: await localizeAdvisories(list, req.user!.sub) });
   }),
 );
 
@@ -121,7 +147,8 @@ scansRouter.get(
   asyncHandler(async (req, res) => {
     const { id } = idParam.parse(req.params);
     const scan = await scans.getScan(id, req.user!.sub);
-    res.json({ scan });
+    const [localized] = await localizeAdvisories([scan], req.user!.sub);
+    res.json({ scan: localized });
   }),
 );
 

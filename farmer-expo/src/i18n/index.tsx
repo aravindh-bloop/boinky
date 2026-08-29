@@ -66,22 +66,40 @@ export function requestTranslation(text: string): void {
 async function flush(): Promise<void> {
   flushTimer = null;
   if (inFlight || pending.size === 0 || lang === 'en') return;
-  const batch = [...pending].slice(0, 100);
+  const batch = [...pending].slice(0, 40);
   batch.forEach((b) => pending.delete(b));
   inFlight = true;
+  const forLang = lang;
   try {
-    const res = await api.request<{ map: Record<string, string> }>('/api/i18n/translate', {
-      method: 'POST',
-      body: { lang, texts: batch },
-    });
-    map = { ...map, ...res.map };
-    notify();
-    AsyncStorage.setItem(cacheKey(lang), JSON.stringify(map)).catch(() => {});
+    const res = await api.request<{ map: Record<string, string>; pending?: string[] }>(
+      '/api/i18n/translate',
+      { method: 'POST', body: { lang: forLang, texts: batch }, timeoutMs: 90_000 },
+    );
+    if (forLang !== lang) return; // language changed mid-request
+    // Only keep real translations. An entry equal to its English source means
+    // the backend is still working on it — don't cache that, so it retries.
+    let gained = false;
+    for (const [en, tr] of Object.entries(res.map)) {
+      if (tr && tr !== en) {
+        map[en] = tr;
+        gained = true;
+      }
+    }
+    // still-pending strings from this batch go back in the queue for a retry
+    for (const p of res.pending ?? []) if (!(p in map)) pending.add(p);
+    if (gained) {
+      map = { ...map };
+      notify();
+      AsyncStorage.setItem(cacheKey(lang), JSON.stringify(map)).catch(() => {});
+    }
   } catch {
-    // leave them untranslated (English); they'll be retried on the next mount
+    // network/timeout — requeue this batch, retry shortly
+    for (const b of batch) if (!(b in map)) pending.add(b);
   } finally {
     inFlight = false;
-    if (pending.size > 0 && !flushTimer) flushTimer = setTimeout(flush, 150);
+    // background translation on the server takes tens of seconds; give it time
+    // before asking again, but keep going until everything is filled.
+    if (pending.size > 0 && !flushTimer) flushTimer = setTimeout(flush, 4000);
   }
 }
 

@@ -82,7 +82,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       signal: controller.signal,
     });
   } catch (e) {
-    const aborted = (e as Error)?.name === 'AbortError';
+    const err = e as Error;
+    const aborted =
+      err?.name === 'AbortError' || /abort/i.test(err?.message ?? '') || controller.signal.aborted;
     logEvent('error', tag, aborted ? `timeout after ${timeoutMs}ms` : 'network unreachable');
     throw new ApiError(
       0,
