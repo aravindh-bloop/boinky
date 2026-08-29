@@ -73,6 +73,11 @@ export interface Trends {
   byDiagnosis: { label: string | null; count: number; high: number }[];
 }
 
+export interface CropsList {
+  known: string[];
+  inRegion: string[];
+}
+
 export interface CalendarTemplateTask {
   offsetDays: number;
   task_type: string | null;

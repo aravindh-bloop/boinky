@@ -4,12 +4,14 @@ import { Plus, BellRing } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import { useAuth } from '../lib/auth';
-import type { AlertRow } from '../lib/types';
+import type { AlertRow, CropsList } from '../lib/types';
 import { Loading, ErrorBox, SeverityBadge } from '../components/ui';
 
 export function Alerts() {
   const { officer } = useAuth();
   const { data, loading, error, reload } = useApi<{ alerts: AlertRow[] }>('/api/alerts?scope=region');
+  const crops = useApi<CropsList>('/api/official/crops');
+  const cropOptions = crops.data?.inRegion.length ? crops.data.inRegion : (crops.data?.known ?? []);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -140,12 +142,14 @@ export function Alerts() {
                   <select
                     value={form.crop}
                     onChange={(e) => setForm({ ...form, crop: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 bg-white"
+                    className="w-full border rounded-lg px-3 py-2 bg-white capitalize"
                   >
                     <option value="">All crops</option>
-                    <option value="rice">Rice</option>
-                    <option value="sugarcane">Sugarcane</option>
-                    <option value="groundnut">Groundnut</option>
+                    {cropOptions.map((c) => (
+                      <option key={c} value={c} className="capitalize">
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

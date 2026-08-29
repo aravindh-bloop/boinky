@@ -1,7 +1,53 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, Leaf, ChevronRight, MapPin, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, LoginGate, useAuth } from './lib/auth';
+import { api } from './lib/api';
+
+function SystemStatus() {
+  const [state, setState] = useState<'checking' | 'ok' | 'down'>('checking');
+  const [integrations, setIntegrations] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let alive = true;
+    const check = () =>
+      api
+        .get<{ status: string; integrations?: Record<string, boolean> }>('/health')
+        .then((r) => {
+          if (!alive) return;
+          setState(r.status === 'ok' ? 'ok' : 'down');
+          setIntegrations(r.integrations ?? {});
+        })
+        .catch(() => alive && setState('down'));
+    check();
+    const t = setInterval(check, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  const down = Object.entries(integrations).filter(([, v]) => !v).map(([k]) => k);
+  const label =
+    state === 'checking'
+      ? 'Checking backend…'
+      : state === 'down'
+        ? 'Backend unreachable'
+        : down.length
+          ? `${down.join(', ')} offline`
+          : 'All systems operational';
+  const color = state === 'ok' && !down.length ? 'bg-green-400' : state === 'checking' ? 'bg-slate-400' : 'bg-red-400';
+
+  return (
+    <div className="p-4 m-4 bg-[#114b30] rounded-xl border border-white/5 shadow-inner">
+      <div className="flex items-center gap-2 text-xs font-medium">
+        <div className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(74,222,128,0.6)]`} />
+        {label}
+      </div>
+    </div>
+  );
+}
 
 import { Overview } from './pages/Overview';
 import { HotspotMap } from './pages/HotspotMap';
@@ -62,13 +108,8 @@ function Sidebar() {
         })}
       </nav>
       
-      <div className="p-4 m-4 bg-[#114b30] rounded-xl border border-white/5 shadow-inner">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <div className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]"></div>
-          All systems operational
-        </div>
-      </div>
-      
+      <SystemStatus />
+
       <OfficerFooter />
     </aside>
   );

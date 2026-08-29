@@ -3,7 +3,8 @@ import { asyncHandler, z } from '../../http/handler.js';
 import { requireAuth } from '../../http/auth.js';
 import { getUserById } from '../auth/auth.service.js';
 import { generateTasks } from '../calendar/task-templates.js';
-import { cropProfile } from '../risk/crop-profiles.js';
+import { cropProfile, knownCrops } from '../risk/crop-profiles.js';
+import { query } from '../../db/query.js';
 import * as official from './official.service.js';
 
 export const officialRouter = Router();
@@ -82,6 +83,26 @@ officialRouter.get(
     const region = await scopeRegion(req);
     const farmers = await official.getDirectory({ region, search: q, limit, offset });
     res.json({ farmers });
+  }),
+);
+
+officialRouter.get(
+  '/crops',
+  asyncHandler(async (req, res) => {
+    const region = await scopeRegion(req);
+    const params: unknown[] = [];
+    let where = 'f.crop IS NOT NULL';
+    if (region) {
+      params.push(region);
+      where += ` AND u.region = $${params.length}`;
+    }
+    const rows = await query<{ crop: string }>(
+      `SELECT DISTINCT lower(f.crop) AS crop
+         FROM fields f JOIN users u ON u.id = f.farmer_id
+        WHERE ${where} ORDER BY 1`,
+      params,
+    );
+    res.json({ known: knownCrops, inRegion: rows.map((r) => r.crop) });
   }),
 );
 

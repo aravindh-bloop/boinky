@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { Droplets, SprayCan, Sprout, Eye, Scissors, CircleDot } from 'lucide-react';
 import { useApi } from '../lib/useApi';
+import type { CropsList } from '../lib/types';
 import { Loading, ErrorBox } from '../components/ui';
 
 interface Template {
@@ -11,8 +12,6 @@ interface Template {
   mainThreats: string[];
   tasks: { offsetDays: number; taskType: string; title: string; description: string }[];
 }
-
-const CROPS = ['rice', 'sugarcane', 'groundnut', 'cotton', 'tomato', 'wheat', 'maize', 'onion'];
 
 const ICON: Record<string, typeof Droplets> = {
   irrigation: Droplets,
@@ -24,9 +23,14 @@ const ICON: Record<string, typeof Droplets> = {
 };
 
 export function CropCalendar() {
-  const [crop, setCrop] = useState('rice');
+  const cropsApi = useApi<CropsList>('/api/official/crops');
+  const crops = cropsApi.data?.known ?? [];
+  const regionCrops = cropsApi.data?.inRegion ?? [];
+  const [crop, setCrop] = useState('');
+  const active = crop || regionCrops[0] || crops[0] || '';
+
   const { data, loading, error, reload } = useApi<Template>(
-    `/api/official/calendar-template?crop=${crop}`,
+    active ? `/api/official/calendar-template?crop=${active}` : null,
   );
 
   return (
@@ -44,13 +48,14 @@ export function CropCalendar() {
           </p>
         </div>
         <select
-          value={crop}
+          value={active}
           onChange={(e) => setCrop(e.target.value)}
           className="border rounded-lg px-3 py-2 bg-white capitalize"
         >
-          {CROPS.map((c) => (
+          {crops.map((c) => (
             <option key={c} value={c} className="capitalize">
               {c}
+              {regionCrops.includes(c) ? ' • in region' : ''}
             </option>
           ))}
         </select>

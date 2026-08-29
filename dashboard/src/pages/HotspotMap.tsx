@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useApi } from '../lib/useApi';
-import type { HotspotPoint, HotspotSummary } from '../lib/types';
+import type { HotspotPoint, HotspotSummary, CropsList } from '../lib/types';
 import { Loading, ErrorBox, timeAgo } from '../components/ui';
 
 const CHENNAI: [number, number] = [13.05, 80.25];
@@ -32,6 +32,8 @@ export function HotspotMap() {
     points: HotspotPoint[];
     summary: HotspotSummary[];
   }>(path);
+  const crops = useApi<CropsList>('/api/official/crops');
+  const cropOptions = crops.data?.inRegion.length ? crops.data.inRegion : (crops.data?.known ?? []);
 
   return (
     <motion.div
@@ -41,11 +43,13 @@ export function HotspotMap() {
       className="h-[calc(100vh-80px)] flex flex-col"
     >
       <div className="p-4 bg-white border-b flex gap-4 items-center flex-wrap">
-        <select value={crop} onChange={(e) => setCrop(e.target.value)} className="border rounded-md px-3 py-1.5 text-sm">
+        <select value={crop} onChange={(e) => setCrop(e.target.value)} className="border rounded-md px-3 py-1.5 text-sm capitalize">
           <option value="">All crops</option>
-          <option value="rice">Rice</option>
-          <option value="sugarcane">Sugarcane</option>
-          <option value="groundnut">Groundnut</option>
+          {cropOptions.map((c) => (
+            <option key={c} value={c} className="capitalize">
+              {c}
+            </option>
+          ))}
         </select>
         <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="border rounded-md px-3 py-1.5 text-sm">
           <option value="">All severities</option>

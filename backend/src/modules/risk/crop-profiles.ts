@@ -118,6 +118,9 @@ const GENERIC: CropProfile = {
   mainThreats: ['fungal leaf disease', 'sucking pests'],
 };
 
+/** The primary name of every crop we have a profile for (for pickers). */
+export const knownCrops: string[] = PROFILES.map((p) => p.aliases[0]!);
+
 export function cropProfile(crop: string | null | undefined): CropProfile {
   if (!crop) return GENERIC;
   const c = crop.trim().toLowerCase();
