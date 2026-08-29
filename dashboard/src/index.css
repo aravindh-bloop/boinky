@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+  }
+}
+
+@theme {
+  --color-agri-dark: #0d3a24;
+  --color-agri-primary: #1b5e20;
+  --color-agri-light: #e8f5e9;
+  --color-agri-alert: #d32f2f;
+  --color-agri-warn: #f57c00;
+  --color-agri-info: #1976d2;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 142.1 76.2% 36.3%;
+  --primary-foreground: 355.7 100% 97.3%;
+  --secondary: 142.1 10% 90%;
+  --secondary-foreground: 142.1 76.2% 36.3%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 142.1 76.2% 36.3%;
+  --radius: 0.5rem;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 font-sans;
+}
