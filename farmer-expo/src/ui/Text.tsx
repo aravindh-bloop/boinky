@@ -40,9 +40,22 @@ export function Text({
     textAlign: center ? 'center' : undefined,
   };
 
-  // Auto-translate a plain-string child. `t()` falls back to the string itself,
-  // so names, numbers and already-localized backend prose pass through untouched.
-  const kids = !raw && typeof children === 'string' ? t(children) : children;
+  // Auto-translate plain-text content. A single string, or an array of
+  // strings/numbers (e.g. `{count} items`), is collapsed and sent through `t()`
+  // — which falls back to the English text and queues anything unknown for
+  // background translation. Names, numbers and already-localized backend prose
+  // pass through untouched. Anything with a React element child is left alone.
+  let kids: React.ReactNode = children;
+  if (!raw) {
+    if (typeof children === 'string' || typeof children === 'number') {
+      kids = t(String(children));
+    } else if (
+      Array.isArray(children) &&
+      children.every((c) => typeof c === 'string' || typeof c === 'number')
+    ) {
+      kids = t(children.join(''));
+    }
+  }
 
   // In Tamil, remap whichever Latin family applies (base or style override) to
   // its Tamil counterpart, and let that win over `style`.
