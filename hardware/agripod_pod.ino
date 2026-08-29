@@ -2,25 +2,19 @@
  * AgriPod field sensor — ESP32
  * Soil moisture (GPIO34) + pH (GPIO35, divider) + DS18B20 temp (GPIO4) + SSD1306 OLED.
  *
- * Two ways to get the readings to the backend — same data, pick one:
+ * ── PHASE 1 (pod on USB): you do NOT need this file. ──
+ *    Keep running the sketch that's already on the pod. On the laptop, close the
+ *    Arduino Serial Monitor and run  `node hardware/pod-bridge.mjs COM5`  — the
+ *    bridge reads the Serial Monitor output you already print and forwards it.
  *
- *   USE_WIFI 0  (default, USB phase)
- *       The pod stays plugged into a laptop. It prints one machine line each
- *       cycle:   AGRIPOD,soil=44,ph=6.71,temp=31.25
- *       and `hardware/pod-bridge.mjs` on that laptop forwards it to the backend.
- *       Nothing else to change — just flash and run the bridge.
- *
- *   USE_WIFI 1  (standalone product, no laptop)
- *       Set WIFI_SSID / WIFI_PASS / POD_KEY below. The pod connects to WiFi and
- *       POSTs directly to the backend. The bridge is not needed.
- *
- * Libraries: Adafruit_GFX, Adafruit_SSD1306, OneWire, DallasTemperature,
- *            and (for USE_WIFI 1 only) ArduinoJson.
+ * ── PHASE 2 (standalone product, no laptop): flash this file. ──
+ *    Set  #define USE_WIFI 1  and fill in WIFI_SSID / WIFI_PASS / POD_KEY below.
+ *    The pod then POSTs straight to the backend over WiFi. Needs the ArduinoJson
+ *    library. All the sensor code below is unchanged from your version.
  */
 
 #define USE_WIFI 0
 
-// ── backend / WiFi (only used when USE_WIFI 1) ───────────────────────
 const char* WIFI_SSID = "YOUR_WIFI_NAME";
 const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
 const char* API_URL   = "https://agripod-backend.onrender.com/api/pod/readings";
@@ -31,7 +25,6 @@ const char* POD_KEY   = "pod_demo_a1b2c3d4e5f60718293a4b5c";   // from `npm run 
 #include <Adafruit_SSD1306.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-
 #if USE_WIFI
   #include <WiFi.h>
   #include <WiFiClientSecure.h>
@@ -39,32 +32,32 @@ const char* POD_KEY   = "pod_demo_a1b2c3d4e5f60718293a4b5c";   // from `npm run 
   #include <ArduinoJson.h>
 #endif
 
-// ── pins ────────────────────────────────────────────────────────────
-#define SOIL_PIN     34
-#define PH_PIN       35
-#define DS18B20_PIN  4
-#define OLED_SDA     21
-#define OLED_SCL     22
+// ===================== PIN DEFINITIONS =====================
+#define SOIL_PIN 34
+#define PH_PIN   35
+#define DS18B20_PIN 4
+#define OLED_SDA 21
+#define OLED_SCL 22
 
-#define SCREEN_WIDTH  128
+// ===================== OLED =====================
+#define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
+// ===================== DS18B20 =====================
 OneWire oneWire(DS18B20_PIN);
 DallasTemperature temperatureSensor(&oneWire);
 
-// ── calibration ─────────────────────────────────────────────────────
+// ===================== SOIL MOISTURE CALIBRATION =====================
 const int SOIL_DRY = 3000;
 const int SOIL_WET = 1200;
 
-const float PH_REFERENCE_VOLTAGE = 1.40;   // probe voltage in the pH-7 reference
-const float PH_REFERENCE         = 7.00;
-const float PH_SLOPE             = 0.18;
+// ===================== PH REFERENCE =====================
+const float PH_REFERENCE_VOLTAGE = 1.40;
+const float PH_REFERENCE = 7.00;
+const float PH_SLOPE = 0.18;
 
-const unsigned long INTERVAL_MS = 5000;    // send every 5 s
-
-// ────────────────────────────────────────────────────────────────────
-
+// ===================== SETUP =====================
 void setup() {
   Serial.begin(115200);
 
@@ -77,14 +70,15 @@ void setup() {
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);
   analogSetPinAttenuation(PH_PIN, ADC_11db);
+
   temperatureSensor.begin();
 
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-  display.setCursor(0, 0);   display.println("AGRIPOD");
-  display.setCursor(0, 18);  display.println("SOIL + PH + TEMP");
-  display.setCursor(0, 36);  display.println("Initializing...");
+  display.setCursor(0, 0);  display.println("SMART FARMING");
+  display.setCursor(0, 18); display.println("SOIL + PH + TEMP");
+  display.setCursor(0, 36); display.println("Initializing...");
   display.display();
   delay(2000);
 
@@ -92,61 +86,79 @@ void setup() {
   connectWiFi();
 #endif
 
-  Serial.println("\n================ AGRIPOD MONITOR ================");
+  Serial.println();
+  Serial.println("================================");
+  Serial.println(" SMART FARMING MONITOR");
+  Serial.println("================================");
 }
 
+// ===================== LOOP =====================
 void loop() {
-  // ── soil moisture ──
-  int soilADC = analogRead(SOIL_PIN);
-  int moisture = constrain(map(soilADC, SOIL_DRY, SOIL_WET, 0, 100), 0, 100);
-  String soilStatus = moisture < 30 ? "DRY" : moisture < 60 ? "MEDIUM" : "MOIST";
 
-  // ── pH ──
+  // ---------- SOIL MOISTURE ----------
+  int soilADC = analogRead(SOIL_PIN);
+  int moisture = map(soilADC, SOIL_DRY, SOIL_WET, 0, 100);
+  moisture = constrain(moisture, 0, 100);
+
+  String soilStatus;
+  if (moisture < 30)      soilStatus = "DRY";
+  else if (moisture < 60) soilStatus = "MEDIUM";
+  else                    soilStatus = "MOIST";
+
+  // ---------- PH SENSOR ----------
   int phADC = analogRead(PH_PIN);
   float adcVoltage = (phADC / 4095.0) * 3.3;
-  float poVoltage  = adcVoltage * (25.0 / 15.0);        // PO -10k- GPIO35 -15k- GND
+  float poVoltage  = adcVoltage * (25.0 / 15.0);   // PO -> 10k -> GPIO35 -> 15k -> GND
+
   float pH = PH_REFERENCE + ((PH_REFERENCE_VOLTAGE - poVoltage) / PH_SLOPE);
   pH = constrain(pH, 0.0, 14.0);
-  String phStatus = pH < 5.5 ? "ACIDIC" : pH <= 7.5 ? "NORMAL" : "ALKALINE";
 
-  // ── temperature ──
+  String phStatus;
+  if (pH < 5.5)       phStatus = "ACIDIC";
+  else if (pH <= 7.5) phStatus = "NORMAL";
+  else                phStatus = "ALKALINE";
+
+  // ---------- DS18B20 TEMPERATURE ----------
   temperatureSensor.requestTemperatures();
   float temperature = temperatureSensor.getTempCByIndex(0);
   bool temperatureOK = (temperature != DEVICE_DISCONNECTED_C);
 
-  // ── serial (human) ──
+  // ---------- SERIAL MONITOR ----------
+  Serial.println();
   Serial.println("--------------------------------");
-  Serial.printf("Soil ADC   : %d\n", soilADC);
-  Serial.printf("Moisture   : %d%%  (%s)\n", moisture, soilStatus.c_str());
-  Serial.printf("pH ADC     : %d   PO V: %.3f\n", phADC, poVoltage);
-  Serial.printf("pH         : %.2f  (%s)\n", pH, phStatus.c_str());
-  if (temperatureOK) Serial.printf("Temperature: %.2f C\n", temperature);
-  else               Serial.println("Temperature: SENSOR ERROR");
+  Serial.print("Soil ADC       : "); Serial.println(soilADC);
+  Serial.print("Moisture       : "); Serial.print(moisture); Serial.println("%");
+  Serial.print("Soil Status    : "); Serial.println(soilStatus);
+  Serial.print("pH ADC         : "); Serial.println(phADC);
+  Serial.print("ADC Voltage    : "); Serial.print(adcVoltage, 3); Serial.println(" V");
+  Serial.print("PO Voltage     : "); Serial.print(poVoltage, 3); Serial.println(" V");
+  Serial.print("pH             : "); Serial.println(pH, 2);
+  Serial.print("pH Status      : "); Serial.println(phStatus);
+  if (temperatureOK) { Serial.print("Temperature    : "); Serial.print(temperature, 2); Serial.println(" C"); }
+  else               { Serial.println("Temperature    : SENSOR ERROR"); }
 
-  // ── serial (machine — the bridge reads this one line) ──
-  Serial.printf("AGRIPOD,soil=%d,ph=%.2f,temp=%.2f\n",
-                moisture, pH, temperatureOK ? temperature : -127.0);
-
-  // ── OLED ──
+  // ---------- OLED DISPLAY ----------
   display.clearDisplay();
-  display.setCursor(0, 0);  display.println("AGRIPOD");
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0); display.println("SMART FARMING");
   display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
-  display.setCursor(0, 16); display.printf("Moisture: %d%%", moisture);
-  display.setCursor(0, 27); display.printf("Status: %s", soilStatus.c_str());
-  display.setCursor(0, 38); display.printf("pH: %.2f", pH);
-  display.setCursor(0, 50);
-  if (temperatureOK) display.printf("Temp: %.1f C", temperature);
-  else               display.print("Temp: ERROR");
+  display.setCursor(0, 16); display.print("Moisture: "); display.print(moisture); display.println("%");
+  display.setCursor(0, 27); display.print("Status: "); display.println(soilStatus);
+  display.setCursor(0, 38); display.print("pH: "); display.print(pH, 2);
+  display.setCursor(0, 50); display.print("Temp: ");
+  if (temperatureOK) { display.print(temperature, 1); display.print(" C"); }
+  else               { display.print("ERROR"); }
   display.display();
 
 #if USE_WIFI
   postReading(moisture, pH, temperatureOK ? temperature : NAN);
 #endif
 
-  delay(INTERVAL_MS);
+  delay(2000);
 }
 
-// ────────────────────────────────────────────────────────────────────
+// ===================== PHASE 2 — WiFi upload =====================
 #if USE_WIFI
 
 void connectWiFi() {

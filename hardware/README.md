@@ -16,9 +16,36 @@ matches a real `pod_devices` row, and that row is bound to one farmer + one fiel
 
 ---
 
-## Step by step
+## Phase 1 — pod on USB (no Arduino changes)
 
-### 1. Get the pod key (already done for the demo)
+Your friend's sketch already prints the readings to the Serial Monitor. A small
+Node script on the laptop reads that output and forwards it.
+
+1. **Close the Arduino IDE Serial Monitor** (only one program can hold the port).
+2. Note the COM port — Arduino IDE → Tools → Port (e.g. `COM5`).
+3. On the laptop:
+   ```bash
+   cd D:\E-Farmer\hardware
+   npm install
+   node pod-bridge.mjs COM5
+   ```
+4. You'll see `sent {"soilMoisture":44,...} -> 201` every ~5 s.
+5. App → **Home** or **Fields → North Plot** → the **AgriPod** card shows live
+   values and "Pod is in good condition".
+
+That's it — the pod's firmware is untouched.
+
+## Phase 2 — standalone product (no laptop)
+
+Flash `agripod_pod.ino` (your sketch + a WiFi block). Set `#define USE_WIFI 1`
+and fill in `WIFI_SSID` / `WIFI_PASS` / `POD_KEY`. The pod then POSTs to the
+backend itself. Same app card, no bridge.
+
+---
+
+## Reference
+
+### Get the pod key (already done for the demo)
 
 The demo field **North Plot** already has a pod paired. Its key is:
 

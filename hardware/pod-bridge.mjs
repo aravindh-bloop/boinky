@@ -1,18 +1,21 @@
 /*
  * AgriPod serial bridge — USB phase.
  *
- * Reads the `AGRIPOD,soil=..,ph=..,temp=..` line the ESP32 prints over USB and
- * forwards each reading to the backend. Run it on the laptop the pod is plugged
- * into. When the pod later gets its own WiFi (USE_WIFI 1 in the sketch), this is
- * no longer needed.
+ * Reads your friend's EXISTING Serial Monitor output (no Arduino changes needed)
+ * and forwards each reading to the backend. Run it on the laptop the pod is
+ * plugged into. When the pod later gets its own WiFi (USE_WIFI 1 in the sketch),
+ * this is no longer needed.
  *
  *   cd hardware
  *   npm install
  *   node pod-bridge.mjs COM5
- *     (Windows: "COM5" — check Arduino IDE → Tools → Port)
- *     (macOS/Linux: "/dev/tty.usbserial-XXXX" or "/dev/ttyUSB0")
+ *     Windows:      "COM5"  (Arduino IDE -> Tools -> Port)
+ *     macOS/Linux:  "/dev/tty.usbserial-XXXX"  or  "/dev/ttyUSB0"
  *
  * Optional args:  node pod-bridge.mjs <port> <podKey> <apiBase>
+ *
+ * IMPORTANT: close the Arduino IDE Serial Monitor before running this — only one
+ * program can hold the serial port at a time.
  */
 
 import { SerialPort } from 'serialport';
@@ -21,40 +24,75 @@ import { ReadlineParser } from '@serialport/parser-readline';
 const PORT = process.argv[2];
 const POD_KEY = process.argv[3] || 'pod_demo_a1b2c3d4e5f60718293a4b5c';
 const API_BASE = process.argv[4] || 'https://agripod-backend.onrender.com';
-const MIN_INTERVAL_MS = 5000; // don't POST more often than this
+const MIN_INTERVAL_MS = 5000;
 
 if (!PORT) {
   console.error('usage: node pod-bridge.mjs <serial-port> [podKey] [apiBase]');
-  const list = await SerialPort.list();
-  if (list.length) {
-    console.error('\nports seen on this machine:');
-    for (const p of list) console.error(`  ${p.path}${p.manufacturer ? '  (' + p.manufacturer + ')' : ''}`);
-  }
+  try {
+    const list = await SerialPort.list();
+    if (list.length) {
+      console.error('\nports on this machine:');
+      for (const p of list)
+        console.error(`  ${p.path}${p.manufacturer ? '  (' + p.manufacturer + ')' : ''}`);
+    }
+  } catch {}
   process.exit(1);
 }
 
 const url = `${API_BASE}/api/pod/readings`;
 let lastSent = 0;
+let acc = {}; // readings collected from the current print cycle
 
-function parseLine(line) {
-  const m = line.trim().match(/^AGRIPOD,(.+)$/);
-  if (!m) return null;
-  const out = {};
-  for (const pair of m[1].split(',')) {
-    const [k, v] = pair.split('=');
-    const n = Number.parseFloat(v);
-    if (Number.isFinite(n)) out[k] = n;
+// Matches the lines your friend's sketch already prints:
+//   Moisture       : 0%
+//   pH             : 13.32
+//   Temperature    : 31.31 °C   (or  "Temperature    : SENSOR ERROR")
+// Also matches the optional one-liner  AGRIPOD,soil=..,ph=..,temp=..
+function ingest(line) {
+  const s = line.trim();
+
+  const one = s.match(/^AGRIPOD,(.+)$/);
+  if (one) {
+    for (const pair of one[1].split(',')) {
+      const [k, v] = pair.split('=');
+      const n = Number.parseFloat(v);
+      if (Number.isFinite(n)) {
+        if (k === 'soil') acc.soilMoisture = n;
+        if (k === 'ph') acc.ph = n;
+        if (k === 'temp' && n > -100) acc.temperature = n;
+      }
+    }
+    flush();
+    return;
   }
-  return out;
+
+  let m;
+  if ((m = s.match(/^Moisture\s*:\s*(-?\d+(?:\.\d+)?)\s*%/i))) acc.soilMoisture = +m[1];
+  else if ((m = s.match(/^pH\s*:\s*(-?\d+(?:\.\d+)?)\s*$/i))) acc.ph = +m[1];
+  else if ((m = s.match(/^Temp(?:erature)?\s*:\s*(-?\d+(?:\.\d+)?)/i))) {
+    acc.temperature = +m[1];
+    flush(); // Temperature is the last line of a cycle
+  } else if (/^Temp(?:erature)?\s*:\s*SENSOR ERROR/i.test(s)) {
+    flush();
+  }
 }
 
-async function send(fields) {
+async function flush() {
+  const now = Date.now();
+  if (now - lastSent < MIN_INTERVAL_MS) {
+    acc = {};
+    return;
+  }
   const body = {};
-  if (fields.soil != null) body.soilMoisture = fields.soil;
-  if (fields.ph != null) body.ph = fields.ph;
-  if (fields.temp != null && fields.temp > -100) body.temperature = fields.temp;
+  if (acc.soilMoisture != null) body.soilMoisture = clamp(acc.soilMoisture, 0, 100);
+  if (acc.ph != null) body.ph = clamp(acc.ph, 0, 14);
+  if (acc.temperature != null && acc.temperature > -100)
+    body.temperature = clamp(acc.temperature, -40, 90);
+  acc = {};
   if (Object.keys(body).length === 0) return;
+  lastSent = now;
 
+  const t = new Date().toLocaleTimeString();
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -62,34 +100,27 @@ async function send(fields) {
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(20000),
     });
-    const txt = await res.text();
-    const t = new Date().toLocaleTimeString();
     if (res.ok) console.log(`${t}  sent  ${JSON.stringify(body)}  -> ${res.status}`);
-    else console.error(`${t}  FAIL  ${res.status}  ${txt.slice(0, 200)}`);
+    else console.error(`${t}  FAIL  ${res.status}  ${(await res.text()).slice(0, 200)}`);
   } catch (e) {
-    console.error(`${new Date().toLocaleTimeString()}  ERROR  ${e.message}`);
+    console.error(`${t}  ERROR ${e.message}`);
   }
 }
+
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
 const port = new SerialPort({ path: PORT, baudRate: 115200 }, (err) => {
   if (err) {
     console.error(`could not open ${PORT}: ${err.message}`);
+    console.error('(is the Arduino Serial Monitor still open? close it and retry)');
     process.exit(1);
   }
-  console.log(`bridge: reading ${PORT} @ 115200 -> ${url}`);
-  console.log(`bridge: pod key ${POD_KEY.slice(0, 12)}…  (Ctrl+C to stop)\n`);
+  console.log(`bridge: ${PORT} @ 115200  ->  ${url}`);
+  console.log(`bridge: pod key ${POD_KEY.slice(0, 12)}…   Ctrl+C to stop\n`);
 });
 
-port.pipe(new ReadlineParser({ delimiter: '\n' })).on('data', (line) => {
-  const fields = parseLine(line);
-  if (!fields) return;
-  const now = Date.now();
-  if (now - lastSent < MIN_INTERVAL_MS) return;
-  lastSent = now;
-  void send(fields);
-});
-
+port.pipe(new ReadlineParser({ delimiter: '\n' })).on('data', ingest);
 port.on('close', () => {
-  console.error('serial port closed — is the pod unplugged? exiting.');
+  console.error('serial port closed — pod unplugged? exiting.');
   process.exit(1);
 });
