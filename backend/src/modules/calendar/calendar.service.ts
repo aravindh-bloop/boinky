@@ -2,6 +2,8 @@ import { query, queryMaybe, withTransaction } from '../../db/query.js';
 import { AppError } from '../../http/errors.js';
 import { logger } from '../../lib/logger.js';
 import { generateTasks, type TaskType } from './task-templates.js';
+import { localizeMany } from '../../lib/localize.js';
+import { farmerLang } from '../../lib/farmer-lang.js';
 
 export interface CalendarTask {
   id: string;
@@ -113,12 +115,29 @@ export async function listTasks(
     params.push(range.to);
     where.push(`task_date <= $${params.length}`);
   }
-  return query<CalendarTask>(
+  const tasks = await query<CalendarTask>(
     `SELECT ${TASK_SELECT} FROM calendar_tasks
       WHERE ${where.join(' AND ')}
       ORDER BY task_date, task_type`,
     params,
   );
+  return localizeTasks(tasks, farmerId);
+}
+
+/** Translate task title/description to the farmer's language on read. */
+export async function localizeTasks<T extends { title: string; description: string | null }>(
+  tasks: T[],
+  farmerId: string,
+): Promise<T[]> {
+  const lang = await farmerLang(farmerId).catch(() => 'en-IN');
+  if (lang === 'en-IN' || tasks.length === 0) return tasks;
+  const parts = tasks.flatMap((t) => [t.title, t.description ?? '']);
+  const tr = await localizeMany(parts, lang).catch(() => parts);
+  return tasks.map((t, i) => ({
+    ...t,
+    title: tr[i * 2] ?? t.title,
+    description: t.description ? (tr[i * 2 + 1] ?? t.description) : t.description,
+  }));
 }
 
 export interface AddTaskInput {

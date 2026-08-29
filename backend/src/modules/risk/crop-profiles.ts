@@ -39,6 +39,13 @@ const PROFILES: CropProfile[] = [
     mainThreats: ['pod borer', 'wilt', 'sterility mosaic'],
   },
   {
+    aliases: ['groundnut', 'peanut', 'moongphali', 'nilakadalai', 'verkadalai'],
+    durationDays: 110,
+    peakVulnerability: { fromDay: 35, toDay: 80 },
+    favours: ['humid', 'warm-wet'],
+    mainThreats: ['leaf miner', 'tikka leaf spot', 'aphids', 'collar rot'],
+  },
+  {
     aliases: ['wheat', 'gehu'],
     durationDays: 120,
     peakVulnerability: { fromDay: 40, toDay: 85 },

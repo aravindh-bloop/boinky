@@ -20,6 +20,7 @@
     "migrate:create": "node-pg-migrate create -j sql -m migrations",
     "seed": "tsx src/db/seed.ts",
     "seed:dev": "tsx src/db/dev-seed.ts",
+    "seed:demo": "tsx src/db/demo-seed.ts",
     "db:reset": "npm run migrate:up && npm run seed && npm run seed:dev"
   },
   "dependencies": {

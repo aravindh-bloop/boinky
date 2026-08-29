@@ -1,4 +1,5 @@
 import { query } from '../../db/query.js';
+import { localizeTasks } from '../calendar/calendar.service.js';
 
 export interface AggTask {
   id: string;
@@ -30,13 +31,14 @@ export async function getFarmerTasks(farmerId: string, upcomingDays = 14) {
       ORDER BY t.task_date, t.task_type`,
     [farmerId, upcomingDays],
   );
+  const localized = await localizeTasks(rows, farmerId);
 
   const today = new Date().toISOString().slice(0, 10);
   const overdue: AggTask[] = [];
   const todays: AggTask[] = [];
   const upcoming: AggTask[] = [];
 
-  for (const t of rows) {
+  for (const t of localized) {
     if (t.is_done && t.task_date < today) continue; // hide done past tasks
     if (t.task_date < today) overdue.push(t);
     else if (t.task_date === today) todays.push(t);

@@ -16,6 +16,8 @@ import { cropProfile } from '../risk/crop-profiles.js';
 import { getWeather } from '../weather/weather.service.js';
 import { getNearbyOutbreaksForFarmer } from '../hotspots/hotspots.service.js';
 import { listFarmerAlerts } from './alerts.service.js';
+import { localizeMany } from '../../lib/localize.js';
+import { farmerLang } from '../../lib/farmer-lang.js';
 
 export type AlertSource = 'office' | 'weather' | 'forewarning' | 'outbreak';
 
@@ -143,7 +145,29 @@ export async function buildFarmerAlertFeed(
     return b.created_at.localeCompare(a.created_at);
   });
 
-  return out;
+  return localizeFeed(out, farmerId);
+}
+
+/** Translate every user-facing string on the feed to the farmer's language. */
+async function localizeFeed(feed: FeedAlert[], farmerId: string): Promise<FeedAlert[]> {
+  const lang = await farmerLang(farmerId).catch(() => 'en-IN');
+  if (lang === 'en-IN' || feed.length === 0) return feed;
+
+  const parts: string[] = [];
+  for (const a of feed) {
+    parts.push(a.title, a.message, a.match_reason ?? '');
+    for (const r of a.reasons ?? []) parts.push(r.text);
+  }
+  const tr = await localizeMany(parts, lang).catch(() => parts);
+
+  let i = 0;
+  return feed.map((a) => {
+    const title = tr[i++] ?? a.title;
+    const message = tr[i++] ?? a.message;
+    const mr = tr[i++];
+    const reasons = a.reasons?.map((r) => ({ ...r, text: tr[i++] ?? r.text }));
+    return { ...a, title, message, match_reason: a.match_reason ? (mr ?? a.match_reason) : a.match_reason, reasons };
+  });
 }
 
 /**

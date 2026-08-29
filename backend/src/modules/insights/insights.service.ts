@@ -66,7 +66,8 @@ export async function getDailyBrief(
   if (isContextEmpty(ctx)) return { status: 'unavailable', reason: 'no_fields' };
 
   const digest = contextDigest(ctx);
-  const upToDate = existing?.context_digest === digest;
+  const upToDate =
+    existing?.context_digest === digest && existing?.language === ctx.farmer.language;
 
   if (existing && upToDate && !opts.fresh) return ready(existing);
 

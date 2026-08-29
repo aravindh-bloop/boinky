@@ -5,6 +5,8 @@ import {
   type DetailedForecast,
   type HourPoint,
 } from '../../integrations/weather.js';
+import { localizeMany } from '../../lib/localize.js';
+import { farmerLang } from '../../lib/farmer-lang.js';
 
 const CACHE_TTL_MIN = 30;
 
@@ -71,8 +73,16 @@ export async function getWeather(opts: {
 
   const forecast = await getCachedForecast(lat, lng, opts.cachedOnly);
   if (!forecast) return null;
-  const advisories = deriveAdvisories(forecast);
+  let advisories = deriveAdvisories(forecast);
   const sprayWindow = findSprayWindow(forecast.hourly);
+
+  // Localise the generated advisory prose to the farmer's language.
+  const lang = await farmerLang(opts.farmerId).catch(() => 'en-IN');
+  if (lang !== 'en-IN' && advisories.length) {
+    const flat = advisories.flatMap((a) => [a.title, a.detail]);
+    const tr = await localizeMany(flat, lang).catch(() => flat);
+    advisories = advisories.map((a, i) => ({ ...a, title: tr[i * 2] ?? a.title, detail: tr[i * 2 + 1] ?? a.detail }));
+  }
 
   return { ...forecast, place: { lat, lng, label }, advisories, sprayWindow };
 }

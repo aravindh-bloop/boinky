@@ -1,6 +1,8 @@
 import { query, queryMaybe } from '../../db/query.js';
 import { AppError } from '../../http/errors.js';
 import { getUserById } from '../auth/auth.service.js';
+import { localizeMany } from '../../lib/localize.js';
+import { farmerLang } from '../../lib/farmer-lang.js';
 
 export interface SchemeRow {
   id: string;
@@ -99,7 +101,27 @@ export async function listSchemes(opts: ListSchemesOptions): Promise<SchemeRow[]
   const sorted = evaluated.sort(
     (a, b) => Number(b.relevant) - Number(a.relevant) || a.title.localeCompare(b.title),
   );
-  return opts.onlyRelevant ? sorted.filter((s) => s.relevant) : sorted;
+  const picked = opts.onlyRelevant ? sorted.filter((s) => s.relevant) : sorted;
+  return localizeSchemes(picked, opts.farmerId);
+}
+
+async function localizeSchemes(rows: SchemeRow[], farmerId?: string): Promise<SchemeRow[]> {
+  if (!farmerId || rows.length === 0) return rows;
+  const lang = await farmerLang(farmerId).catch(() => 'en-IN');
+  if (lang === 'en-IN') return rows;
+  const parts: string[] = [];
+  for (const s of rows) {
+    parts.push(s.title, s.description ?? '');
+    for (const r of s.match_reasons ?? []) parts.push(r);
+  }
+  const tr = await localizeMany(parts, lang).catch(() => parts);
+  let i = 0;
+  return rows.map((s) => {
+    const title = tr[i++] ?? s.title;
+    const description = tr[i++];
+    const match_reasons = s.match_reasons?.map((r) => tr[i++] ?? r);
+    return { ...s, title, description: s.description ? (description ?? s.description) : s.description, match_reasons };
+  });
 }
 
 export async function getScheme(id: string): Promise<SchemeRow> {

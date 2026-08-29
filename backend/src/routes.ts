@@ -13,6 +13,7 @@ import { officialRouter } from './modules/official/official.routes.js';
 import { weatherRouter } from './modules/weather/weather.routes.js';
 import { homeRouter } from './modules/home/home.routes.js';
 import { insightsRouter } from './modules/insights/insights.routes.js';
+import { i18nRouter } from './modules/i18n/i18n.routes.js';
 import {
   activitiesRouter,
   expensesRouter,
@@ -25,6 +26,7 @@ export const apiRouter = Router();
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/home', homeRouter);
 apiRouter.use('/insights', insightsRouter);
+apiRouter.use('/i18n', i18nRouter);
 apiRouter.use('/fields', fieldsRouter);
 apiRouter.use('/scans', scansRouter);
 apiRouter.use('/risk', riskRouter);
