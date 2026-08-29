@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, Search, Leaf, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, Leaf, ChevronRight, MapPin, LogOut } from 'lucide-react';
+import { AuthProvider, LoginGate, useAuth } from './lib/auth';
 
 import { Overview } from './pages/Overview';
 import { HotspotMap } from './pages/HotspotMap';
@@ -68,23 +69,45 @@ function Sidebar() {
         </div>
       </div>
       
-      <div className="p-4 border-t border-white/10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-agri-light text-agri-dark flex items-center justify-center font-bold shadow-sm">
-            MV
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Mukesh V</div>
-            <div className="text-[11px] text-agri-light/60">Agriculture Officer</div>
-          </div>
-        </div>
-        <ChevronDown size={16} className="text-agri-light/60" />
-      </div>
+      <OfficerFooter />
     </aside>
   );
 }
 
+function initials(name: string) {
+  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+}
+
+function OfficerFooter() {
+  const { officer, logout } = useAuth();
+  return (
+    <div className="p-4 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-full bg-agri-light text-agri-dark flex items-center justify-center font-bold shadow-sm shrink-0">
+          {initials(officer?.name ?? 'Officer')}
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold truncate">{officer?.name ?? 'Officer'}</div>
+          <div className="text-[11px] text-agri-light/60 truncate">
+            {officer?.region ? `${officer.region} • Agriculture Officer` : 'Agriculture Officer'}
+          </div>
+        </div>
+      </div>
+      <button onClick={logout} title="Sign out" className="text-agri-light/60 hover:text-white shrink-0">
+        <LogOut size={16} />
+      </button>
+    </div>
+  );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
 function TopBar() {
+  const { officer } = useAuth();
+  const first = officer?.name?.split(' ')[0] ?? 'Officer';
   return (
     <header className="h-20 border-b bg-white flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
       <div className="flex gap-4 items-center">
@@ -92,49 +115,38 @@ function TopBar() {
           <ChevronRight size={16} className="rotate-180" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Good morning, Officer 👋</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Here's what's happening across your region today.</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {greeting()}, {first} 👋
+          </h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            What's happening across {officer?.region ?? 'your region'} today.
+          </p>
         </div>
       </div>
-      
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 cursor-pointer">
-          <MapPin size={16} className="text-green-600" />
-          <span className="text-sm font-medium">Maharashtra</span>
-          <ChevronDown size={14} className="text-slate-400 ml-2" />
-        </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text" 
-            placeholder="" 
-            className="pl-10 pr-12 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-agri-primary/20 w-64 shadow-sm"
-          />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">⌘ K</div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+          <MapPin size={16} className="text-green-600" />
+          <span className="text-sm font-medium">{officer?.region ?? 'All regions'}</span>
         </div>
         <button className="relative p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600">
           <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-agri-alert rounded-full border-2 border-white box-content"></span>
         </button>
-
         <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-          <div className="w-9 h-9 rounded-full bg-agri-dark text-white flex items-center justify-center font-bold text-sm shadow-sm relative">
-            MV
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white text-[9px] flex items-center justify-center text-white">3</span>
+          <div className="w-9 h-9 rounded-full bg-agri-dark text-white flex items-center justify-center font-bold text-sm shadow-sm">
+            {initials(officer?.name ?? 'Officer')}
           </div>
           <div className="hidden md:block">
-            <div className="text-sm font-semibold text-slate-800">Mukesh V</div>
+            <div className="text-sm font-semibold text-slate-800">{officer?.name ?? 'Officer'}</div>
             <div className="text-[11px] text-slate-500">Agriculture Officer</div>
           </div>
-          <ChevronDown size={14} className="text-slate-400" />
         </div>
       </div>
     </header>
   );
 }
 
-function App() {
+function Shell() {
   return (
     <Router>
       <div className="flex min-h-screen bg-slate-50 font-sans">
@@ -156,6 +168,16 @@ function App() {
         </main>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <LoginGate>
+        <Shell />
+      </LoginGate>
+    </AuthProvider>
   );
 }
 

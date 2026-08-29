@@ -2,6 +2,8 @@ import { Router, type Request } from 'express';
 import { asyncHandler, z } from '../../http/handler.js';
 import { requireAuth } from '../../http/auth.js';
 import { getUserById } from '../auth/auth.service.js';
+import { generateTasks } from '../calendar/task-templates.js';
+import { cropProfile } from '../risk/crop-profiles.js';
 import * as official from './official.service.js';
 
 export const officialRouter = Router();
@@ -80,6 +82,21 @@ officialRouter.get(
     const region = await scopeRegion(req);
     const farmers = await official.getDirectory({ region, search: q, limit, offset });
     res.json({ farmers });
+  }),
+);
+
+officialRouter.get(
+  '/calendar-template',
+  asyncHandler(async (req, res) => {
+    const { crop } = z.object({ crop: z.string().trim().min(2).max(60) }).parse(req.query);
+    const p = cropProfile(crop);
+    res.json({
+      crop,
+      durationDays: p.durationDays,
+      peakVulnerability: p.peakVulnerability,
+      mainThreats: p.mainThreats,
+      tasks: generateTasks(crop),
+    });
   }),
 );
 

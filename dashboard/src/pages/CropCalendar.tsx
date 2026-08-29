@@ -1,109 +1,125 @@
 import { motion } from 'framer-motion';
-import type { CalendarTask } from '../lib/mockData';
 import { useState } from 'react';
-import { Calendar as CalendarIcon, Droplets, Bug, CheckCircle } from 'lucide-react';
+import { Droplets, SprayCan, Sprout, Eye, Scissors, CircleDot } from 'lucide-react';
+import { useApi } from '../lib/useApi';
+import { Loading, ErrorBox } from '../components/ui';
 
-const DAYS = Array.from({length: 30}, (_, i) => i + 1);
+interface Template {
+  crop: string;
+  durationDays: number;
+  peakVulnerability: { fromDay: number; toDay: number };
+  mainThreats: string[];
+  tasks: { offsetDays: number; taskType: string; title: string; description: string }[];
+}
+
+const CROPS = ['rice', 'sugarcane', 'groundnut', 'cotton', 'tomato', 'wheat', 'maize', 'onion'];
+
+const ICON: Record<string, typeof Droplets> = {
+  irrigation: Droplets,
+  spraying: SprayCan,
+  fertilizing: Sprout,
+  scouting: Eye,
+  harvest: Scissors,
+  other: CircleDot,
+};
 
 export function CropCalendar() {
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-
-  const getDayTasks = (day: number) => {
-    // Dummy logic to map mock tasks to days for demo
-    if (day === 5 || day === 12 || day === 18) {
-      return [{
-        id: `t${day}`,
-        field_id: 'fd1',
-        task_date: `2026-08-${day.toString().padStart(2, '0')}`,
-        task_type: day === 5 ? 'spraying' : 'irrigation',
-        title: day === 5 ? 'Fungicide Spraying' : 'Deep Irrigation',
-        description: 'Required based on recent early blight detection.',
-        source: 'scan-derived',
-        is_done: false,
-        created_at: ''
-      } as CalendarTask];
-    }
-    return [];
-  };
+  const [crop, setCrop] = useState('rice');
+  const { data, loading, error, reload } = useApi<Template>(
+    `/api/official/calendar-template?crop=${crop}`,
+  );
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="p-8 h-[calc(100vh-80px)] overflow-auto flex"
+      className="p-8 h-[calc(100vh-80px)] overflow-auto"
     >
-      <div className={`flex-1 pr-6 ${selectedDay ? 'border-r w-2/3' : 'w-full'}`}>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2"><CalendarIcon /> August 2026</h2>
-          <select className="border rounded-lg px-3 py-2 bg-white">
-            <option>All Regions</option>
-            <option>Nashik</option>
-          </select>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">Crop Calendar</h2>
+          <p className="text-sm text-slate-500">
+            The season schedule farmers get auto-generated when they add a field.
+          </p>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="grid grid-cols-7 gap-2 text-center font-medium text-slate-500 mb-4 text-sm">
-            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {/* Empty days for offset */}
-            <div className="aspect-square"></div>
-            <div className="aspect-square"></div>
-            {DAYS.map(day => {
-              const tasks = getDayTasks(day);
-              const hasTask = tasks.length > 0;
-              return (
-                <div 
-                  key={day} 
-                  onClick={() => setSelectedDay(day)}
-                  className={`aspect-square border rounded-lg p-2 flex flex-col cursor-pointer transition-colors ${
-                    selectedDay === day ? 'border-agri-primary bg-agri-light/30' : 'hover:border-slate-400'
-                  }`}
-                >
-                  <span className={`text-sm font-medium ${selectedDay === day ? 'text-agri-primary' : 'text-slate-700'}`}>{day}</span>
-                  <div className="mt-auto flex gap-1">
-                    {hasTask && <div className="w-2 h-2 rounded-full bg-amber-500"></div>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <select
+          value={crop}
+          onChange={(e) => setCrop(e.target.value)}
+          className="border rounded-lg px-3 py-2 bg-white capitalize"
+        >
+          {CROPS.map((c) => (
+            <option key={c} value={c} className="capitalize">
+              {c}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {selectedDay && (
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-1/3 pl-6"
-        >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold">Aug {selectedDay}, 2026</h3>
-            <button onClick={() => setSelectedDay(null)} className="text-slate-400 hover:text-slate-700">✕</button>
+      {error ? (
+        <ErrorBox message={error} onRetry={reload} />
+      ) : loading || !data ? (
+        <Loading />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="bg-white rounded-xl border p-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Crop duration</p>
+              <p className="text-2xl font-bold mt-1">{data.durationDays} days</p>
+            </div>
+            <div className="bg-white rounded-xl border p-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Peak-risk window</p>
+              <p className="text-2xl font-bold mt-1">
+                Day {data.peakVulnerability.fromDay}–{data.peakVulnerability.toDay}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl border p-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Main threats</p>
+              <p className="text-sm font-medium mt-1 capitalize">{data.mainThreats.join(', ')}</p>
+            </div>
           </div>
-          
-          <div className="space-y-4">
-            {getDayTasks(selectedDay).map(task => (
-              <div key={task.id} className="bg-white border rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2 text-agri-primary font-medium">
-                    {task.task_type === 'spraying' ? <Bug size={18} /> : <Droplets size={18} />}
-                    {task.title}
-                  </div>
-                  <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">Field: North Plot</span>
-                </div>
-                <p className="text-sm text-slate-600 mb-4">{task.description}</p>
-                <button className="w-full py-2 border border-agri-primary text-agri-primary rounded-lg font-medium hover:bg-agri-primary hover:text-white transition-colors flex items-center justify-center gap-2">
-                  <CheckCircle size={16} /> Mark as Complete
-                </button>
-              </div>
-            ))}
-            {getDayTasks(selectedDay).length === 0 && (
-              <div className="text-center p-8 text-slate-500">No tasks scheduled for this day.</div>
-            )}
+
+          <div className="relative pl-6 border-l-2 border-slate-200 space-y-6">
+            {data.tasks
+              .slice()
+              .sort((a, b) => a.offsetDays - b.offsetDays)
+              .map((t, i) => {
+                const Ic = ICON[t.taskType] ?? CircleDot;
+                const inPeak =
+                  t.offsetDays >= data.peakVulnerability.fromDay &&
+                  t.offsetDays <= data.peakVulnerability.toDay;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: Math.min(i, 12) * 0.03 }}
+                    className="relative"
+                  >
+                    <div
+                      className={`absolute -left-[35px] w-8 h-8 rounded-full border-2 border-white grid place-items-center ${
+                        inPeak ? 'bg-amber-100 text-amber-600' : 'bg-agri-primary/15 text-agri-dark'
+                      }`}
+                    >
+                      <Ic size={15} />
+                    </div>
+                    <div className="bg-white rounded-xl border p-4">
+                      <div className="flex justify-between items-start">
+                        <p className="font-semibold text-slate-800">{t.title}</p>
+                        <span className="text-xs text-slate-500 shrink-0 ml-3">Day {t.offsetDays}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1">{t.description}</p>
+                      {inPeak && (
+                        <span className="text-xs text-amber-600 font-medium mt-2 inline-block">
+                          Falls in the peak-risk window
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
           </div>
-        </motion.div>
+        </>
       )}
     </motion.div>
   );

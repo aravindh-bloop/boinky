@@ -1,107 +1,188 @@
 import { motion } from 'framer-motion';
-import { MOCK_SCANS } from '../lib/mockData';
-import type { Scan } from '../lib/mockData';
 import { useState } from 'react';
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, PencilLine } from 'lucide-react';
+import { api, ApiError } from '../lib/api';
+import { useApi } from '../lib/useApi';
+import type { QueueItem } from '../lib/types';
+import { Loading, ErrorBox, SeverityBadge } from '../components/ui';
 
 export function ValidationQueue() {
-  const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
+  const { data, loading, error, reload } = useApi<{ items: QueueItem[] }>(
+    '/api/official/validation-queue?limit=50',
+  );
+  const [selected, setSelected] = useState<QueueItem | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [correctLabel, setCorrectLabel] = useState('');
+  const [note, setNote] = useState('');
 
-  const pendingScans = MOCK_SCANS.filter(s => s.status === 'pending');
+  const items = data?.items ?? [];
+
+  async function act(action: 'confirm' | 'correct' | 'reject') {
+    if (!selected) return;
+    setBusy(action);
+    try {
+      await api.post(`/api/official/scans/${selected.id}/validate`, {
+        action,
+        ...(action === 'correct' && correctLabel ? { correctedLabel: correctLabel } : {}),
+        ...(note ? { note } : {}),
+      });
+      setSelected(null);
+      setCorrectLabel('');
+      setNote('');
+      reload();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Action failed');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loading) return <Loading label="Loading queue…" />;
+  if (error) return <ErrorBox message={error} onRetry={reload} />;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className="p-8 flex h-[calc(100vh-80px)]"
     >
-      <div className={`flex-1 pr-4 ${selectedScan ? 'w-2/3 border-r' : 'w-full'}`}>
-        <h2 className="text-2xl font-bold mb-6">Validation Queue</h2>
+      <div className={`flex-1 pr-4 ${selected ? 'w-2/3 border-r' : 'w-full'}`}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Validation Queue</h2>
+          <span className="text-sm text-slate-500">{items.length} awaiting review</span>
+        </div>
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-sm font-medium text-slate-500">Scan</th>
-                <th className="px-4 py-3 text-sm font-medium text-slate-500">Diagnosis</th>
-                <th className="px-4 py-3 text-sm font-medium text-slate-500">Confidence</th>
-                <th className="px-4 py-3 text-sm font-medium text-slate-500">Severity</th>
-                <th className="px-4 py-3 text-sm font-medium text-slate-500">Date</th>
+                {['Scan', 'Diagnosis', 'Farmer', 'Confidence', 'Severity', 'Date'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-sm font-medium text-slate-500">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {pendingScans.map((scan, i) => (
-                <motion.tr 
-                  initial={{ opacity: 0, x: -20 }}
+              {items.map((s, i) => (
+                <motion.tr
+                  initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  key={scan.id} 
-                  className={`border-b hover:bg-slate-50 cursor-pointer ${scan.confidence < 0.6 ? 'border-l-4 border-l-amber-500' : ''}`}
-                  onClick={() => setSelectedScan(scan)}
+                  transition={{ delay: Math.min(i, 10) * 0.03 }}
+                  key={s.id}
+                  onClick={() => setSelected(s)}
+                  className={`border-b hover:bg-slate-50 cursor-pointer ${
+                    selected?.id === s.id ? 'bg-agri-primary/5' : ''
+                  } ${(s.confidence ?? 1) < 0.6 ? 'border-l-4 border-l-amber-500' : ''}`}
                 >
                   <td className="px-4 py-3">
-                    <img src={scan.image_url} alt="scan" className="w-12 h-12 rounded object-cover" />
+                    <img src={s.image_url} alt="" className="w-12 h-12 rounded object-cover bg-slate-100" />
                   </td>
-                  <td className="px-4 py-3 font-medium">{scan.diagnosis_label}</td>
+                  <td className="px-4 py-3 font-medium">{s.diagnosis_label ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{s.farmer_name}</td>
                   <td className="px-4 py-3">
-                    {scan.confidence < 0.6 && <AlertCircle size={14} className="inline text-amber-500 mr-1" />}
-                    {(scan.confidence * 100).toFixed(0)}%
+                    {(s.confidence ?? 1) < 0.6 && (
+                      <AlertCircle size={14} className="inline text-amber-500 mr-1" />
+                    )}
+                    {s.confidence != null ? `${Math.round(s.confidence * 100)}%` : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${
-                      scan.severity === 'high' ? 'bg-red-100 text-red-700' : 
-                      scan.severity === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {scan.severity}
-                    </span>
+                    <SeverityBadge severity={s.severity} />
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-500">{new Date(scan.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-slate-500">
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </td>
                 </motion.tr>
               ))}
             </tbody>
           </table>
-          {pendingScans.length === 0 && (
-            <div className="p-8 text-center text-slate-500">No pending scans in the queue!</div>
+          {items.length === 0 && (
+            <div className="p-10 text-center text-slate-500">Queue is clear — nothing to review.</div>
           )}
         </div>
       </div>
 
-      {selectedScan && (
-        <motion.div 
-          initial={{ opacity: 0, x: 50 }}
+      {selected && (
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           className="w-1/3 pl-6 flex flex-col"
         >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold">Scan Details</h3>
-            <button onClick={() => setSelectedScan(null)} className="text-slate-400 hover:text-slate-700">✕</button>
-          </div>
-          
-          <img src={selectedScan.image_url} alt="scan detail" className="w-full h-48 object-cover rounded-xl mb-4" />
-          
-          <div className="space-y-4 flex-1">
-            <div>
-              <p className="text-sm text-slate-500 mb-1">AI Diagnosis</p>
-              <div className="text-lg font-bold flex justify-between items-center">
-                {selectedScan.diagnosis_label}
-                <span className="text-sm font-normal px-2 py-1 bg-green-100 text-green-800 rounded">
-                  {(selectedScan.confidence * 100).toFixed(0)}% Match
-                </span>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-slate-50 rounded-xl border">
-              <p className="text-sm font-medium mb-2">Generated Advisory (Farmer will see this)</p>
-              <p className="text-sm text-slate-600">{selectedScan.advisory_text}</p>
-            </div>
-          </div>
-          
-          <div className="mt-auto grid grid-cols-2 gap-3">
-            <button className="py-3 px-4 bg-white border border-red-200 text-red-600 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-red-50">
-              <XCircle size={18} /> Reject
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold">Scan details</h3>
+            <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-700">
+              ✕
             </button>
-            <button className="py-3 px-4 bg-agri-primary text-white rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-agri-dark">
-              <CheckCircle size={18} /> Confirm
+          </div>
+
+          <img
+            src={selected.image_url}
+            alt=""
+            className="w-full h-48 object-cover rounded-xl mb-4 bg-slate-100"
+          />
+
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-xs text-slate-500">AI diagnosis</p>
+                <p className="text-lg font-bold">{selected.diagnosis_label ?? 'Unknown'}</p>
+              </div>
+              <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded">
+                {selected.confidence != null ? `${Math.round(selected.confidence * 100)}%` : '—'}
+              </span>
+            </div>
+            <p className="text-sm text-slate-600">
+              {selected.crop ?? 'crop not linked'} · {selected.farmer_name}
+              {selected.farmer_phone ? ` · ${selected.farmer_phone}` : ''}
+            </p>
+            {selected.advisory_text && (
+              <div className="p-3 bg-slate-50 rounded-xl border">
+                <p className="text-xs font-medium mb-1">Advisory the farmer sees</p>
+                <p className="text-sm text-slate-600">{selected.advisory_text}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+                <PencilLine size={12} /> Correct the label (optional)
+              </label>
+              <input
+                value={correctLabel}
+                onChange={(e) => setCorrectLabel(e.target.value)}
+                placeholder={selected.diagnosis_label ?? 'e.g. Bacterial Leaf Blight'}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Note to the farmer (optional)"
+              rows={2}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <button
+              onClick={() => act('reject')}
+              disabled={!!busy}
+              className="py-2.5 bg-white border border-red-200 text-red-600 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+            >
+              <XCircle size={16} /> Reject
+            </button>
+            <button
+              onClick={() => act('correct')}
+              disabled={!!busy || !correctLabel}
+              className="py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+            >
+              <PencilLine size={16} /> Correct
+            </button>
+            <button
+              onClick={() => act('confirm')}
+              disabled={!!busy}
+              className="py-2.5 bg-agri-primary text-white rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium hover:bg-agri-dark disabled:opacity-50"
+            >
+              <CheckCircle size={16} /> Confirm
             </button>
           </div>
         </motion.div>
