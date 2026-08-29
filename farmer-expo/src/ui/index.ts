@@ -16,6 +16,7 @@ export { RiskGauge } from './RiskGauge';
 export { AiBrief } from './AiBrief';
 export { VoiceNote } from './VoiceNote';
 export { Sparkline } from './Sparkline';
+export { PodCard } from './PodCard';
 export { OrganicBackground } from './OrganicBackground';
 export { Loader, LoaderScreen } from './Loader';
 export { SegmentedControl } from './SegmentedControl';

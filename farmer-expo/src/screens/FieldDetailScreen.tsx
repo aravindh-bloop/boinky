@@ -15,6 +15,7 @@ import {
   LoaderScreen,
   ErrorState,
   OrganicBackground,
+  PodCard,
   RiskGauge,
   Reveal,
   Row,
@@ -140,8 +141,21 @@ export default function FieldDetailScreen() {
           </Card>
         </Reveal>
 
-        {/* recent scans */}
+        {/* hardware pod */}
         <Reveal index={3}>
+          <PodCard
+            fieldId={fieldId}
+            onConnect={() =>
+              alertT(
+                'Connect a field pod',
+                'Ask your officer or the AgriPod team to pair a sensor pod with this field. Once it is on, live readings show here.',
+              )
+            }
+          />
+        </Reveal>
+
+        {/* recent scans */}
+        <Reveal index={4}>
           <Card elevation="flat">
             <Row between>
               <Text variant="subhead">Recent scans</Text>
@@ -168,7 +182,7 @@ export default function FieldDetailScreen() {
         </Reveal>
 
         {/* activity */}
-        <Reveal index={4}>
+        <Reveal index={5}>
           <Card elevation="flat">
             <Row between>
               <Text variant="subhead">Activity</Text>

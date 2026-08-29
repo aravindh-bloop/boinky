@@ -14,6 +14,7 @@ import { weatherRouter } from './modules/weather/weather.routes.js';
 import { homeRouter } from './modules/home/home.routes.js';
 import { insightsRouter } from './modules/insights/insights.routes.js';
 import { i18nRouter } from './modules/i18n/i18n.routes.js';
+import { podRouter } from './modules/pod/pod.routes.js';
 import {
   activitiesRouter,
   expensesRouter,
@@ -41,4 +42,5 @@ apiRouter.use('/expenses', expensesRouter);
 apiRouter.use('/harvests', harvestsRouter);
 apiRouter.use('/schemes', schemesRouter);
 apiRouter.use('/inventory', inventoryRouter);
+apiRouter.use('/pod', podRouter);
 apiRouter.use('/official', officialRouter);

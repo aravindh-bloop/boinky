@@ -165,6 +165,35 @@ export interface SafetyReport {
   disclaimer: string;
 }
 
+// ── Hardware pod ──
+
+export interface PodReading {
+  id: string;
+  field_id: string;
+  temperature: number | null;
+  soil_moisture: number | null;
+  soil_ph: number | null;
+  air_humidity: number | null;
+  battery_pct: number | null;
+  created_at: string;
+}
+
+export interface PodDevice {
+  id: string;
+  field_id: string;
+  field_name: string | null;
+  label: string;
+  last_seen_at: string | null;
+  online: boolean;
+  created_at: string;
+}
+
+export interface PodLatest {
+  device: PodDevice | null;
+  reading: PodReading | null;
+  history: PodReading[];
+}
+
 export interface NearbyOutbreaks {
   radiusKm: number;
   days: number;

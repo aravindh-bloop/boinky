@@ -64,6 +64,11 @@ async function wipe(farmerId: string, officerId: string) {
   await pool.query(`DELETE FROM inventory_items WHERE farmer_id = $1`, [farmerId]);
   await pool.query(`DELETE FROM alerts WHERE official_id = $1`, [officerId]);
   await pool.query(`DELETE FROM ai_insights WHERE farmer_id = $1`, [farmerId]);
+  await pool.query(
+    `DELETE FROM pod_readings WHERE field_id IN (SELECT id FROM fields WHERE farmer_id = $1)`,
+    [farmerId],
+  );
+  await pool.query(`DELETE FROM pod_devices WHERE farmer_id = $1`, [farmerId]);
   // neighbour + their scans
   const { rows } = await pool.query<{ id: string }>(`SELECT id FROM users WHERE phone = $1`, [
     NEIGHBOUR_PHONE,
@@ -397,6 +402,50 @@ async function seedComputed(c: Ctx) {
   );
 }
 
+// ── hardware pod (North Plot) ─────────────────────────────────────────────
+// Fixed demo key so it can be dropped straight into the ESP32 sketch. Seeds
+// ~12h of history so the pod card and sparklines have data before the real
+// rig connects; the real rig then appends live readings to the same field.
+const DEMO_POD_KEY = 'pod_demo_a1b2c3d4e5f60718293a4b5c';
+
+async function seedPod(c: Ctx) {
+  const { createHash } = await import('node:crypto');
+  const keyHash = createHash('sha256').update(DEMO_POD_KEY).digest('hex');
+  const fid = F(c, 'North Plot');
+
+  await pool.query(`DELETE FROM pod_devices WHERE field_id = $1`, [fid]);
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO pod_devices (field_id, farmer_id, label, key_hash, last_seen_at)
+     VALUES ($1, $2, 'North Plot field pod', $3, now() - interval '3 minutes')
+     RETURNING id`,
+    [fid, c.farmerId, keyHash],
+  );
+  const deviceId = rows[0]!.id;
+
+  await pool.query(`DELETE FROM pod_readings WHERE field_id = $1`, [fid]);
+  const values: string[] = [];
+  const params: unknown[] = [fid, deviceId];
+  for (let i = 144; i >= 0; i--) {
+    // one every 5 min for 12h; gentle diurnal drift + noise
+    const mins = i * 5;
+    const dayFrac = ((Date.now() / 60000 - mins) / 1440) % 1;
+    const temp = 29 + 4 * Math.sin(dayFrac * 2 * Math.PI) + (Math.random() - 0.5);
+    const moist = 46 - i * 0.04 + (Math.random() - 0.5) * 2; // slowly drying
+    const ph = 6.6 + (Math.random() - 0.5) * 0.3;
+    const hum = 70 - 12 * Math.sin(dayFrac * 2 * Math.PI) + (Math.random() - 0.5) * 3;
+    const b = params.length;
+    values.push(`($1, $2, $${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, 92, 'esp32', (now() - interval '${mins} minutes'))`);
+    params.push(temp.toFixed(1), moist.toFixed(1), ph.toFixed(2), hum.toFixed(1));
+  }
+  await pool.query(
+    `INSERT INTO pod_readings
+       (field_id, device_id, temperature, soil_moisture, soil_ph, air_humidity, battery_pct, reading_source, created_at)
+     VALUES ${values.join(', ')}`,
+    params,
+  );
+  logger.info({ deviceId, key: DEMO_POD_KEY }, 'demo pod seeded — put this key in the ESP32 sketch');
+}
+
 async function main() {
   const c = await ids();
   await wipe(c.farmerId, c.officerId);
@@ -407,6 +456,7 @@ async function main() {
   await seedHarvests(c);
   await seedStock(c);
   await seedAlerts(c);
+  await seedPod(c);
   await seedComputed(c);
 
   const counts = await pool.query(
