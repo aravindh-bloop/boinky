@@ -12,6 +12,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { gradients, palette, radius, shadow, space } from './tokens';
 import { spring } from './motion';
 import { Text } from './Text';
+import { useT } from '../i18n';
 import { Icon, type IconName } from './Icon';
 import { PressableScale } from './Pressable';
 import { haptic } from './haptics';
@@ -33,6 +34,7 @@ function TabButton({
   focused: boolean;
   onPress: () => void;
 }) {
+  const t = useT();
   const f = useSharedValue(focused ? 1 : 0);
   useEffect(() => {
     f.value = withSpring(focused ? 1 : 0, spring.gentle);
@@ -67,13 +69,14 @@ function TabButton({
         color={focused ? palette.primaryDeep : palette.textFaint}
         style={{ fontFamily: focused ? 'NunitoSans_700Bold' : 'NunitoSans_600SemiBold', fontSize: 11 }}
       >
-        {name}
+        {t(name)}
       </Text>
     </PressableScale>
   );
 }
 
 export function TabBar({ state, navigation }: BottomTabBarProps) {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const scanRoute = state.routes.find((r) => r.name === 'Scan');
   const others = state.routes.filter((r) => r.name !== 'Scan');
@@ -134,7 +137,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             </LinearGradient>
           </PressableScale>
           <Text variant="caption" color={palette.textFaint} style={{ fontSize: 11, marginTop: 2 }}>
-            Scan
+            {t('Scan')}
           </Text>
         </View>
 

@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -52,7 +53,7 @@ export default function ScanScreen() {
     try {
       if (from === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return Alert.alert('Camera permission needed', 'Allow camera access, or use Gallery.');
+        if (!perm.granted) return alertT('Camera permission needed', 'Allow camera access, or use Gallery.');
       }
       const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, exif: false };
       const res = from === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
@@ -63,7 +64,7 @@ export default function ScanScreen() {
         setImage({ uri: a.uri, mimeType: a.mimeType ?? 'image/jpeg', fileName: a.fileName ?? `scan-${Date.now()}.jpg` });
       }
     } catch (e: any) {
-      Alert.alert('Camera / gallery error', e?.message ?? String(e));
+      alertT('Camera / gallery error', e?.message ?? String(e));
     }
   }
 
@@ -88,7 +89,7 @@ export default function ScanScreen() {
       nav.navigate('ScanResult', { scanId: res.scan.id });
     } catch (e) {
       haptic.error();
-      Alert.alert('Diagnosis failed', e instanceof ApiError ? e.message : 'Try again');
+      alertT('Diagnosis failed', e instanceof ApiError ? e.message : 'Try again');
     } finally {
       setBusy(false);
     }

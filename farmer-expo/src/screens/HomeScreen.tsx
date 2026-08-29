@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
 import { useDailyBrief } from '../api/useDailyBrief';
 import { api } from '../api/client';
+import { useT } from '../i18n';
 import type { HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
@@ -35,6 +36,7 @@ type Nav = NativeStackNavigationProp<HomeStackParams, 'HomeMain'>;
 
 export default function HomeScreen() {
   const nav = useNavigation<Nav>();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refreshing, reload } = useApi<HomeData>('/api/home');
   // `/api/home` carries weather whenever the server-side forecast cache is warm.
@@ -129,10 +131,10 @@ export default function HomeScreen() {
           <Row between>
             <View>
               <Text variant="body" color="rgba(255,255,255,0.85)">
-                {greeting()},
+                {greeting()}
               </Text>
-              <Text variant="title" color="#fff">
-                {d.user.name?.split(' ')[0] ?? 'farmer'}
+              <Text variant="title" color="#fff" raw>
+                {d.user.name?.split(' ')[0] ?? t('farmer')}
               </Text>
             </View>
             <PressableScale onPress={() => nav.navigate('Profile')} compact>

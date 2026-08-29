@@ -1,12 +1,12 @@
 import React from 'react';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, type NavigationState } from '@react-navigation/native';
+import { logEvent } from './debug/eventlog';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from './auth/AuthContext';
-import { palette, fonts } from './ui';
+import { palette, fonts, Text } from './ui';
 import { BootLoader } from './ui/BootLoader';
 import { TabBar } from './ui/TabBar';
-
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
 import WeatherScreen from './screens/WeatherScreen';
@@ -26,6 +26,13 @@ import StockScreen from './screens/StockScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import HarvestScreen from './screens/HarvestScreen';
 import LogActivityScreen from './screens/LogActivityScreen';
+
+/** Header title that follows the app language (screen `options` can't use hooks). */
+const navTitle = (text: string) => () => (
+  <Text variant="heading" style={{ fontFamily: fonts.display, fontSize: 19 }}>
+    {text}
+  </Text>
+);
 
 export type HomeStackParams = {
   HomeMain: undefined;
@@ -76,11 +83,11 @@ function HomeStack() {
     <HomeNav.Navigator screenOptions={screenOpts}>
       <HomeNav.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Weather" component={WeatherScreen} options={{ headerShown: false }} />
-      <HomeNav.Screen name="Tasks" component={TasksScreen} options={{ title: 'Tasks' }} />
-      <HomeNav.Screen name="Activity" component={ActivityScreen} options={{ title: 'Activity log' }} />
+      <HomeNav.Screen name="Tasks" component={TasksScreen} options={{ headerTitle: navTitle('Tasks') }} />
+      <HomeNav.Screen name="Activity" component={ActivityScreen} options={{ headerTitle: navTitle('Activity log') }} />
       <HomeNav.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
-      <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+      <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ headerTitle: navTitle('Settings') }} />
       <HomeNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
       <HomeNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
     </HomeNav.Navigator>
@@ -92,11 +99,11 @@ function FieldsStack() {
   return (
     <FieldsNav.Navigator screenOptions={screenOpts}>
       <FieldsNav.Screen name="FieldsList" component={FieldsScreen} options={{ headerShown: false }} />
-      <FieldsNav.Screen name="FieldForm" component={FieldFormScreen} options={{ title: 'New field' }} />
+      <FieldsNav.Screen name="FieldForm" component={FieldFormScreen} options={{ headerTitle: navTitle('New field') }} />
       <FieldsNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
-      <FieldsNav.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Crop calendar' }} />
+      <FieldsNav.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: navTitle('Crop calendar') }} />
       <FieldsNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
-      <FieldsNav.Screen name="LogActivity" component={LogActivityScreen} options={{ title: 'Log activity' }} />
+      <FieldsNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
       <FieldsNav.Screen name="Weather" component={WeatherScreen} options={{ headerShown: false }} />
     </FieldsNav.Navigator>
   );
@@ -126,9 +133,9 @@ function StockStack() {
   return (
     <StockNav.Navigator screenOptions={screenOpts}>
       <StockNav.Screen name="StockMain" component={StockScreen} options={{ headerShown: false }} />
-      <StockNav.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
-      <StockNav.Screen name="Harvest" component={HarvestScreen} options={{ title: 'Harvest records' }} />
-      <StockNav.Screen name="LogActivity" component={LogActivityScreen} options={{ title: 'Log activity' }} />
+      <StockNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerTitle: navTitle('Expenses') }} />
+      <StockNav.Screen name="Harvest" component={HarvestScreen} options={{ headerTitle: navTitle('Harvest records') }} />
+      <StockNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
     </StockNav.Navigator>
   );
 }
@@ -151,11 +158,22 @@ const navTheme = {
   colors: { ...DefaultTheme.colors, background: palette.canvas, primary: palette.primary },
 };
 
+function activeRouteName(state: NavigationState | undefined): string {
+  if (!state) return '?';
+  const route = state.routes[state.index] as { name?: string; state?: unknown };
+  if (route?.state) return activeRouteName(route.state as NavigationState);
+  return route?.name ?? '?';
+}
+
 export default function RootNavigator() {
   const { user, loading } = useAuth();
   if (loading) return <BootLoader />;
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      theme={navTheme}
+      onReady={() => logEvent('nav', 'app ready')}
+      onStateChange={(s) => logEvent('nav', activeRouteName(s as NavigationState))}
+    >
       {user ? <MainTabs /> : <AuthScreen />}
     </NavigationContainer>
   );

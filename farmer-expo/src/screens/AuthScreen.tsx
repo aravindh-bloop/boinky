@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, FadeInDown } from 'react-native-reanimated';
@@ -52,7 +53,7 @@ export default function AuthScreen() {
           preferredLanguage: lang,
         });
     } catch (e) {
-      Alert.alert('Could not continue', e instanceof ApiError ? e.message : 'Please try again');
+      alertT('Could not continue', e instanceof ApiError ? e.message : 'Please try again');
     } finally {
       setBusy(false);
     }

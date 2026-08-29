@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -21,9 +22,9 @@ export default function FieldFormScreen() {
   const [area, setArea] = useState('');
 
   async function save() {
-    if (!crop.trim()) return Alert.alert('Crop is required');
+    if (!crop.trim()) return alertT('Crop is required');
     if (sownDate && !/^\d{4}-\d{2}-\d{2}$/.test(sownDate.trim()))
-      return Alert.alert('Sowing date should look like 2026-06-15');
+      return alertT('Sowing date should look like 2026-06-15');
     setBusy(true);
     try {
       await api.request('/api/fields', {
@@ -40,7 +41,7 @@ export default function FieldFormScreen() {
       });
       nav.goBack();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof ApiError ? e.message : 'Try again');
+      alertT('Could not save', e instanceof ApiError ? e.message : 'Try again');
     } finally {
       setBusy(false);
     }

@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { spring, PRESS_SCALE, PRESS_SCALE_SMALL } from './motion';
 import { haptic } from './haptics';
+import { logEvent, extractLabel } from '../debug/eventlog';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -26,6 +27,8 @@ interface Props {
   /** smaller scale for chips / icons */
   compact?: boolean;
   hitSlop?: number;
+  /** Overrides the auto-derived label in the event log. */
+  logLabel?: string;
 }
 
 /** Tappable surface that squishes + gives haptic feedback. The base of every button/card. */
@@ -38,11 +41,22 @@ export function PressableScale({
   feedback = 'tap',
   compact,
   hitSlop,
+  logLabel,
 }: Props) {
   const scale = useSharedValue(1);
   const target = compact ? PRESS_SCALE_SMALL : PRESS_SCALE;
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const handlePress = useCallback(
+    (e: GestureResponderEvent) => {
+      if (onPress) {
+        logEvent('tap', logLabel || extractLabel(children) || 'tap');
+        onPress(e);
+      }
+    },
+    [onPress, logLabel, children],
+  );
 
   const onPressIn = useCallback(() => {
     scale.value = withSpring(target, spring.snappy);
@@ -55,7 +69,7 @@ export function PressableScale({
 
   return (
     <AnimatedPressable
-      onPress={onPress}
+      onPress={handlePress}
       onLongPress={onLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}

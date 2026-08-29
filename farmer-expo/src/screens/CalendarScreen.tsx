@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useMemo } from 'react';
 import { Alert, SectionList, View } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
@@ -53,7 +54,7 @@ export default function CalendarScreen() {
       await api.request(`/api/calendar/tasks/${t.id}`, { method: 'PATCH', body: { isDone: !t.is_done } });
       reload();
     } catch {
-      Alert.alert('Could not update the task');
+      alertT('Could not update the task');
     }
   }
   async function regenerate() {
@@ -61,7 +62,7 @@ export default function CalendarScreen() {
       await api.request(`/api/calendar/${fieldId}/generate`, { method: 'POST' });
       reload();
     } catch (e: any) {
-      Alert.alert('Could not generate', e?.message ?? '');
+      alertT('Could not generate', e?.message ?? '');
     }
   }
 

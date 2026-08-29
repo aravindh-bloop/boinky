@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, FlatList, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -54,7 +55,7 @@ export default function StockScreen() {
       setAdding(false);
       inv.reload();
     } catch (e: any) {
-      Alert.alert('Could not add', e?.message ?? '');
+      alertT('Could not add', e?.message ?? '');
     }
   }
   async function adjust(item: InventoryItem, delta: number) {

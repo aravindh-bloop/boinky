@@ -4,11 +4,16 @@ import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/auth/AuthContext';
+import { I18nProvider } from './src/i18n';
 import RootNavigator from './src/navigation';
 import { fontMap } from './src/ui/fonts';
 import { hydrateCache } from './src/api/cache';
 import { warmUp } from './src/api/client';
 import { BootLoader } from './src/ui/BootLoader';
+import { installErrorHook, logEvent } from './src/debug/eventlog';
+
+installErrorHook();
+logEvent('info', 'app launch');
 
 export default function App() {
   const [fontsLoaded] = useFonts(fontMap);
@@ -43,7 +48,9 @@ export default function App() {
         <StatusBar style="dark" />
         {ready ? (
           <AuthProvider>
-            <RootNavigator />
+            <I18nProvider>
+              <RootNavigator />
+            </I18nProvider>
           </AuthProvider>
         ) : (
           <BootLoader />

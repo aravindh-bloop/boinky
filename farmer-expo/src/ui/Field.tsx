@@ -6,9 +6,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { palette, radius, space, type } from './tokens';
+import { palette, radius, space, type, tamilFontFor } from './tokens';
 import { timing } from './motion';
 import { Text } from './Text';
+import { useI18n } from '../i18n';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -17,9 +18,12 @@ interface Props extends TextInputProps {
   right?: React.ReactNode;
 }
 
-export function Field({ label, hint, error, right, style, onFocus, onBlur, ...rest }: Props) {
+export function Field({ label, hint, error, right, style, onFocus, onBlur, placeholder, ...rest }: Props) {
+  const { lang, t } = useI18n();
   const [focused, setFocused] = useState(false);
   const focus = useSharedValue(0);
+  const inputFont =
+    lang === 'ta' ? (tamilFontFor[type.body.fontFamily as string] ?? type.body.fontFamily) : type.body.fontFamily;
 
   const borderStyle = useAnimatedStyle(() => ({
     borderColor: interpolateColor(
@@ -50,12 +54,14 @@ export function Field({ label, hint, error, right, style, onFocus, onBlur, ...re
         ]}
       >
         <TextInput
+          placeholder={placeholder ? t(placeholder) : undefined}
           placeholderTextColor={palette.textFaint}
           style={[
             {
               flex: 1,
               paddingVertical: space.md,
               ...type.body,
+              fontFamily: inputFont,
               color: palette.text,
             },
             style,

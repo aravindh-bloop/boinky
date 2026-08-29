@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -51,7 +52,7 @@ export default function LogActivityScreen() {
 
   async function save() {
     const t = title.trim() || defaultTitle(kind, inputName);
-    if (!t) return Alert.alert('Add a short description');
+    if (!t) return alertT('Add a short description');
     setBusy(true);
     try {
       await api.request('/api/activities', {
@@ -71,7 +72,7 @@ export default function LogActivityScreen() {
       });
       nav.goBack();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof ApiError ? e.message : 'Try again');
+      alertT('Could not save', e instanceof ApiError ? e.message : 'Try again');
     } finally {
       setBusy(false);
     }

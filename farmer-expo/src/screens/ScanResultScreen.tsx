@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -6,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
+import { useT } from '../i18n';
 import type { SafetyReport, Scan } from '../api/types';
 import {
   Button,
@@ -45,6 +47,7 @@ const VERDICT: Record<string, string> = {
 
 export default function ScanResultScreen() {
   const insets = useSafeAreaInsets();
+  const t = useT();
   const { scanId } = useRoute<R>().params;
   const { data, loading, error, reload } = useApi<{ scan: Scan }>(`/api/scans/${scanId}`);
   const [safety, setSafety] = useState<SafetyReport | null>(null);
@@ -81,7 +84,7 @@ export default function ScanResultScreen() {
     try {
       setSafety(await api.request<SafetyReport>(`/api/scans/${scanId}/safety`));
     } catch (e) {
-      Alert.alert('Safety check failed', e instanceof ApiError ? e.message : '');
+      alertT('Safety check failed', e instanceof ApiError ? e.message : '');
     } finally {
       setSafetyBusy(false);
     }
@@ -106,15 +109,15 @@ export default function ScanResultScreen() {
           <Reveal from="scale">
             <Card elevation="raised">
               <Row between>
-                <Text variant="title" style={{ flex: 1 }}>
-                  {scan.diagnosis_label ?? 'Unknown'}
+                <Text variant="title" style={{ flex: 1 }} raw>
+                  {scan.diagnosis_label ?? t('Unknown')}
                 </Text>
-                {sev && <Chip label={`${sevTokens[sev].label} severity`} bg={sevTokens[sev].bg} color={sevTokens[sev].fg} />}
+                {sev && <Chip label={t('{sev} severity', { sev: t(sevTokens[sev].label) })} bg={sevTokens[sev].bg} color={sevTokens[sev].fg} />}
               </Row>
               <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
-                {conf != null && <Chip label={`${conf}% confident`} bg={palette.surfaceSunken} color={palette.textMuted} />}
+                {conf != null && <Chip label={t('{pct}% confident', { pct: conf })} bg={palette.surfaceSunken} color={palette.textMuted} />}
                 {scan.diagnosis_category && (
-                  <Chip label={scan.diagnosis_category} bg={palette.surfaceSunken} color={palette.textMuted} />
+                  <Chip label={t(scan.diagnosis_category)} bg={palette.surfaceSunken} color={palette.textMuted} />
                 )}
               </Row>
               <Row gap={6}>
@@ -182,7 +185,7 @@ export default function ScanResultScreen() {
                           pollCount.current = 0;
                           reload();
                         } catch (e) {
-                          Alert.alert('Still failed', e instanceof ApiError ? e.message : '');
+                          alertT('Still failed', e instanceof ApiError ? e.message : '');
                         } finally {
                           setAdvisoryBusy(false);
                         }

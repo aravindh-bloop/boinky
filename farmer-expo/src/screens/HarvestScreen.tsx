@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
 import { Alert, FlatList, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -51,7 +52,7 @@ export default function HarvestScreen() {
       setAdding(false);
       list.reload();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message ?? '');
+      alertT('Could not save', e?.message ?? '');
     }
   }
   async function remove(id: string) {

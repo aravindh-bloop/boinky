@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React from 'react';
 import { Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +45,7 @@ export default function FieldDetailScreen() {
   const f = field.data!.field;
 
   const remove = () =>
-    Alert.alert('Delete this field?', 'Its scans stay in your history, but risk and calendar are removed.', [
+    alertT('Delete this field?', 'Its scans stay in your history, but risk and calendar are removed.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -54,7 +55,7 @@ export default function FieldDetailScreen() {
             await api.request(`/api/fields/${fieldId}`, { method: 'DELETE' });
             nav.goBack();
           } catch (e) {
-            Alert.alert('Could not delete', e instanceof ApiError ? e.message : '');
+            alertT('Could not delete', e instanceof ApiError ? e.message : '');
           }
         },
       },

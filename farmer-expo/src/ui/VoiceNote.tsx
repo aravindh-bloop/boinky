@@ -1,3 +1,4 @@
+import { alertT } from '../i18n/alert';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, TextInput, View } from 'react-native';
 import {
@@ -69,7 +70,7 @@ export function VoiceNote({ value, onChange, onLanguage, language }: Props) {
     try {
       const perm = await AudioModule.requestRecordingPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
+        alertT(
           'Microphone permission needed',
           'Allow microphone access to describe the problem in your own voice, or type it instead.',
         );
@@ -80,7 +81,7 @@ export function VoiceNote({ value, onChange, onLanguage, language }: Props) {
       recorder.record();
       haptic.press();
     } catch (e: any) {
-      Alert.alert('Could not start recording', e?.message ?? String(e));
+      alertT('Could not start recording', e?.message ?? String(e));
     }
   }
 
@@ -99,7 +100,7 @@ export function VoiceNote({ value, onChange, onLanguage, language }: Props) {
       const text = (res.transcript ?? '').trim();
       if (!text) {
         haptic.warning();
-        Alert.alert('Nothing heard', 'The recording came back empty. Try again, closer to the mic.');
+        alertT('Nothing heard', 'The recording came back empty. Try again, closer to the mic.');
         return;
       }
       haptic.success();
@@ -108,7 +109,7 @@ export function VoiceNote({ value, onChange, onLanguage, language }: Props) {
       onLanguage?.(res.language);
     } catch (e) {
       haptic.error();
-      Alert.alert('Could not transcribe', e instanceof ApiError ? e.message : String(e));
+      alertT('Could not transcribe', e instanceof ApiError ? e.message : String(e));
     } finally {
       setBusy(false);
       stopping.current = false;

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_BASE_URL } from '../config';
 import { cache } from './cache';
+import { logEvent } from '../debug/eventlog';
 
 const TOKEN_KEY = 'agripod.token';
 
@@ -69,6 +70,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const started = Date.now();
+  const tag = `${method} ${path}`;
 
   let res: Response;
   try {
@@ -80,6 +83,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     });
   } catch (e) {
     const aborted = (e as Error)?.name === 'AbortError';
+    logEvent('error', tag, aborted ? `timeout after ${timeoutMs}ms` : 'network unreachable');
     throw new ApiError(
       0,
       aborted
@@ -92,6 +96,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const text = await res.text();
   const json = text ? safeParse(text) : null;
+  logEvent(res.ok ? 'net' : 'error', tag, `${res.status} · ${Date.now() - started}ms`);
 
   if (!res.ok) {
     const err = json?.error ?? {};
@@ -116,6 +121,7 @@ async function upload<T>(
   fields: Record<string, string> = {},
 ): Promise<T> {
   const token = await loadToken();
+  const started = Date.now();
   let result: FileSystem.FileSystemUploadResult;
   try {
     result = await FileSystem.uploadAsync(`${API_BASE_URL}${path}`, file.uri, {
@@ -130,9 +136,15 @@ async function upload<T>(
       },
     });
   } catch (e) {
+    logEvent('error', `POST ${path}`, 'upload — network unreachable');
     throw new ApiError(0, `Cannot reach the server. Is the backend running?\n(${API_BASE_URL})`);
   }
   const json = result.body ? safeParse(result.body) : null;
+  logEvent(
+    result.status < 300 ? 'net' : 'error',
+    `POST ${path}`,
+    `${result.status} · ${Date.now() - started}ms (upload)`,
+  );
   if (result.status < 200 || result.status >= 300) {
     const err = json?.error ?? {};
     throw new ApiError(result.status, err?.message ?? `Upload failed (${result.status})`, err?.code);
@@ -184,9 +196,11 @@ async function transcribe(
       },
     });
   } catch {
+    logEvent('error', 'POST /api/scans/transcribe', 'network unreachable');
     throw new ApiError(0, 'Could not reach the server to transcribe your recording.');
   }
   const json = result.body ? safeParse(result.body) : null;
+  logEvent(result.status < 300 ? 'net' : 'error', 'POST /api/scans/transcribe', `${result.status}`);
   if (result.status < 200 || result.status >= 300) {
     throw new ApiError(
       result.status,

@@ -88,6 +88,14 @@ export const fonts = {
   bodyBold: 'NunitoSans_700Bold',
 } as const;
 
+/** Tamil counterparts — <Text> remaps fontFamily to these when the language is Tamil. */
+export const tamilFontFor: Record<string, string> = {
+  Fraunces_600SemiBold: 'NotoSerifTamil_600SemiBold',
+  NunitoSans_400Regular: 'NotoSansTamil_400Regular',
+  NunitoSans_600SemiBold: 'NotoSansTamil_600SemiBold',
+  NunitoSans_700Bold: 'NotoSansTamil_700Bold',
+};
+
 type TypeToken = Pick<TextStyle, 'fontFamily' | 'fontSize' | 'lineHeight' | 'letterSpacing'>;
 
 export const type: Record<
