@@ -72,10 +72,42 @@ export async function ingestReading(input: IngestInput): Promise<{ deviceId: str
 
 // ── read (app, farmer JWT) ────────────────────────────────────────────────
 
+export interface PodHealth {
+  state: 'healthy' | 'attention' | 'offline' | 'no_device';
+  message: string;
+  notes: string[];
+}
+
+/** Plain-language pod condition from the latest reading + last-seen. */
+function assess(device: PodDevice | null, reading: PodReading | null): PodHealth {
+  if (!device) return { state: 'no_device', message: 'No pod paired with this field', notes: [] };
+  if (!device.online || !reading)
+    return { state: 'offline', message: 'Pod is offline — no recent readings', notes: [] };
+
+  const notes: string[] = [];
+  const t = reading.temperature;
+  const m = reading.soil_moisture;
+  const ph = reading.soil_ph;
+  if (m != null && m < 25) notes.push('Soil is dry — consider irrigating');
+  if (m != null && m > 85) notes.push('Soil is waterlogged — check drainage');
+  if (ph != null && ph < 5.5) notes.push('Soil is acidic (pH ' + ph.toFixed(1) + ')');
+  if (ph != null && ph > 8.0) notes.push('Soil is alkaline (pH ' + ph.toFixed(1) + ')');
+  if (t != null && t > 42) notes.push('High soil temperature (' + Math.round(t) + '°C)');
+
+  return notes.length === 0
+    ? { state: 'healthy', message: 'Pod is in good condition', notes: [] }
+    : { state: 'attention', message: 'Pod needs a look', notes };
+}
+
 export async function latestForField(
   farmerId: string,
   fieldId: string,
-): Promise<{ device: PodDevice | null; reading: PodReading | null; history: PodReading[] }> {
+): Promise<{
+  device: PodDevice | null;
+  reading: PodReading | null;
+  history: PodReading[];
+  health: PodHealth;
+}> {
   await getOwnedField(fieldId, farmerId);
 
   const device = await queryMaybe<PodDevice>(
@@ -103,7 +135,7 @@ export async function latestForField(
     [fieldId],
   );
 
-  return { device, reading, history: history.reverse() };
+  return { device, reading, history: history.reverse(), health: assess(device, reading) };
 }
 
 export async function listDevices(farmerId: string): Promise<PodDevice[]> {

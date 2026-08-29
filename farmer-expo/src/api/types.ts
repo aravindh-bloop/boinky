@@ -188,10 +188,17 @@ export interface PodDevice {
   created_at: string;
 }
 
+export interface PodHealth {
+  state: 'healthy' | 'attention' | 'offline' | 'no_device';
+  message: string;
+  notes: string[];
+}
+
 export interface PodLatest {
   device: PodDevice | null;
   reading: PodReading | null;
   history: PodReading[];
+  health: PodHealth;
 }
 
 export interface NearbyOutbreaks {

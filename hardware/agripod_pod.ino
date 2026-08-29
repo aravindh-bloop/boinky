@@ -1,140 +1,184 @@
 /*
  * AgriPod field sensor — ESP32
- * Reads soil moisture, temperature and pH, then POSTs them to the AgriPod
- * backend over WiFi every READING_INTERVAL seconds.
+ * Soil moisture (GPIO34) + pH (GPIO35, divider) + DS18B20 temp (GPIO4) + SSD1306 OLED.
  *
- * Libraries (Arduino IDE → Tools → Manage Libraries):
- *   - ArduinoJson            by Benoit Blanchon
- *   - DHT sensor library     by Adafruit   (only if you use a DHT22 for temp)
- *   - Adafruit Unified Sensor by Adafruit  (DHT dependency)
+ * Two ways to get the readings to the backend — same data, pick one:
  *
- * Board: "ESP32 Dev Module" (or your exact board). Set the right COM port.
+ *   USE_WIFI 0  (default, USB phase)
+ *       The pod stays plugged into a laptop. It prints one machine line each
+ *       cycle:   AGRIPOD,soil=44,ph=6.71,temp=31.25
+ *       and `hardware/pod-bridge.mjs` on that laptop forwards it to the backend.
+ *       Nothing else to change — just flash and run the bridge.
  *
- * ── WHAT YOU MUST EDIT ──────────────────────────────────────────────
- *   1. WIFI_SSID / WIFI_PASS   — the network the pod joins (a phone hotspot works)
- *   2. POD_KEY                  — the key printed by `npm run seed:demo`
- *   3. The pin numbers + the readSensors() body to match your wiring
+ *   USE_WIFI 1  (standalone product, no laptop)
+ *       Set WIFI_SSID / WIFI_PASS / POD_KEY below. The pod connects to WiFi and
+ *       POSTs directly to the backend. The bridge is not needed.
+ *
+ * Libraries: Adafruit_GFX, Adafruit_SSD1306, OneWire, DallasTemperature,
+ *            and (for USE_WIFI 1 only) ArduinoJson.
  */
 
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
+#define USE_WIFI 0
 
-// ── 1. WiFi ──────────────────────────────────────────────────────────
+// ── backend / WiFi (only used when USE_WIFI 1) ───────────────────────
 const char* WIFI_SSID = "YOUR_WIFI_NAME";
 const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
+const char* API_URL   = "https://agripod-backend.onrender.com/api/pod/readings";
+const char* POD_KEY   = "pod_demo_a1b2c3d4e5f60718293a4b5c";   // from `npm run seed:demo`
 
-// ── 2. Backend ───────────────────────────────────────────────────────
-const char* API_URL  = "https://agripod-backend.onrender.com/api/pod/readings";
-const char* POD_KEY  = "pod_demo_a1b2c3d4e5f60718293a4b5c";  // <-- from seed:demo
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
-const unsigned long READING_INTERVAL = 60UL * 1000UL;  // 60 s
+#if USE_WIFI
+  #include <WiFi.h>
+  #include <WiFiClientSecure.h>
+  #include <HTTPClient.h>
+  #include <ArduinoJson.h>
+#endif
 
-// ── 3. Sensor pins (ADAPT to your board/wiring) ─────────────────────
-const int   SOIL_PIN = 34;    // analog — capacitive soil-moisture AOUT
-const int   PH_PIN   = 35;    // analog — pH module Po
-const int   TEMP_PIN = 32;    // DHT22 data pin  (or a DS18B20 OneWire pin)
+// ── pins ────────────────────────────────────────────────────────────
+#define SOIL_PIN     34
+#define PH_PIN       35
+#define DS18B20_PIN  4
+#define OLED_SDA     21
+#define OLED_SCL     22
 
-// Capacitive soil sensor: raw ADC value in DRY air vs fully WET.
-// Measure yours once and put the numbers here.
-const int   SOIL_RAW_DRY = 3200;
-const int   SOIL_RAW_WET = 1400;
+#define SCREEN_WIDTH  128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// pH probe calibration: (voltage, pH) at two buffer solutions.
-const float PH_V1 = 2.50, PH_PH1 = 7.0;   // pH 7 buffer
-const float PH_V2 = 3.05, PH_PH2 = 4.0;   // pH 4 buffer
+OneWire oneWire(DS18B20_PIN);
+DallasTemperature temperatureSensor(&oneWire);
 
-#include <DHT.h>
-DHT dht(TEMP_PIN, DHT22);
+// ── calibration ─────────────────────────────────────────────────────
+const int SOIL_DRY = 3000;
+const int SOIL_WET = 1200;
+
+const float PH_REFERENCE_VOLTAGE = 1.40;   // probe voltage in the pH-7 reference
+const float PH_REFERENCE         = 7.00;
+const float PH_SLOPE             = 0.18;
+
+const unsigned long INTERVAL_MS = 5000;    // send every 5 s
 
 // ────────────────────────────────────────────────────────────────────
 
-struct Reading {
-  float temperature;
-  float soilMoisture;
-  float ph;
-  float airHumidity;
-  bool  hasTemp, hasMoist, hasPh, hasHum;
-};
+void setup() {
+  Serial.begin(115200);
 
-Reading readSensors() {
-  Reading r{};
+  Wire.begin(OLED_SDA, OLED_SCL);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED NOT FOUND!");
+    while (1);
+  }
 
-  // soil moisture: map raw ADC to 0–100 %
-  int soilRaw = analogRead(SOIL_PIN);
-  float m = 100.0f * (SOIL_RAW_DRY - soilRaw) / float(SOIL_RAW_DRY - SOIL_RAW_WET);
-  r.soilMoisture = constrain(m, 0.0f, 100.0f);
-  r.hasMoist = true;
+  analogReadResolution(12);
+  analogSetPinAttenuation(SOIL_PIN, ADC_11db);
+  analogSetPinAttenuation(PH_PIN, ADC_11db);
+  temperatureSensor.begin();
 
-  // pH: ADC → volts → pH via 2-point line
-  float phV = analogRead(PH_PIN) * (3.3f / 4095.0f);
-  float slope = (PH_PH2 - PH_PH1) / (PH_V2 - PH_V1);
-  r.ph = PH_PH1 + slope * (phV - PH_V1);
-  r.ph = constrain(r.ph, 0.0f, 14.0f);
-  r.hasPh = true;
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);   display.println("AGRIPOD");
+  display.setCursor(0, 18);  display.println("SOIL + PH + TEMP");
+  display.setCursor(0, 36);  display.println("Initializing...");
+  display.display();
+  delay(2000);
 
-  // temperature + air humidity from DHT22
-  float t = dht.readTemperature();
-  float h = dht.readHumidity();
-  if (!isnan(t)) { r.temperature = t; r.hasTemp = true; }
-  if (!isnan(h)) { r.airHumidity = h; r.hasHum = true; }
+#if USE_WIFI
+  connectWiFi();
+#endif
 
-  return r;
+  Serial.println("\n================ AGRIPOD MONITOR ================");
+}
+
+void loop() {
+  // ── soil moisture ──
+  int soilADC = analogRead(SOIL_PIN);
+  int moisture = constrain(map(soilADC, SOIL_DRY, SOIL_WET, 0, 100), 0, 100);
+  String soilStatus = moisture < 30 ? "DRY" : moisture < 60 ? "MEDIUM" : "MOIST";
+
+  // ── pH ──
+  int phADC = analogRead(PH_PIN);
+  float adcVoltage = (phADC / 4095.0) * 3.3;
+  float poVoltage  = adcVoltage * (25.0 / 15.0);        // PO -10k- GPIO35 -15k- GND
+  float pH = PH_REFERENCE + ((PH_REFERENCE_VOLTAGE - poVoltage) / PH_SLOPE);
+  pH = constrain(pH, 0.0, 14.0);
+  String phStatus = pH < 5.5 ? "ACIDIC" : pH <= 7.5 ? "NORMAL" : "ALKALINE";
+
+  // ── temperature ──
+  temperatureSensor.requestTemperatures();
+  float temperature = temperatureSensor.getTempCByIndex(0);
+  bool temperatureOK = (temperature != DEVICE_DISCONNECTED_C);
+
+  // ── serial (human) ──
+  Serial.println("--------------------------------");
+  Serial.printf("Soil ADC   : %d\n", soilADC);
+  Serial.printf("Moisture   : %d%%  (%s)\n", moisture, soilStatus.c_str());
+  Serial.printf("pH ADC     : %d   PO V: %.3f\n", phADC, poVoltage);
+  Serial.printf("pH         : %.2f  (%s)\n", pH, phStatus.c_str());
+  if (temperatureOK) Serial.printf("Temperature: %.2f C\n", temperature);
+  else               Serial.println("Temperature: SENSOR ERROR");
+
+  // ── serial (machine — the bridge reads this one line) ──
+  Serial.printf("AGRIPOD,soil=%d,ph=%.2f,temp=%.2f\n",
+                moisture, pH, temperatureOK ? temperature : -127.0);
+
+  // ── OLED ──
+  display.clearDisplay();
+  display.setCursor(0, 0);  display.println("AGRIPOD");
+  display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
+  display.setCursor(0, 16); display.printf("Moisture: %d%%", moisture);
+  display.setCursor(0, 27); display.printf("Status: %s", soilStatus.c_str());
+  display.setCursor(0, 38); display.printf("pH: %.2f", pH);
+  display.setCursor(0, 50);
+  if (temperatureOK) display.printf("Temp: %.1f C", temperature);
+  else               display.print("Temp: ERROR");
+  display.display();
+
+#if USE_WIFI
+  postReading(moisture, pH, temperatureOK ? temperature : NAN);
+#endif
+
+  delay(INTERVAL_MS);
 }
 
 // ────────────────────────────────────────────────────────────────────
+#if USE_WIFI
 
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
   Serial.printf("WiFi: connecting to %s", WIFI_SSID);
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
-    delay(500);
-    Serial.print(".");
-  }
+  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print("."); }
   Serial.println(WiFi.status() == WL_CONNECTED ? " ok" : " FAILED");
 }
 
-void postReading(const Reading& r) {
+void postReading(int moisture, float pH, float temp) {
   if (WiFi.status() != WL_CONNECTED) { connectWiFi(); return; }
 
   JsonDocument doc;
-  if (r.hasTemp)  doc["temperature"]  = round(r.temperature * 10) / 10.0;
-  if (r.hasMoist) doc["soilMoisture"] = round(r.soilMoisture * 10) / 10.0;
-  if (r.hasPh)    doc["ph"]           = round(r.ph * 100) / 100.0;
-  if (r.hasHum)   doc["airHumidity"]  = round(r.airHumidity * 10) / 10.0;
+  doc["soilMoisture"] = moisture;
+  doc["ph"]           = round(pH * 100) / 100.0;
+  if (!isnan(temp)) doc["temperature"] = round(temp * 100) / 100.0;
 
   String body;
   serializeJson(doc, body);
 
   WiFiClientSecure client;
-  client.setInsecure();                 // skip cert check — fine for a demo pod
+  client.setInsecure();
   HTTPClient http;
   http.begin(client, API_URL);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Pod-Key", POD_KEY);
   http.setTimeout(15000);
-
   int code = http.POST(body);
-  Serial.printf("POST %s -> %d  %s\n", API_URL, code, body.c_str());
-  if (code > 0) Serial.println(http.getString());
+  Serial.printf("POST -> %d\n", code);
   http.end();
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(500);
-  analogReadResolution(12);             // 0–4095
-  dht.begin();
-  connectWiFi();
-}
-
-void loop() {
-  Reading r = readSensors();
-  Serial.printf("soil=%.1f%%  temp=%.1fC  pH=%.2f  hum=%.1f%%\n",
-                r.soilMoisture, r.temperature, r.ph, r.airHumidity);
-  postReading(r);
-  delay(READING_INTERVAL);
-}
+#endif

@@ -53,7 +53,16 @@ function Metric({ icon, label, value, unit, series, tint }: MetricProps) {
  * Live readings from the field's hardware pod (ESP32 + soil/temp/pH sensors).
  * Polls every 30 s while mounted. Shows a connect prompt when no pod is bound.
  */
-export function PodCard({ fieldId, onConnect }: { fieldId: string; onConnect?: () => void }) {
+export function PodCard({
+  fieldId,
+  onConnect,
+  hideIfNoDevice,
+}: {
+  fieldId: string;
+  onConnect?: () => void;
+  /** on Home we only want the card when a pod is actually paired */
+  hideIfNoDevice?: boolean;
+}) {
   const { data, reload } = useApi<PodLatest>('/api/pod/latest', { fieldId });
 
   useEffect(() => {
@@ -63,9 +72,10 @@ export function PodCard({ fieldId, onConnect }: { fieldId: string; onConnect?: (
 
   if (!data) return null;
 
-  const { device, reading, history } = data;
+  const { device, reading, history, health } = data;
 
   if (!device) {
+    if (hideIfNoDevice) return null;
     return (
       <Card elevation="flat" onPress={onConnect}>
         <Row between>
@@ -112,24 +122,38 @@ export function PodCard({ fieldId, onConnect }: { fieldId: string; onConnect?: (
         <Metric icon="spray" label="Soil pH" value={reading?.soil_ph ?? null} unit="" series={ph} tint={palette.honey} />
       </Row>
 
-      {(reading?.air_humidity != null || reading?.battery_pct != null) && (
-        <Row gap={space.md} style={{ marginTop: space.xs }}>
-          {reading?.air_humidity != null && (
-            <Text variant="caption" faint>
-              Air humidity {Math.round(reading.air_humidity)}%
-            </Text>
-          )}
-          {reading?.battery_pct != null && (
-            <Text variant="caption" faint>
-              Battery {Math.round(reading.battery_pct)}%
-            </Text>
-          )}
-          {reading && (
-            <Text variant="caption" faint>
-              Updated {ago(reading.created_at)}
-            </Text>
-          )}
+      <View
+        style={{
+          marginTop: space.sm,
+          padding: space.sm,
+          borderRadius: radius.md,
+          backgroundColor:
+            health.state === 'healthy' ? palette.successSoft ?? palette.surfaceAlt : palette.surfaceAlt,
+        }}
+      >
+        <Row gap={7}>
+          <Icon
+            name={health.state === 'healthy' ? 'check' : 'warning'}
+            size={15}
+            color={health.state === 'healthy' ? palette.success : palette.warn}
+            weight="fill"
+          />
+          <Text variant="bodyStrong" style={{ flex: 1 }}>
+            {health.message}
+          </Text>
         </Row>
+        {health.notes.map((n, i) => (
+          <Text key={i} variant="caption" faint style={{ marginTop: 2 }}>
+            • {n}
+          </Text>
+        ))}
+      </View>
+
+      {reading && (
+        <Text variant="caption" faint style={{ marginTop: space.xs }}>
+          Updated {ago(reading.created_at)}
+          {reading.battery_pct != null ? `  ·  battery ${Math.round(reading.battery_pct)}%` : ''}
+        </Text>
       )}
     </Card>
   );

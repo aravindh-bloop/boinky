@@ -20,6 +20,7 @@ import {
   SkeletonList,
   Text,
   ErrorState,
+  PodCard,
   PressableScale,
   RiskGauge,
   gradients,
@@ -278,6 +279,16 @@ export default function HomeScreen() {
                   <Text variant="bodyStrong">All fields look calm right now</Text>
                 </Row>
               </Card>
+            </Reveal>
+          )}
+
+          {/* ── AgriPod sensor ── */}
+          {d.fieldRisk.length > 0 && (
+            <Reveal index={2}>
+              <PodCard
+                fieldId={(d.highestRisk ?? d.fieldRisk[0]).id}
+                hideIfNoDevice
+              />
             </Reveal>
           )}
 
