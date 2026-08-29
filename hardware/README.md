@@ -18,22 +18,33 @@ matches a real `pod_devices` row, and that row is bound to one farmer + one fiel
 
 ## Phase 1 — pod on USB (no Arduino changes)
 
-Your friend's sketch already prints the readings to the Serial Monitor. A small
-Node script on the laptop reads that output and forwards it.
+The pod's sketch already prints the readings to the Serial Monitor. A small
+script on the same laptop reads that output and forwards it to the backend.
 
-1. **Close the Arduino IDE Serial Monitor** (only one program can hold the port).
-2. Note the COM port — Arduino IDE → Tools → Port (e.g. `COM5`).
-3. On the laptop:
+Run it **on the laptop the pod is plugged into** (a script can only read a USB
+port on its own machine).
+
+1. **Close the Arduino IDE Serial Monitor** — only one program can hold the port.
+2. Note the port — Arduino IDE → **Tools → Port** (Windows `COM5`, Mac/Linux
+   `/dev/tty.usbserial-XXXX`).
+3. Copy the `hardware/` folder to that laptop (git clone, or a pen drive — it's
+   just `pod_bridge.py`).
+4. Run it:
    ```bash
-   cd D:\E-Farmer\hardware
-   npm install
-   node pod-bridge.mjs COM5
+   pip install pyserial
+   python pod_bridge.py COM5
    ```
-4. You'll see `sent {"soilMoisture":44,...} -> 201` every ~5 s.
-5. App → **Home** or **Fields → North Plot** → the **AgriPod** card shows live
-   values and "Pod is in good condition".
+   (run with no arguments once to list the ports it can see)
+5. You'll see, every ~5 s:
+   ```
+   14:22:07  sent  {"soilMoisture":42,"ph":6.71,"temperature":31.3}  -> 201
+   ```
+   Leave it running.
+6. App → **Home** or **Fields → North Plot** → the **AgriPod** card shows the
+   live values and "Pod is in good condition".
 
-That's it — the pod's firmware is untouched.
+The pod's firmware is untouched. (There's also a Node version, `pod-bridge.mjs`,
+if you prefer — `npm install && node pod-bridge.mjs COM5`.)
 
 ## Phase 2 — standalone product (no laptop)
 
