@@ -78,6 +78,56 @@ export interface CropsList {
   inRegion: string[];
 }
 
+export type AppStatus = 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disbursed';
+
+export interface SchemeApplication {
+  id: string;
+  status: AppStatus;
+  farmer_note: string | null;
+  officer_note: string | null;
+  amount: number | null;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+  scheme_id: string;
+  scheme_title: string;
+  benefit_amount: string | null;
+  farmer_id: string;
+  farmer_name: string;
+  farmer_phone: string | null;
+  region: string | null;
+}
+
+export interface SchemeSummary {
+  byStatus: Record<string, number>;
+  totalDisbursed: number;
+  pendingReview: number;
+  approvedNotDisbursed: number;
+  openQueries: number;
+  byScheme: { scheme_id: string; title: string; applications: number; disbursed: number; amount: number }[];
+}
+
+export interface SchemeThread {
+  id: string;
+  subject: string;
+  status: 'open' | 'answered' | 'closed';
+  scheme_id: string | null;
+  scheme_title: string | null;
+  last_message_at: string;
+  created_at: string;
+  farmer_name: string;
+  farmer_phone?: string | null;
+  last_message: string | null;
+  last_sender?: 'farmer' | 'official' | null;
+}
+
+export interface SchemeMessage {
+  id: string;
+  sender_role: 'farmer' | 'official';
+  body: string;
+  created_at: string;
+}
+
 export interface CalendarTemplateTask {
   offsetDays: number;
   task_type: string | null;

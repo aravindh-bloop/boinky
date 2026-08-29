@@ -446,6 +446,64 @@ async function seedPod(c: Ctx) {
   logger.info({ deviceId, key: DEMO_POD_KEY }, 'demo pod seeded — put this key in the ESP32 sketch');
 }
 
+// ── scheme applications + a query thread ─────────────────────────────────
+async function seedSchemes(c: Ctx) {
+  await pool.query(
+    `DELETE FROM scheme_applications WHERE farmer_id = $1`,
+    [c.farmerId],
+  );
+  await pool.query(`DELETE FROM scheme_threads WHERE farmer_id = $1`, [c.farmerId]);
+
+  const { rows: schemes } = await pool.query<{ id: string; title: string }>(
+    `SELECT id, title FROM schemes ORDER BY title LIMIT 5`,
+  );
+  if (schemes.length < 3) return;
+
+  const plan: [number, string, number | null, string | null][] = [
+    // schemeIndex, status, amount, officerNote
+    [0, 'disbursed', 6000, 'PM-KISAN 2nd instalment released via DBT.'],
+    [1, 'approved', null, 'Eligible — land records verified. Disbursal pending at treasury.'],
+    [2, 'under_review', null, 'Waiting on the soil health card copy.'],
+    [3, 'submitted', null, null],
+  ];
+  const appIds: string[] = [];
+  for (const [idx, status, amount, note] of plan) {
+    const sc = schemes[idx];
+    if (!sc) continue;
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO scheme_applications
+         (scheme_id, farmer_id, status, farmer_note, officer_note, amount,
+          reviewed_by, reviewed_at, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,
+               ${status === 'submitted' ? 'NULL' : '$7'},
+               ${status === 'submitted' ? 'NULL' : '(now() - interval \'2 days\')'},
+               (now() - interval '9 days'), (now() - interval '2 days'))
+       RETURNING id`,
+      status === 'submitted'
+        ? [sc.id, c.farmerId, status, 'Applied for the ' + sc.title + '.', note, amount]
+        : [sc.id, c.farmerId, status, 'Applied for the ' + sc.title + '.', note, amount, c.officerId],
+    );
+    appIds.push(rows[0]!.id);
+  }
+
+  // a query thread on the disbursed one, answered by the officer
+  const sc0 = schemes[0]!;
+  const { rows: tr } = await pool.query<{ id: string }>(
+    `INSERT INTO scheme_threads (scheme_id, application_id, farmer_id, subject, status, last_message_at, created_at)
+     VALUES ($1, $2, $3, $4, 'answered', now() - interval '1 day', now() - interval '3 days')
+     RETURNING id`,
+    [sc0.id, appIds[0] ?? null, c.farmerId, 'When will the ' + sc0.title + ' amount reach my account?'],
+  );
+  const tid = tr[0]!.id;
+  await pool.query(
+    `INSERT INTO scheme_messages (thread_id, sender_id, sender_role, body, created_at) VALUES
+       ($1, $2, 'farmer', 'You marked it disbursed but I have not received it yet.', now() - interval '3 days'),
+       ($1, $3, 'official', 'DBT transfers take 2-3 working days. If it is not in by Monday, bring your passbook first page to the office.', now() - interval '1 day')`,
+    [tid, c.farmerId, c.officerId],
+  );
+  logger.info({ applications: appIds.length }, 'demo schemes seeded');
+}
+
 async function main() {
   const c = await ids();
   await wipe(c.farmerId, c.officerId);
@@ -457,6 +515,7 @@ async function main() {
   await seedStock(c);
   await seedAlerts(c);
   await seedPod(c);
+  await seedSchemes(c);
   await seedComputed(c);
 
   const counts = await pool.query(

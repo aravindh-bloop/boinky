@@ -22,6 +22,8 @@ import CalendarScreen from './screens/CalendarScreen';
 import ScanScreen from './screens/ScanScreen';
 import ScanResultScreen from './screens/ScanResultScreen';
 import SchemesScreen from './screens/SchemesScreen';
+import MySchemesScreen from './screens/MySchemesScreen';
+import SchemeThreadScreen from './screens/SchemeThreadScreen';
 import StockScreen from './screens/StockScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import HarvestScreen from './screens/HarvestScreen';
@@ -60,6 +62,8 @@ export type ScanStackParams = {
 };
 export type SchemesStackParams = {
   SchemesList: undefined;
+  MySchemes: undefined;
+  SchemeThread: { threadId?: string; schemeId?: string; schemeTitle?: string } | undefined;
 };
 export type StockStackParams = {
   StockMain: undefined;
@@ -124,6 +128,8 @@ function SchemesStack() {
   return (
     <SchemesNav.Navigator screenOptions={screenOpts}>
       <SchemesNav.Screen name="SchemesList" component={SchemesScreen} options={{ headerShown: false }} />
+      <SchemesNav.Screen name="MySchemes" component={MySchemesScreen} options={{ headerShown: false }} />
+      <SchemesNav.Screen name="SchemeThread" component={SchemeThreadScreen} options={{ headerShown: false }} />
     </SchemesNav.Navigator>
   );
 }

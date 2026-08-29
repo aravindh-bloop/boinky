@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, Leaf, ChevronRight, MapPin, LogOut } from 'lucide-react';
+import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, HandCoins, Leaf, ChevronRight, MapPin, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AuthProvider, LoginGate, useAuth } from './lib/auth';
 import { api } from './lib/api';
@@ -55,6 +55,7 @@ import { ValidationQueue } from './pages/ValidationQueue';
 import { FarmersFields } from './pages/FarmersFields';
 import { Alerts } from './pages/Alerts';
 import { CropCalendar } from './pages/CropCalendar';
+import { Subsidies } from './pages/Subsidies';
 // Removed placeholders
 
 const NAV_ITEMS = [
@@ -62,6 +63,7 @@ const NAV_ITEMS = [
   { path: '/map', label: 'Hotspot Map', icon: Map },
   { path: '/queue', label: 'Validation Queue', icon: ListTodo },
   { path: '/farmers', label: 'Farmers & Fields', icon: Users },
+  { path: '/subsidies', label: 'Subsidies', icon: HandCoins },
   { path: '/alerts', label: 'Alerts', icon: Bell },
   { path: '/calendar', label: 'Crop Calendar', icon: CalendarIcon },
 ];
@@ -201,6 +203,7 @@ function Shell() {
                 <Route path="/map" element={<HotspotMap />} />
                 <Route path="/queue" element={<ValidationQueue />} />
                 <Route path="/farmers" element={<FarmersFields />} />
+                <Route path="/subsidies" element={<Subsidies />} />
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/calendar" element={<CropCalendar />} />
               </Routes>

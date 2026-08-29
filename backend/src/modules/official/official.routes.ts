@@ -6,6 +6,7 @@ import { generateTasks } from '../calendar/task-templates.js';
 import { cropProfile, knownCrops } from '../risk/crop-profiles.js';
 import { query } from '../../db/query.js';
 import * as official from './official.service.js';
+import * as apps from '../schemes/applications.service.js';
 
 export const officialRouter = Router();
 
@@ -118,6 +119,94 @@ officialRouter.get(
       mainThreats: p.mainThreats,
       tasks: generateTasks(crop),
     });
+  }),
+);
+
+// ── scheme / subsidy management ──────────────────────────────────────────
+
+officialRouter.get(
+  '/scheme-summary',
+  asyncHandler(async (req, res) => {
+    res.json(await apps.schemeSummaryForOfficer(await scopeRegion(req)));
+  }),
+);
+
+officialRouter.get(
+  '/scheme-applications',
+  asyncHandler(async (req, res) => {
+    const q = z
+      .object({
+        status: z
+          .enum(['submitted', 'under_review', 'approved', 'rejected', 'disbursed'])
+          .optional(),
+        schemeId: z.string().uuid().optional(),
+        q: z.string().trim().min(1).max(80).optional(),
+        limit: z.coerce.number().int().min(1).max(200).default(100),
+        offset: z.coerce.number().int().min(0).default(0),
+      })
+      .parse(req.query);
+    const items = await apps.listApplicationsForOfficer({
+      region: await scopeRegion(req),
+      status: q.status,
+      schemeId: q.schemeId,
+      search: q.q,
+      limit: q.limit,
+      offset: q.offset,
+    });
+    res.json({ items });
+  }),
+);
+
+officialRouter.post(
+  '/scheme-applications/:id/decision',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z
+      .object({
+        status: z.enum(['under_review', 'approved', 'rejected', 'disbursed']),
+        note: z.string().trim().max(1000).optional(),
+        amount: z.coerce.number().min(0).max(10_000_000).optional(),
+      })
+      .parse(req.body);
+    const application = await apps.decideApplication(id, req.user!.sub, body);
+    res.json({ application });
+  }),
+);
+
+officialRouter.get(
+  '/scheme-threads',
+  asyncHandler(async (req, res) => {
+    const { status } = z
+      .object({ status: z.enum(['open', 'answered', 'closed']).optional() })
+      .parse(req.query);
+    res.json({ threads: await apps.listThreadsForOfficer(await scopeRegion(req), status) });
+  }),
+);
+
+officialRouter.get(
+  '/scheme-threads/:id',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    res.json(await apps.getThread(id, { id: req.user!.sub, role: 'official' }));
+  }),
+);
+
+officialRouter.post(
+  '/scheme-threads/:id/messages',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { body } = z.object({ body: z.string().trim().min(1).max(2000) }).parse(req.body);
+    await apps.postMessage(id, { id: req.user!.sub, role: 'official' }, body);
+    res.status(201).json({ ok: true });
+  }),
+);
+
+officialRouter.post(
+  '/scheme-threads/:id/close',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    await apps.setThreadStatus(id, 'closed');
+    res.status(204).end();
   }),
 );
 

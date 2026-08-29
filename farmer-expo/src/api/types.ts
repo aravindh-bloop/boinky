@@ -136,6 +136,47 @@ export interface Scheme {
   match_reasons?: string[];
 }
 
+export type SchemeAppStatus =
+  | 'submitted'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'disbursed';
+
+export interface SchemeApplication {
+  id: string;
+  scheme_id: string;
+  scheme_title: string;
+  status: SchemeAppStatus;
+  farmer_note: string | null;
+  officer_note: string | null;
+  amount: number | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SchemeThreadSummary {
+  id: string;
+  subject: string;
+  status: 'open' | 'answered' | 'closed';
+  scheme_id: string | null;
+  scheme_title: string | null;
+  last_message: string | null;
+  last_message_at: string;
+}
+
+export interface SchemeThreadDetail {
+  thread: {
+    id: string;
+    subject: string;
+    status: 'open' | 'answered' | 'closed';
+    scheme_title: string | null;
+    created_at: string;
+  };
+  messages: { id: string; sender_role: 'farmer' | 'official'; body: string; created_at: string }[];
+}
+
 export interface InventoryItem {
   id: string;
   item_name: string;
