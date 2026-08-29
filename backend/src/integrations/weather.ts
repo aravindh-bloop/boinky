@@ -1,6 +1,43 @@
 import { env } from '../config/env.js';
 import { AppError } from '../http/errors.js';
 import { logger } from '../lib/logger.js';
+import { query, queryMaybe } from '../db/query.js';
+
+/**
+ * Open-Meteo's free tier rate-limits per IP (Render's egress is shared), so
+ * every fetch goes through weather_cache. On a fetch failure (429, timeout) we
+ * serve the last cached payload however stale — a slightly old forecast beats
+ * an error screen.
+ */
+const CACHE_TTL_MIN = 45;
+
+async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const row = await queryMaybe<{ payload: T; fetched_at: string }>(
+    `SELECT payload, fetched_at FROM weather_cache WHERE grid_key = $1`,
+    [key],
+  ).catch(() => null);
+
+  if (row && (Date.now() - new Date(row.fetched_at).getTime()) / 60000 < CACHE_TTL_MIN) {
+    return row.payload;
+  }
+  try {
+    const data = await fetcher();
+    await query(
+      `INSERT INTO weather_cache (grid_key, payload, fetched_at) VALUES ($1, $2, now())
+       ON CONFLICT (grid_key) DO UPDATE SET payload = EXCLUDED.payload, fetched_at = now()`,
+      [key, JSON.stringify(data)],
+    ).catch((err) => logger.warn({ err, key }, 'weather cache write failed'));
+    return data;
+  } catch (err) {
+    if (row) {
+      logger.warn({ err, key }, 'open-meteo fetch failed — serving stale cache');
+      return row.payload;
+    }
+    throw err;
+  }
+}
+
+const grid = (lat: number, lng: number) => `${lat.toFixed(2)},${lng.toFixed(2)}`;
 
 export interface WeatherDay {
   date: string; // YYYY-MM-DD
@@ -45,6 +82,17 @@ export async function fetchWeatherWindow(
 ): Promise<WeatherDay[]> {
   const pastDays = opts.pastDays ?? 5;
   const forecastDays = opts.forecastDays ?? 3;
+  return cached(`win:${grid(lat, lng)}:${pastDays}:${forecastDays}`, () =>
+    fetchWeatherWindowRaw(lat, lng, pastDays, forecastDays),
+  );
+}
+
+async function fetchWeatherWindowRaw(
+  lat: number,
+  lng: number,
+  pastDays: number,
+  forecastDays: number,
+): Promise<WeatherDay[]> {
   const url = new URL(`${env.OPEN_METEO_BASE_URL}/forecast`);
   url.searchParams.set('latitude', lat.toFixed(4));
   url.searchParams.set('longitude', lng.toFixed(4));
@@ -281,9 +329,13 @@ export async function fetchDetailedForecast(lat: number, lng: number): Promise<D
   };
 }
 
-async function getJson<T>(url: URL): Promise<T> {
+async function getJson<T>(url: URL, attempt = 0): Promise<T> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (res.status === 429 && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      return getJson<T>(url, attempt + 1);
+    }
     if (!res.ok) {
       const body = await res.text();
       logger.error({ status: res.status, body: body.slice(0, 300) }, 'open-meteo error');

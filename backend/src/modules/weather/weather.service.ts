@@ -8,7 +8,7 @@ import {
 import { localizeMany } from '../../lib/localize.js';
 import { farmerLang } from '../../lib/farmer-lang.js';
 
-const CACHE_TTL_MIN = 30;
+const CACHE_TTL_MIN = 45;
 
 export interface AgroAdvisory {
   key: string;
@@ -102,13 +102,19 @@ async function getCachedForecast(
     if (ageMin < CACHE_TTL_MIN || cachedOnly) return cached.payload;
   }
   if (cachedOnly) return null;
-  const fresh = await fetchDetailedForecast(lat, lng);
-  await query(
-    `INSERT INTO weather_cache (grid_key, payload, fetched_at) VALUES ($1, $2, now())
-     ON CONFLICT (grid_key) DO UPDATE SET payload = EXCLUDED.payload, fetched_at = now()`,
-    [key, JSON.stringify(fresh)],
-  );
-  return fresh;
+  try {
+    const fresh = await fetchDetailedForecast(lat, lng);
+    await query(
+      `INSERT INTO weather_cache (grid_key, payload, fetched_at) VALUES ($1, $2, now())
+       ON CONFLICT (grid_key) DO UPDATE SET payload = EXCLUDED.payload, fetched_at = now()`,
+      [key, JSON.stringify(fresh)],
+    );
+    return fresh;
+  } catch (err) {
+    // Open-Meteo rate-limited or unreachable — a stale forecast beats an error.
+    if (cached) return cached.payload;
+    throw err;
+  }
 }
 
 function deriveAdvisories(f: DetailedForecast): AgroAdvisory[] {
