@@ -39,3 +39,21 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+  # ── Officer web dashboard (static SPA, Vite build) ──
+  - type: web
+    name: agripod-dashboard
+    runtime: static
+    rootDir: dashboard
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_URL
+        value: https://agripod-backend.onrender.com
+    routes:
+      # SPA: every path serves index.html so React Router can handle it
+      - type: rewrite
+        source: /*
+        destination: /index.html
