@@ -1,220 +1,360 @@
 import { motion } from 'framer-motion';
-import { Leaf, FileWarning, BellRing, Bug, Sprout } from 'lucide-react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useNavigate } from 'react-router-dom';
+import {
+  Leaf,
+  Bug,
+  FileWarning,
+  BellRing,
+  IndianRupee,
+  ArrowUpRight,
+  ChevronRight,
+  ShieldCheck,
+} from 'lucide-react';
 import { useApi } from '../lib/useApi';
-import type { Overview as OverviewData, HotspotPoint, QueueItem } from '../lib/types';
+import type {
+  Overview as OverviewData,
+  QueueItem,
+  SchemeSummary,
+} from '../lib/types';
 import { Loading, ErrorBox, timeAgo } from '../components/ui';
 
-const CHENNAI: [number, number] = [13.05, 80.25];
+const rupee = (n: number) =>
+  n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${Math.round(n).toLocaleString('en-IN')}`;
 
-const sevColor = (s: string | null) =>
-  s === 'high' ? '#ef4444' : s === 'medium' ? '#f59e0b' : '#22c55e';
+const sevDot = (s: string | null) =>
+  s === 'high' ? 'bg-red-500' : s === 'medium' ? 'bg-amber-500' : 'bg-green-500';
 
 export function Overview() {
+  const nav = useNavigate();
   const ov = useApi<OverviewData>('/api/official/overview');
-  const hot = useApi<{ points: HotspotPoint[] }>(
-    '/api/hotspots?centerLat=13.05&centerLng=80.25&radiusKm=60&days=30&includePending=true',
+  const queue = useApi<{ items: QueueItem[] }>('/api/official/validation-queue?limit=6');
+  const recent = useApi<{ items: QueueItem[] }>(
+    '/api/official/validation-queue?includeResolved=true&limit=7',
   );
-  const recent = useApi<{ items: QueueItem[] }>('/api/official/validation-queue?includeResolved=true&limit=6');
+  const subs = useApi<SchemeSummary>('/api/official/scheme-summary');
 
   if (ov.loading) return <Loading label="Loading overview…" />;
   if (ov.error) return <ErrorBox message={ov.error} onRetry={ov.reload} />;
   const d = ov.data!;
-
-  const activeFromScans = d.byStatus['auto_confirmed'] ?? 0;
-  const stats = [
-    { label: 'Total scans (30d region)', value: d.scans.total, icon: Leaf, dark: true },
-    { label: 'Pending validations', value: d.scans.needs_validation, icon: FileWarning, tint: 'amber' },
-    { label: 'Active alerts (14d)', value: d.activeAlerts, icon: BellRing, tint: 'red' },
-    { label: 'Confirmed diagnoses', value: activeFromScans, icon: Sprout, tint: 'green' },
-  ];
+  const s = subs.data;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="p-8 space-y-6"
+      className="p-8 space-y-6 max-w-[1400px]"
     >
-      <div className="grid grid-cols-4 gap-6">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={`rounded-[20px] p-6 shadow-sm border ${
-              s.dark ? 'bg-agri-dark text-white border-transparent' : 'bg-white border-slate-100'
-            }`}
-          >
-            <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${
-                s.dark
-                  ? 'bg-white/10 border border-white/20'
-                  : s.tint === 'amber'
-                    ? 'bg-amber-50'
-                    : s.tint === 'red'
-                      ? 'bg-red-50'
-                      : 'bg-green-50'
-              }`}
-            >
-              <s.icon
-                size={24}
-                className={
-                  s.dark
-                    ? 'text-white'
-                    : s.tint === 'amber'
-                      ? 'text-amber-500'
-                      : s.tint === 'red'
-                        ? 'text-red-500'
-                        : 'text-green-600'
-                }
-              />
-            </div>
-            <p
-              className={`font-medium text-xs uppercase tracking-wider ${
-                s.dark ? 'text-white/80' : 'text-slate-500'
-              }`}
-            >
-              {s.label}
-            </p>
-            <h3 className={`text-[40px] font-bold leading-tight mt-1 ${s.dark ? '' : 'text-slate-800'}`}>
-              {s.value.toLocaleString()}
-            </h3>
+      {/* ── KPI row ── */}
+      <div className="grid grid-cols-4 gap-5">
+        <div className="rounded-2xl p-6 bg-agri-dark text-white relative overflow-hidden">
+          <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/15 grid place-items-center mb-5">
+            <Leaf size={22} />
           </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-          <div className="mb-4">
-            <h3 className="font-bold text-[15px] uppercase tracking-wider text-slate-800">Crop health overview</h3>
-            <p className="text-slate-500 text-sm mt-1">Confirmed disease &amp; pest scans, last 30 days</p>
-          </div>
-          <div className="h-[350px] bg-slate-50 rounded-xl overflow-hidden relative z-0 border border-slate-100">
-            <MapContainer center={CHENNAI} zoom={10} scrollWheelZoom={false} className="h-full w-full rounded-xl">
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
-              {(hot.data?.points ?? []).map((p) => (
-                <CircleMarker
-                  key={p.id}
-                  center={[p.lat, p.lng]}
-                  radius={p.severity === 'high' ? 12 : 8}
-                  color="transparent"
-                  fillColor={sevColor(p.severity)}
-                  fillOpacity={0.75}
-                >
-                  <Popup>
-                    <strong>{p.diagnosis_label ?? 'Scan'}</strong>
-                    <br />
-                    {p.crop ?? 'unknown crop'} · {p.severity ?? '—'}
-                  </Popup>
-                </CircleMarker>
-              ))}
-            </MapContainer>
-            <div className="absolute bottom-4 right-4 bg-white p-3 rounded-xl shadow-md border border-slate-100 z-[400] flex flex-col gap-2">
-              {[['#ef4444', 'High'], ['#f59e0b', 'Moderate'], ['#22c55e', 'Low']].map(([c, l]) => (
-                <div key={l} className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-                  <span className="text-xs font-medium text-slate-700">{l}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
+            Scans · last 30 days
+          </p>
+          <p className="text-4xl font-bold mt-1">{d.scans.total.toLocaleString()}</p>
+          <p className="text-sm mt-2 text-emerald-300 flex items-center gap-1">
+            <ArrowUpRight size={14} />
+            {d.scans.last7d} in the last week
+          </p>
+          <Leaf size={120} className="absolute -bottom-6 -right-4 text-white/5" />
         </div>
 
-        <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-[15px] uppercase tracking-wider text-slate-800 mb-6">Recent activity</h3>
+        <Kpi
+          icon={FileWarning}
+          tint="amber"
+          label="Pending validations"
+          value={d.scans.needs_validation}
+          hint={d.scans.needs_validation ? 'Needs review' : 'All clear'}
+          onClick={() => nav('/queue')}
+        />
+        <Kpi
+          icon={BellRing}
+          tint="red"
+          label="Active alerts · 14 days"
+          value={d.activeAlerts}
+          hint="Broadcasts in effect"
+          onClick={() => nav('/alerts')}
+        />
+        <Kpi
+          icon={IndianRupee}
+          tint="emerald"
+          label="Subsidies disbursed"
+          value={s ? rupee(s.totalDisbursed) : '—'}
+          hint={s ? `${s.pendingReview} awaiting review` : ''}
+          onClick={() => nav('/subsidies')}
+        />
+      </div>
+
+      {/* ── attention + activity ── */}
+      <div className="grid grid-cols-3 gap-5 items-start">
+        <SectionCard
+          className="col-span-2"
+          title="Validation queue"
+          subtitle={
+            (queue.data?.items.length ?? 0) === 1
+              ? '1 scan awaiting your review'
+              : `${queue.data?.items.length ?? 0} scans awaiting your review`
+          }
+          action={{ label: 'Review all', onClick: () => nav('/queue') }}
+        >
+          {queue.loading ? (
+            <Loading />
+          ) : (queue.data?.items ?? []).length === 0 ? (
+            <Empty text="The queue is clear." />
+          ) : (
+            <ul className="divide-y divide-slate-100 -mx-2">
+              {queue.data!.items.map((it) => (
+                <li
+                  key={it.id}
+                  onClick={() => nav('/queue')}
+                  className="flex items-center gap-4 px-2 py-3 hover:bg-slate-50 rounded-lg cursor-pointer"
+                >
+                  <img src={it.image_url} alt="" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-slate-800 truncate">
+                      {it.diagnosis_label ?? 'Unclassified'}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {it.farmer_name}
+                      {it.crop ? ` · ${it.crop}` : ''}
+                    </p>
+                  </div>
+                  {(it.confidence ?? 1) < 0.6 && (
+                    <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">
+                      low confidence
+                    </span>
+                  )}
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${sevDot(it.severity)}`} />
+                  <span className="text-xs text-slate-400 shrink-0 w-16 text-right">
+                    {timeAgo(it.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Recent activity" subtitle="Latest scans across the region">
           {recent.loading ? (
             <Loading />
           ) : (
-            <div className="space-y-5">
-              {(recent.data?.items ?? []).map((it) => {
-                const bad = it.diagnosis_category === 'disease' || it.diagnosis_category === 'pest';
+            <ul className="space-y-4">
+              {(recent.data?.items ?? []).slice(0, 7).map((it) => {
+                const pest = it.diagnosis_category === 'pest';
                 return (
-                  <div key={it.id} className="flex gap-4 items-center">
-                    <div
-                      className={`w-9 h-9 flex items-center justify-center rounded-full shrink-0 ${
+                  <li key={it.id} className="flex items-center gap-3">
+                    <span
+                      className={`w-8 h-8 rounded-full grid place-items-center shrink-0 ${
                         it.severity === 'high'
                           ? 'bg-red-100 text-red-600'
                           : it.severity === 'medium'
-                            ? 'bg-amber-100 text-amber-500'
+                            ? 'bg-amber-100 text-amber-600'
                             : 'bg-green-100 text-green-600'
                       }`}
                     >
-                      {it.diagnosis_category === 'pest' ? <Bug size={18} /> : <Leaf size={18} />}
-                    </div>
+                      {pest ? <Bug size={15} /> : <Leaf size={15} />}
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-slate-800 truncate">
-                        {it.crop ? `${it.crop} • ` : ''}
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {it.crop ? `${it.crop} · ` : ''}
                         {it.diagnosis_label ?? 'Scan'}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">{it.farmer_name}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{it.farmer_name}</p>
                     </div>
-                    <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 shrink-0">
-                      {timeAgo(it.created_at)}
-                      <div
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: bad ? '#ef4444' : '#22c55e' }}
-                      />
-                    </div>
-                  </div>
+                    <span className="text-[11px] text-slate-400 shrink-0">{timeAgo(it.created_at)}</span>
+                  </li>
                 );
               })}
-              {(recent.data?.items ?? []).length === 0 && (
-                <p className="text-sm text-slate-400">No recent scans.</p>
-              )}
-            </div>
+              {(recent.data?.items ?? []).length === 0 && <Empty text="No scans yet." />}
+            </ul>
           )}
-        </div>
+        </SectionCard>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-[15px] uppercase tracking-wider text-slate-800 mb-4">Top diagnoses (30d)</h3>
-          <div className="space-y-3">
-            {d.topDiagnoses.map((t) => {
-              const max = d.topDiagnoses[0]?.count || 1;
-              return (
-                <div key={t.label ?? 'x'}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700">{t.label ?? 'Unknown'}</span>
-                    <span className="text-slate-500">
-                      {t.count}
-                      {t.high > 0 && <span className="text-red-500"> · {t.high} high</span>}
+      {/* ── analytics ── */}
+      <div className="grid grid-cols-3 gap-5 items-start">
+        <SectionCard title="Top diagnoses" subtitle="Confirmed problems · 30 days">
+          <BarList
+            rows={d.topDiagnoses.map((t) => ({
+              label: t.label ?? 'Unknown',
+              value: t.count,
+              note: t.high > 0 ? `${t.high} high` : undefined,
+            }))}
+            color="bg-agri-primary"
+            empty="No confirmed problems."
+          />
+        </SectionCard>
+
+        <SectionCard title="Scans by crop" subtitle="All scans · 30 days">
+          <BarList
+            rows={d.byCrop.map((c) => ({ label: c.crop ?? 'Unlinked', value: c.count }))}
+            color="bg-agri-dark"
+            empty="No scans yet."
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Subsidies"
+          subtitle="This region"
+          action={{ label: 'Manage', onClick: () => nav('/subsidies') }}
+        >
+          {!s ? (
+            <Loading />
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <MiniStat label="Pending" value={s.pendingReview} />
+                <MiniStat label="Approved" value={s.approvedNotDisbursed} />
+                <MiniStat label="Queries" value={s.openQueries} tint={s.openQueries ? 'text-red-600' : undefined} />
+              </div>
+              <div className="pt-3 border-t border-slate-100">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                  By scheme
+                </p>
+                {s.byScheme.slice(0, 4).map((sc) => (
+                  <div key={sc.scheme_id} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-slate-700 truncate pr-2 flex items-center gap-1.5">
+                      <ShieldCheck size={13} className="text-agri-primary shrink-0" />
+                      {sc.title}
+                    </span>
+                    <span className="text-sm text-slate-500 shrink-0">
+                      {sc.disbursed}/{sc.applications}
+                      {sc.amount > 0 && <span className="text-emerald-600"> · {rupee(sc.amount)}</span>}
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-agri-primary rounded-full"
-                      style={{ width: `${(t.count / max) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            {d.topDiagnoses.length === 0 && <p className="text-sm text-slate-400">No confirmed problems yet.</p>}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-[15px] uppercase tracking-wider text-slate-800 mb-4">Scans by crop (30d)</h3>
-          <div className="space-y-3">
-            {d.byCrop.map((c) => {
-              const max = d.byCrop[0]?.count || 1;
-              return (
-                <div key={c.crop ?? 'x'}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700 capitalize">{c.crop ?? 'Unlinked'}</span>
-                    <span className="text-slate-500">{c.count}</span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-agri-dark rounded-full" style={{ width: `${(c.count / max) * 100}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-            {d.byCrop.length === 0 && <p className="text-sm text-slate-400">No scans yet.</p>}
-          </div>
-        </div>
+                ))}
+                {s.byScheme.length === 0 && <Empty text="No applications yet." />}
+              </div>
+            </div>
+          )}
+        </SectionCard>
       </div>
     </motion.div>
   );
+}
+
+/* ── small components ─────────────────────────────────────────────── */
+
+function Kpi({
+  icon: Icon,
+  tint,
+  label,
+  value,
+  hint,
+  onClick,
+}: {
+  icon: typeof Leaf;
+  tint: 'amber' | 'red' | 'emerald';
+  label: string;
+  value: string | number;
+  hint?: string;
+  onClick?: () => void;
+}) {
+  const bg =
+    tint === 'amber'
+      ? 'bg-amber-50 text-amber-600'
+      : tint === 'red'
+        ? 'bg-red-50 text-red-600'
+        : 'bg-emerald-50 text-emerald-600';
+  return (
+    <button
+      onClick={onClick}
+      className="text-left rounded-2xl p-6 bg-white border border-slate-200/70 hover:border-slate-300 hover:shadow-sm transition group"
+    >
+      <div className="flex items-start justify-between">
+        <div className={`w-11 h-11 rounded-xl grid place-items-center mb-5 ${bg}`}>
+          <Icon size={22} />
+        </div>
+        {onClick && (
+          <ChevronRight size={18} className="text-slate-300 group-hover:text-slate-400 mt-1" />
+        )}
+      </div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-4xl font-bold mt-1 text-slate-800">
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </p>
+      {hint && <p className="text-xs text-slate-400 mt-2">{hint}</p>}
+    </button>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  action,
+  className = '',
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: { label: string; onClick: () => void };
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`bg-white rounded-2xl border border-slate-200/70 p-6 ${className}`}>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-slate-800">{title}</h3>
+          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+        </div>
+        {action && (
+          <button
+            onClick={action.onClick}
+            className="text-sm font-medium text-agri-primary hover:underline flex items-center gap-0.5 shrink-0"
+          >
+            {action.label} <ChevronRight size={15} />
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function BarList({
+  rows,
+  color,
+  empty,
+}: {
+  rows: { label: string; value: number; note?: string }[];
+  color: string;
+  empty: string;
+}) {
+  if (rows.length === 0) return <Empty text={empty} />;
+  const max = Math.max(...rows.map((r) => r.value), 1);
+  return (
+    <div className="space-y-3">
+      {rows.slice(0, 7).map((r) => (
+        <div key={r.label}>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="font-medium text-slate-700 capitalize truncate pr-2">{r.label}</span>
+            <span className="text-slate-500 shrink-0">
+              {r.value}
+              {r.note && <span className="text-red-500"> · {r.note}</span>}
+            </span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full ${color} rounded-full`} style={{ width: `${(r.value / max) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tint }: { label: string; value: number; tint?: string }) {
+  return (
+    <div className="bg-slate-50 rounded-xl py-3">
+      <p className={`text-2xl font-bold ${tint ?? 'text-slate-800'}`}>{value}</p>
+      <p className="text-[11px] uppercase tracking-wide text-slate-400 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <p className="text-sm text-slate-400 py-4">{text}</p>;
 }
