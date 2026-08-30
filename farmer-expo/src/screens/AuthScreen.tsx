@@ -43,21 +43,22 @@ const LANGS = [
 ];
 
 /**
- * Slow cinematic reveal on the background photo (~3.5s), then a very slow
- * infinite Ken-Burns drift so it stays alive without distracting.
+ * Slow cinematic reveal on the background map (~3.5s): it fades in while a
+ * gentle scale settles, then a barely-there endless breathing loop. The whole
+ * map stays visible (contentFit="contain"), so the motion is kept tiny.
  */
 function useCinematicBg() {
   const p = useSharedValue(0); // 0 -> 1 reveal
-  const k = useSharedValue(0); // ken-burns phase
+  const k = useSharedValue(0); // breathing phase
 
   useEffect(() => {
     p.value = withTiming(1, { duration: 3500, easing: Easing.out(Easing.cubic) });
     k.value = withDelay(
-      600,
+      800,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 13000, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0, { duration: 13000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 9000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0, { duration: 9000, easing: Easing.inOut(Easing.sin) }),
         ),
         -1,
         false,
@@ -66,12 +67,8 @@ function useCinematicBg() {
   }, [p, k]);
 
   return useAnimatedStyle(() => ({
-    opacity: 0.55 + p.value * 0.45,
-    transform: [
-      { scale: 1.12 + p.value * 0.04 + k.value * 0.06 },
-      { translateX: -14 + k.value * 28 },
-      { translateY: -8 + k.value * 12 },
-    ],
+    opacity: 0.4 + p.value * 0.6,
+    transform: [{ scale: 0.94 + p.value * 0.06 + k.value * 0.02 }],
   }));
 }
 
@@ -110,16 +107,22 @@ export default function AuthScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#16281A' }}>
-      {/* animated background photo */}
-      <Animated.View style={[{ position: 'absolute', width, height }, bgStyle]}>
-        <Image source={BG} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+    <View style={{ flex: 1, backgroundColor: '#12241A' }}>
+      {/* animated background — the whole map, centred */}
+      <Animated.View
+        style={[
+          { position: 'absolute', width, height, alignItems: 'center', justifyContent: 'center' },
+          bgStyle,
+        ]}
+      >
+        <Image source={BG} style={{ width: '100%', height: '100%' }} contentFit="contain" />
       </Animated.View>
-      {/* legibility scrim */}
+      {/* very light edge scrim — only enough to keep the status bar + card readable */}
       <LinearGradient
-        colors={['rgba(18,34,20,0.30)', 'rgba(16,30,18,0.55)', 'rgba(14,26,16,0.82)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(10,20,14,0.45)', 'rgba(10,20,14,0)', 'rgba(10,20,14,0)', 'rgba(10,20,14,0.4)']}
+        locations={[0, 0.22, 0.72, 1]}
         style={{ position: 'absolute', width, height }}
+        pointerEvents="none"
       />
 
       <ScrollWrap topInset={insets.top} bottomInset={insets.bottom}>
@@ -163,24 +166,24 @@ export default function AuthScreen() {
               borderRadius: radius.xxl,
               overflow: 'hidden',
               borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.45)',
+              borderColor: 'rgba(255,255,255,0.4)',
               shadowColor: '#000',
-              shadowOpacity: 0.28,
-              shadowRadius: 30,
-              shadowOffset: { width: 0, height: 18 },
-              elevation: 14,
+              shadowOpacity: 0.22,
+              shadowRadius: 26,
+              shadowOffset: { width: 0, height: 16 },
+              elevation: 12,
             }}
           >
             <BlurView
-              intensity={38}
+              intensity={28}
               tint="light"
               experimentalBlurMethod="dimezisBlurView"
-              style={{ padding: space.lg, gap: space.lg, backgroundColor: 'rgba(255,255,255,0.28)' }}
+              style={{ padding: space.lg, gap: space.lg, backgroundColor: 'rgba(255,255,255,0.16)' }}
             >
               {/* top sheen */}
               <LinearGradient
-                colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90 }}
+                colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0)']}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
                 pointerEvents="none"
               />
 
