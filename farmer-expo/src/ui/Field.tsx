@@ -31,6 +31,11 @@ export function Field({ label, hint, error, right, style, onFocus, onBlur, place
       [0, 1],
       [error ? palette.danger : palette.border, error ? palette.danger : palette.primary],
     ),
+    backgroundColor: interpolateColor(
+      focus.value,
+      [0, 1],
+      [palette.surfaceAlt, palette.surface],
+    ),
   }));
 
   return (
@@ -46,8 +51,7 @@ export function Field({ label, hint, error, right, style, onFocus, onBlur, place
             flexDirection: 'row',
             alignItems: 'center',
             borderWidth: 1.5,
-            borderRadius: radius.md,
-            backgroundColor: palette.surface,
+            borderRadius: radius.lg,
             paddingHorizontal: space.md,
           },
           borderStyle,
@@ -59,7 +63,7 @@ export function Field({ label, hint, error, right, style, onFocus, onBlur, place
           style={[
             {
               flex: 1,
-              paddingVertical: space.md,
+              paddingVertical: space.md + 1,
               ...type.body,
               fontFamily: inputFont,
               color: palette.text,

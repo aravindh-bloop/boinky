@@ -38,6 +38,7 @@ export function Text({
     ...type[variant],
     color: resolved,
     textAlign: center ? 'center' : undefined,
+    ...(variant === 'overline' ? { color: color ?? palette.textFaint } : null),
   };
 
   // Auto-translate plain-text content. A single string, or an array of

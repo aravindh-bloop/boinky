@@ -2,6 +2,7 @@ import { alertT } from '../i18n/alert';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
@@ -99,13 +100,19 @@ export default function ScanResultScreen() {
         <Animated.View entering={FadeIn}>
           <Image
             source={{ uri: scan.image_url }}
-            style={{ width: '100%', height: 300 }}
+            style={{ width: '100%', height: 320, borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl }}
             contentFit="cover"
             transition={250}
           />
+          {/* top scrim so the transparent header's back button stays legible on any photo */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 110 }}
+            pointerEvents="none"
+          />
         </Animated.View>
 
-        <View style={{ padding: space.lg, gap: space.md, marginTop: -space.xxl }}>
+        <View style={{ padding: space.lg, gap: space.lg, marginTop: -space.xl }}>
           <Reveal from="scale">
             <Card elevation="raised">
               <Row between>

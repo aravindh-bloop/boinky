@@ -24,6 +24,7 @@ import {
   PressableScale,
   RiskGauge,
   gradients,
+  shadow,
   haptic,
   palette,
   radius,
@@ -120,36 +121,38 @@ export default function HomeScreen() {
         <LinearGradient
           colors={w?.current.isDay === false ? gradients.dusk : gradients.canopy}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 1, y: 1.1 }}
           style={{
             paddingTop: insets.top + space.md,
             paddingHorizontal: space.lg,
-            paddingBottom: space.xxxl,
+            paddingBottom: space.xxl + space.lg,
             borderBottomLeftRadius: radius.xxl,
             borderBottomRightRadius: radius.xxl,
           }}
         >
           <Row between>
             <View>
-              <Text variant="body" color="rgba(255,255,255,0.85)">
+              <Text variant="label" color="rgba(255,255,255,0.75)">
                 {greeting()}
               </Text>
-              <Text variant="title" color="#fff" raw>
+              <Text variant="title" color="#fff" raw style={{ marginTop: 1 }}>
                 {d.user.name?.split(' ')[0] ?? t('farmer')}
               </Text>
             </View>
             <PressableScale onPress={() => nav.navigate('Profile')} compact>
               <View
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   borderRadius: radius.pill,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.25)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Text variant="subhead" color="#fff">
+                <Text variant="subhead" color="#fff" raw>
                   {(d.user.name?.[0] ?? 'F').toUpperCase()}
                 </Text>
               </View>
@@ -158,50 +161,61 @@ export default function HomeScreen() {
 
           {w ? (
             <PressableScale onPress={() => nav.navigate('Weather')} feedback="tap">
-              <Row between style={{ marginTop: space.lg }}>
-                <Row gap={space.md}>
-                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={52} color="#fff" weight="fill" />
+              <Row between style={{ marginTop: space.xl, alignItems: 'flex-end' }}>
+                <Row gap={space.md} style={{ alignItems: 'center' }}>
+                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={46} color="#fff" weight="fill" />
                   <View>
-                    <Text variant="hero" color="#fff" style={{ fontSize: 40, lineHeight: 44 }}>
+                    <Text variant="hero" color="#fff" raw style={{ fontSize: 44, lineHeight: 46, letterSpacing: -1 }}>
                       {Math.round(w.current.tempC ?? 0)}°
                     </Text>
-                    <Text variant="bodyStrong" color="rgba(255,255,255,0.9)">
+                    <Text variant="bodyStrong" color="rgba(255,255,255,0.92)" style={{ marginTop: 2 }}>
                       {w.current.condition}
                     </Text>
                   </View>
                 </Row>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text variant="caption" color="rgba(255,255,255,0.85)">
-                    {w.place ?? 'your field'}
-                  </Text>
+                <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      borderRadius: radius.pill,
+                      paddingHorizontal: space.sm,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Icon name="hotspot" size={11} color="rgba(255,255,255,0.9)" weight="fill" />
+                    <Text variant="caption" color="#fff" raw>
+                      {w.place ?? t('your field')}
+                    </Text>
+                  </View>
                   {w.today && (
-                    <Text variant="caption" color="rgba(255,255,255,0.85)">
-                      ↑{Math.round(w.today.tempMaxC ?? 0)}° ↓{Math.round(w.today.tempMinC ?? 0)}°
+                    <Text variant="caption" color="rgba(255,255,255,0.8)" raw>
+                      H {Math.round(w.today.tempMaxC ?? 0)}°  ·  L {Math.round(w.today.tempMinC ?? 0)}°
                     </Text>
                   )}
-                  <Text variant="caption" color="rgba(255,255,255,0.7)">
-                    feels {Math.round(w.current.feelsLikeC ?? 0)}°
-                  </Text>
                 </View>
               </Row>
               {w.topAdvisory && (
                 <View
                   style={{
                     marginTop: space.md,
-                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    backgroundColor: 'rgba(255,255,255,0.15)',
                     borderRadius: radius.md,
-                    padding: space.sm,
+                    paddingHorizontal: space.md,
+                    paddingVertical: space.sm,
                     flexDirection: 'row',
                     gap: space.sm,
                     alignItems: 'center',
                   }}
                 >
-                  <Icon name="warning" size={16} color="#fff" weight="fill" />
+                  <Icon name="warning" size={15} color="#fff" weight="fill" />
                   <Text variant="caption" color="#fff" style={{ flex: 1 }}>
                     {w.topAdvisory.title}
-                    {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1} more` : ''}
+                    {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
                   </Text>
-                  <Icon name="right" size={14} color="rgba(255,255,255,0.8)" />
+                  <Icon name="right" size={13} color="rgba(255,255,255,0.8)" />
                 </View>
               )}
             </PressableScale>
@@ -212,7 +226,7 @@ export default function HomeScreen() {
           )}
         </LinearGradient>
 
-        <View style={{ padding: space.lg, gap: space.md, marginTop: -space.lg }}>
+        <View style={{ padding: space.lg, gap: space.lg, marginTop: -space.md }}>
           {/* ── AI daily brief — leads the dashboard when there is something to say ── */}
           <AiBrief
             brief={briefApi.brief}
@@ -418,17 +432,19 @@ function StatPill({
         style={{
           backgroundColor: palette.surface,
           borderRadius: radius.lg,
-          padding: space.md,
-          gap: 2,
+          paddingHorizontal: space.md,
+          paddingVertical: space.md,
+          gap: space.xs,
           borderWidth: 1,
           borderColor: palette.hairline,
+          ...shadow.e0,
         }}
       >
-        <Icon name={icon} size={18} color={tint} weight="fill" />
-        <Text variant="title" style={{ fontSize: 22 }} color={tint}>
-          {value}
+        <Icon name={icon} size={16} color={tint} weight="fill" />
+        <Text variant="hero" raw style={{ fontSize: 26, lineHeight: 30 }} color={tint}>
+          {String(value)}
         </Text>
-        <Text variant="caption" faint>
+        <Text variant="overline" style={{ letterSpacing: 0.6 }}>
           {label}
         </Text>
       </View>

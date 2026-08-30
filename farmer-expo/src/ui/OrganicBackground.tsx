@@ -29,11 +29,11 @@ function OrganicBackgroundBase({ tint = 'green', height = 260, style }: Props) {
       <Rect x={0} y={0} width={width} height={height}>
         <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[t.base0, t.base1]} />
       </Rect>
-      <Group opacity={0.5}>
-        <BlurMask blur={40} style="normal" />
-        <Circle cx={width * 0.15} cy={height * 0.25} r={height * 0.42} color={t.a} opacity={0.35} />
-        <Circle cx={width * 0.9} cy={height * 0.1} r={height * 0.36} color={t.b} opacity={0.3} />
-        <Circle cx={width * 0.7} cy={height * 0.55} r={height * 0.3} color={t.a} opacity={0.22} />
+      <Group opacity={0.42}>
+        <BlurMask blur={48} style="normal" />
+        <Circle cx={width * 0.12} cy={height * 0.22} r={height * 0.44} color={t.a} opacity={0.3} />
+        <Circle cx={width * 0.94} cy={height * 0.06} r={height * 0.38} color={t.b} opacity={0.26} />
+        <Circle cx={width * 0.72} cy={height * 0.6} r={height * 0.26} color={t.a} opacity={0.16} />
       </Group>
     </Canvas>
   );

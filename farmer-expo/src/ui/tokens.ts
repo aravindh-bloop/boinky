@@ -96,44 +96,73 @@ export const tamilFontFor: Record<string, string> = {
   NunitoSans_700Bold: 'NotoSansTamil_700Bold',
 };
 
-type TypeToken = Pick<TextStyle, 'fontFamily' | 'fontSize' | 'lineHeight' | 'letterSpacing'>;
+type TypeToken = Pick<TextStyle, 'fontFamily' | 'fontSize' | 'lineHeight' | 'letterSpacing'> & {
+  textTransform?: TextStyle['textTransform'];
+};
 
 export const type: Record<
-  'hero' | 'title' | 'heading' | 'subhead' | 'body' | 'bodyStrong' | 'label' | 'caption' | 'mono',
+  | 'hero'
+  | 'title'
+  | 'heading'
+  | 'subhead'
+  | 'body'
+  | 'bodyStrong'
+  | 'label'
+  | 'overline'
+  | 'caption'
+  | 'mono',
   TypeToken
 > = {
-  hero: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, letterSpacing: -0.5 },
-  title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, letterSpacing: -0.3 },
-  heading: { fontFamily: fonts.bodyBold, fontSize: 19, lineHeight: 25, letterSpacing: -0.2 },
-  subhead: { fontFamily: fonts.bodyMedium, fontSize: 16, lineHeight: 22 },
-  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22 },
-  bodyStrong: { fontFamily: fonts.bodyMedium, fontSize: 15, lineHeight: 22 },
-  label: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 17, letterSpacing: 0.3 },
-  caption: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16 },
+  hero: { fontFamily: fonts.display, fontSize: 31, lineHeight: 37, letterSpacing: -0.7 },
+  title: { fontFamily: fonts.display, fontSize: 23, lineHeight: 29, letterSpacing: -0.4 },
+  heading: { fontFamily: fonts.bodyBold, fontSize: 18, lineHeight: 24, letterSpacing: -0.2 },
+  subhead: { fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 21, letterSpacing: -0.1 },
+  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 23 },
+  bodyStrong: { fontFamily: fonts.bodyMedium, fontSize: 15, lineHeight: 23 },
+  label: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 17, letterSpacing: 0.2 },
+  overline: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  caption: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17 },
   mono: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 18, letterSpacing: 0.2 },
 };
 
-export const shadow: Record<'e1' | 'e2' | 'e3', ViewStyle> = {
-  e1: {
-    shadowColor: '#4A3826',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+/**
+ * Warm, diffuse shadows — barely-there on light, present enough to lift a card.
+ * One layer only (RN can't stack), tuned soft: low opacity, wide radius.
+ */
+export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
+  e0: {
+    shadowColor: '#3D2E1E',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
-  e2: {
-    shadowColor: '#4A3826',
-    shadowOpacity: 0.1,
+  e1: {
+    shadowColor: '#3D2E1E',
+    shadowOpacity: 0.06,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    elevation: 3,
+  },
+  e2: {
+    shadowColor: '#3D2E1E',
+    shadowOpacity: 0.09,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 7,
   },
   e3: {
-    shadowColor: '#4A3826',
-    shadowOpacity: 0.14,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 12,
+    shadowColor: '#3D2E1E',
+    shadowOpacity: 0.13,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 20 },
+    elevation: 13,
   },
 };
 

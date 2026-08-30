@@ -37,12 +37,12 @@ export function Button({
   const h = heights[size];
   const shape: ViewStyle = {
     height: h,
-    borderRadius: radius.lg,
+    borderRadius: size === 'lg' ? radius.xl : radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: space.sm,
-    paddingHorizontal: space.xl,
+    paddingHorizontal: size === 'sm' ? space.lg : space.xl,
     alignSelf: full ? 'stretch' : 'flex-start',
   };
 
@@ -60,7 +60,7 @@ export function Button({
       ) : (
         <>
           {icon}
-          <Text variant="subhead" color={fg} style={{ fontFamily: 'NunitoSans_700Bold' }}>
+          <Text variant="subhead" color={fg} style={{ fontFamily: 'NunitoSans_700Bold', letterSpacing: 0.1 }}>
             {title}
           </Text>
         </>

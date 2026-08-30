@@ -20,4 +20,4 @@ export { PodCard } from './PodCard';
 export { OrganicBackground } from './OrganicBackground';
 export { Loader, LoaderScreen } from './Loader';
 export { SegmentedControl } from './SegmentedControl';
-export { EmptyState, ErrorState, Divider, Dot, Row, KeyStat } from './misc';
+export { EmptyState, ErrorState, Divider, Dot, Row, KeyStat, SectionHeader } from './misc';

@@ -24,12 +24,13 @@ export function Card({
   const base: ViewStyle = {
     backgroundColor: elevation === 'sunken' ? palette.surfaceSunken : palette.surface,
     borderRadius: radius.xl,
-    borderWidth: elevation === 'raised' ? 0 : 1,
-    borderColor: palette.border,
+    // a crisp hairline edge under a soft shadow — the "premium card" look
+    borderWidth: 1,
+    borderColor: elevation === 'raised' ? palette.hairline : palette.border,
     padding: padded ? space.lg : 0,
     gap: space.sm,
     ...(elevation === 'raised' ? shadow.e1 : null),
-    ...(accent ? { borderLeftWidth: 4, borderLeftColor: accent } : null),
+    ...(accent ? { borderLeftWidth: 3, borderLeftColor: accent } : null),
   };
 
   if (onPress) {

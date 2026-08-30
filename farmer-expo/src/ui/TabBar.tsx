@@ -86,10 +86,15 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       style={{
         backgroundColor: palette.surface,
         borderTopWidth: 1,
-        borderTopColor: palette.hairline,
+        borderTopColor: palette.border,
         paddingBottom: Math.max(insets.bottom, space.sm),
         paddingTop: space.sm,
-        ...shadow.e3,
+        // shadow points up, toward the content it sits under
+        shadowColor: '#3D2E1E',
+        shadowOpacity: 0.07,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: -6 },
+        elevation: 16,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>

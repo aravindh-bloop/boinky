@@ -19,7 +19,8 @@ interface Props<T extends string> {
 export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
   const [w, setW] = useState(0);
   const idx = Math.max(0, options.findIndex((o) => o.value === value));
-  const seg = w / options.length;
+  // container has 4px padding each side; the pill lives inside that inset
+  const seg = w > 8 ? (w - 8) / options.length : 0;
   const x = useSharedValue(0);
 
   React.useEffect(() => {
@@ -50,8 +51,8 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
               left: 4,
               backgroundColor: palette.surface,
               borderRadius: radius.pill,
-              shadowColor: '#4A3826',
-              shadowOpacity: 0.1,
+              shadowColor: '#3D2E1E',
+              shadowOpacity: 0.08,
               shadowRadius: 6,
               shadowOffset: { width: 0, height: 2 },
               elevation: 2,
