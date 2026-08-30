@@ -18,6 +18,7 @@ export { VoiceNote } from './VoiceNote';
 export { Sparkline } from './Sparkline';
 export { PodCard } from './PodCard';
 export { OrganicBackground } from './OrganicBackground';
+export { AuthBackdrop } from './AuthBackdrop';
 export { Loader, LoaderScreen } from './Loader';
 export { SegmentedControl } from './SegmentedControl';
 export { EmptyState, ErrorState, Divider, Dot, Row, KeyStat, SectionHeader } from './misc';
