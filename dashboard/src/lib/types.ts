@@ -39,6 +39,46 @@ export interface QueueItem {
   district: string | null;
 }
 
+export interface ScanMedia {
+  id: string;
+  kind: string;
+  url: string;
+  resource: 'image' | 'video';
+  duration_s: number | null;
+  position: number;
+}
+
+export interface OfficerScanDetail {
+  id: string;
+  image_url: string;
+  diagnosis_label: string | null;
+  diagnosis_category: string | null;
+  affected_part: string | null;
+  severity: 'low' | 'medium' | 'high' | null;
+  confidence: number | null;
+  status: string;
+  advisory_text: string | null;
+  validation_note: string | null;
+  image_quality: 'good' | 'partial' | 'poor' | null;
+  coverage_gaps: string[] | null;
+  farmer_note: string | null;
+  farmer_note_language: string | null;
+  risk_score: number | null;
+  district: string | null;
+  location_accuracy_m: number | null;
+  lat: number | null;
+  lng: number | null;
+  created_at: string;
+  submitted_at: string | null;
+  farmer_name: string;
+  farmer_phone: string | null;
+  region: string | null;
+  crop: string | null;
+  variety: string | null;
+  field_name: string | null;
+  media: ScanMedia[];
+}
+
 export interface HotspotPoint {
   id: string;
   lat: number;

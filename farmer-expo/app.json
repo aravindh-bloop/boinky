@@ -52,6 +52,15 @@
           "locationAlwaysAndWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking.",
           "locationWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking."
         }
+      ],
+      "expo-video",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AgriPod uses the camera for the guided crop scan — photographing the plant from every angle for an accurate diagnosis.",
+          "microphonePermission": "AgriPod records a short video of the plant during a scan when you choose to.",
+          "recordAudioAndroid": true
+        }
       ]
     ]
   }

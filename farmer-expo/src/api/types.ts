@@ -35,12 +35,41 @@ export interface Field {
 }
 
 export type ScanStatus =
+  | 'draft'
   | 'pending'
   | 'auto_confirmed'
   | 'needs_validation'
   | 'validated'
   | 'corrected'
   | 'rejected';
+
+export type ScanAngle =
+  | 'whole_plant'
+  | 'affected_closeup'
+  | 'leaf_underside'
+  | 'stem_base'
+  | 'fruit_panicle'
+  | 'field_wide'
+  | 'video'
+  | 'extra';
+
+export interface ScanMedia {
+  id: string;
+  scan_id: string;
+  kind: ScanAngle;
+  url: string;
+  resource: 'image' | 'video';
+  width: number | null;
+  height: number | null;
+  duration_s: number | null;
+  position: number;
+}
+
+export interface ScanDraft {
+  scanId: string;
+  requiredAngles: ScanAngle[];
+  angles: ScanAngle[];
+}
 
 export interface Scan {
   id: string;
@@ -60,9 +89,13 @@ export interface Scan {
   lng: number | null;
   location_accuracy_m: number | null;
   district: string | null;
+  image_quality: 'good' | 'partial' | 'poor' | null;
+  coverage_gaps: string[] | null;
+  submitted_at: string | null;
   farmer_note: string | null;
   farmer_note_language: string | null;
   created_at: string;
+  media?: ScanMedia[];
 }
 
 export interface RiskSnapshot {

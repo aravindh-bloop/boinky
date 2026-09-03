@@ -1,11 +1,22 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle, XCircle, PencilLine, MapPin, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, PencilLine, MapPin, X, Video, ImageOff } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
-import type { QueueItem } from '../lib/types';
+import type { QueueItem, OfficerScanDetail } from '../lib/types';
 import { Loading, ErrorBox, SeverityBadge } from '../components/ui';
+
+const ANGLE_LABEL: Record<string, string> = {
+  whole_plant: 'Whole plant',
+  affected_closeup: 'Close-up',
+  leaf_underside: 'Underside',
+  stem_base: 'Stem / base',
+  fruit_panicle: 'Fruit / grain',
+  field_wide: 'Wider field',
+  video: 'Video',
+  extra: 'Photo',
+};
 
 export function ValidationQueue() {
   const [params, setParams] = useSearchParams();
@@ -16,11 +27,27 @@ export function ValidationQueue() {
     }`,
   );
   const [selected, setSelected] = useState<QueueItem | null>(null);
+  const [detail, setDetail] = useState<OfficerScanDetail | null>(null);
+  const [activeMedia, setActiveMedia] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [correctLabel, setCorrectLabel] = useState('');
   const [note, setNote] = useState('');
 
   const items = data?.items ?? [];
+
+  useEffect(() => {
+    setDetail(null);
+    setActiveMedia(0);
+    if (!selected) return;
+    let cancelled = false;
+    api
+      .get<{ scan: OfficerScanDetail }>(`/api/official/scans/${selected.id}`)
+      .then((r) => !cancelled && setDetail(r.scan))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   async function act(action: 'confirm' | 'correct' | 'reject') {
     if (!selected) return;
@@ -130,13 +157,34 @@ export function ValidationQueue() {
             </button>
           </div>
 
-          <img
-            src={selected.image_url}
-            alt=""
-            className="w-full h-48 object-cover rounded-xl mb-4 bg-slate-100"
+          <MediaGallery
+            media={detail?.media ?? []}
+            fallback={selected.image_url}
+            active={activeMedia}
+            setActive={setActiveMedia}
           />
 
           <div className="space-y-3 flex-1 overflow-auto">
+            {detail && detail.image_quality && detail.image_quality !== 'good' && (detail.coverage_gaps?.length ?? 0) > 0 && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-xs font-semibold text-amber-700 flex items-center gap-1 mb-1">
+                  <ImageOff size={12} /> AI flagged the photo set as “{detail.image_quality}”
+                </p>
+                <ul className="text-xs text-amber-800 list-disc pl-4 space-y-0.5">
+                  {detail.coverage_gaps!.slice(0, 4).map((g, i) => (
+                    <li key={i}>{g}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {detail?.farmer_note && (
+              <div className="p-3 rounded-xl bg-slate-50 border">
+                <p className="text-xs font-medium mb-1">
+                  Farmer's note{detail.farmer_note_language ? ` (${detail.farmer_note_language})` : ''}
+                </p>
+                <p className="text-sm text-slate-600 italic">“{detail.farmer_note}”</p>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-xs text-slate-500">AI diagnosis</p>
@@ -211,5 +259,58 @@ export function ValidationQueue() {
         </motion.div>
       )}
     </motion.div>
+  );
+}
+
+function MediaGallery({
+  media,
+  fallback,
+  active,
+  setActive,
+}: {
+  media: { id: string; kind: string; url: string; resource: 'image' | 'video' }[];
+  fallback: string;
+  active: number;
+  setActive: (n: number) => void;
+}) {
+  const items =
+    media.length > 0
+      ? media
+      : [{ id: 'x', kind: 'whole_plant', url: fallback, resource: 'image' as const }];
+  const cur = items[Math.min(active, items.length - 1)]!;
+
+  return (
+    <div className="mb-4">
+      {cur.resource === 'video' ? (
+        <video src={cur.url} controls className="w-full h-48 object-cover rounded-xl bg-black" />
+      ) : (
+        <img src={cur.url} alt="" className="w-full h-48 object-cover rounded-xl bg-slate-100" />
+      )}
+      {items.length > 1 && (
+        <>
+          <div className="flex gap-1.5 mt-2 overflow-x-auto">
+            {items.map((m, i) => (
+              <button
+                key={m.id}
+                onClick={() => setActive(i)}
+                className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
+                  i === active ? 'border-agri-primary' : 'border-transparent'
+                }`}
+              >
+                <img src={m.url} alt="" className="w-full h-full object-cover" />
+                {m.resource === 'video' && (
+                  <span className="absolute inset-0 grid place-items-center bg-black/25 text-white">
+                    <Video size={14} />
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {ANGLE_LABEL[cur.kind] ?? 'Photo'} · {active + 1}/{items.length}
+          </p>
+        </>
+      )}
+    </div>
   );
 }

@@ -12,8 +12,10 @@ import { BroomIcon } from 'phosphor-react-native/src/icons/Broom';
 import { BugIcon } from 'phosphor-react-native/src/icons/Bug';
 import { CalendarBlankIcon } from 'phosphor-react-native/src/icons/CalendarBlank';
 import { CalendarCheckIcon } from 'phosphor-react-native/src/icons/CalendarCheck';
+import { ArrowsCounterClockwiseIcon } from 'phosphor-react-native/src/icons/ArrowsCounterClockwise';
 import { CameraIcon } from 'phosphor-react-native/src/icons/Camera';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
+import { VideoCameraIcon } from 'phosphor-react-native/src/icons/VideoCamera';
 import { CaretRightIcon } from 'phosphor-react-native/src/icons/CaretRight';
 import { CaretUpIcon } from 'phosphor-react-native/src/icons/CaretUp';
 import { ChartBarIcon } from 'phosphor-react-native/src/icons/ChartBar';
@@ -119,6 +121,9 @@ const MAP = {
   humidity: DropHalfIcon,
 
   mic: MicrophoneIcon,
+  camera: CameraIcon,
+  video: VideoCameraIcon,
+  retry: ArrowsCounterClockwiseIcon,
   stop: StopCircleIcon,
   ai: SparkleIcon,
   insight: LightbulbIcon,

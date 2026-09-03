@@ -30,7 +30,7 @@ import {
 } from '../ui';
 import type { ScanStackParams } from '../navigation';
 
-type Nav = NativeStackNavigationProp<ScanStackParams, 'ScanCapture'>;
+type Nav = NativeStackNavigationProp<ScanStackParams, 'ScanQuick'>;
 
 interface Picked {
   uri: string;

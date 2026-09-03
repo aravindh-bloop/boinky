@@ -121,6 +121,7 @@ async function upload<T>(
   path: string,
   file: { uri: string; name: string; type: string },
   fields: Record<string, string> = {},
+  opts: { fieldName?: string } = {},
 ): Promise<T> {
   const token = await loadToken();
   const started = Date.now();
@@ -129,7 +130,7 @@ async function upload<T>(
     result = await FileSystem.uploadAsync(`${API_BASE_URL}${path}`, file.uri, {
       httpMethod: 'POST',
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: 'image',
+      fieldName: opts.fieldName ?? 'image',
       mimeType: file.type,
       parameters: fields,
       headers: {

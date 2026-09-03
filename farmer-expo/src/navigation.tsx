@@ -20,6 +20,7 @@ import FieldFormScreen from './screens/FieldFormScreen';
 import FieldDetailScreen from './screens/FieldDetailScreen';
 import CalendarScreen from './screens/CalendarScreen';
 import ScanScreen from './screens/ScanScreen';
+import ScanCaptureScreen from './screens/ScanCaptureScreen';
 import ScanResultScreen from './screens/ScanResultScreen';
 import SchemesScreen from './screens/SchemesScreen';
 import MySchemesScreen from './screens/MySchemesScreen';
@@ -58,6 +59,7 @@ export type FieldsStackParams = {
 };
 export type ScanStackParams = {
   ScanCapture: undefined;
+  ScanQuick: undefined;
   ScanResult: { scanId: string };
 };
 export type SchemesStackParams = {
@@ -117,7 +119,8 @@ const ScanNav = createNativeStackNavigator<ScanStackParams>();
 function ScanStack() {
   return (
     <ScanNav.Navigator screenOptions={screenOpts}>
-      <ScanNav.Screen name="ScanCapture" component={ScanScreen} options={{ headerShown: false }} />
+      <ScanNav.Screen name="ScanCapture" component={ScanCaptureScreen} options={{ headerShown: false }} />
+      <ScanNav.Screen name="ScanQuick" component={ScanScreen} options={{ headerTitle: navTitle('Quick scan') }} />
       <ScanNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
     </ScanNav.Navigator>
   );

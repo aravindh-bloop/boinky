@@ -1,8 +1,10 @@
 import { alertT } from '../i18n/alert';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import type { ScanMedia } from '../api/types';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
@@ -98,12 +100,7 @@ export default function ScanResultScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeIn}>
-          <Image
-            source={{ uri: scan.image_url }}
-            style={{ width: '100%', height: 320, borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl }}
-            contentFit="cover"
-            transition={250}
-          />
+          <ScanMedia media={scan.media ?? []} fallbackUrl={scan.image_url} />
           {/* top scrim so the transparent header's back button stays legible on any photo */}
           <LinearGradient
             colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)']}
@@ -113,6 +110,30 @@ export default function ScanResultScreen() {
         </Animated.View>
 
         <View style={{ padding: space.lg, gap: space.lg, marginTop: -space.xl }}>
+          {scan.coverage_gaps && scan.coverage_gaps.length > 0 && scan.image_quality !== 'good' ? (
+            <Reveal>
+              <Card accent={palette.warn}>
+                <Row gap={space.sm}>
+                  <Icon name="warningCircle" size={16} color={palette.warn} weight="fill" />
+                  <Text variant="subhead">
+                    {scan.image_quality === 'poor'
+                      ? t('The photos were not enough to be sure')
+                      : t('A more complete set would help')}
+                  </Text>
+                </Row>
+                <View style={{ gap: 4, marginTop: space.xs }}>
+                  {scan.coverage_gaps.slice(0, 4).map((g, i) => (
+                    <Text key={i} variant="body" muted>
+                      • {g}
+                    </Text>
+                  ))}
+                </View>
+                <Text variant="caption" faint style={{ marginTop: space.xs }}>
+                  {t('Next time, capture every angle the guided scan asks for.')}
+                </Text>
+              </Card>
+            </Reveal>
+          ) : null}
           <Reveal from="scale">
             <Card elevation="raised">
               <Row between>
@@ -268,6 +289,88 @@ export default function ScanResultScreen() {
           )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+const ANGLE_LABEL: Record<string, string> = {
+  whole_plant: 'Whole plant',
+  affected_closeup: 'Close-up',
+  leaf_underside: 'Leaf underside',
+  stem_base: 'Stem / base',
+  fruit_panicle: 'Fruit / grain',
+  field_wide: 'Wider field',
+  video: 'Video',
+  extra: 'Photo',
+};
+
+/** Hero image / video for the scan, with a thumbnail strip when it's a set. */
+function ScanMedia({ media, fallbackUrl }: { media: ScanMedia[]; fallbackUrl: string }) {
+  const items: ScanMedia[] =
+    media.length > 0
+      ? media
+      : [{ id: 'x', scan_id: '', kind: 'whole_plant', url: fallbackUrl, resource: 'image', width: null, height: null, duration_s: null, position: 0 }];
+  const [active, setActive] = useState(0);
+  const current = items[Math.min(active, items.length - 1)]!;
+  const videoUrl = current.resource === 'video' ? current.url : null;
+  const player = useVideoPlayer(videoUrl, (p) => {
+    p.loop = true;
+  });
+
+  return (
+    <View>
+      {videoUrl ? (
+        <VideoView
+          player={player}
+          style={{ width: '100%', height: 320, borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl }}
+          contentFit="cover"
+          nativeControls
+        />
+      ) : (
+        <Image
+          source={{ uri: current.url }}
+          style={{ width: '100%', height: 320, borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl }}
+          contentFit="cover"
+          transition={200}
+        />
+      )}
+
+      {items.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: space.xs, paddingHorizontal: space.lg, paddingTop: space.sm }}
+        >
+          {items.map((m, i) => (
+            <Pressable
+              key={m.id}
+              onPress={() => setActive(i)}
+              style={{
+                borderRadius: radius.md,
+                overflow: 'hidden',
+                borderWidth: 2,
+                borderColor: i === active ? palette.primary : 'transparent',
+              }}
+            >
+              <Image
+                source={{ uri: m.url }}
+                style={{ width: 52, height: 52 }}
+                contentFit="cover"
+              />
+              {m.resource === 'video' && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
+                  <Icon name="video" size={16} color="#fff" weight="fill" />
+                </View>
+              )}
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+      {items.length > 1 && (
+        <Text variant="caption" faint style={{ paddingHorizontal: space.lg, paddingTop: 4 }}>
+          {ANGLE_LABEL[current.kind] ?? 'Photo'} · {active + 1}/{items.length}
+        </Text>
+      )}
     </View>
   );
 }

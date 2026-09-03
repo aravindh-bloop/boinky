@@ -521,8 +521,51 @@ starts** (free tier sleeps at 15 min idle → 30-50 s first request) plus brief 
 - **`warmUp()` now prefetches `/api/home`** into the SWR cache under the exact `useApi` key
   during the launch wake-up, so Home paints real data instead of a skeleton on a cold start.
 
-### M1 — Multi-angle "resource verification" scan — ⬜ next
-### M5 — Tutorial + voice assistant onboarding — ⬜
+### M1 — Multi-angle "resource verification" scan — ✅ backend + app + dashboard, tested
+
+**Benched first** (`scripts/bench-gemini-set.ts`): Gemini 3 multi-image latency is **flat in
+the image count** (~3-9s for 1-6 images), and it correctly cross-references + flags
+declared-angle mismatches. → submit the whole set in ONE call.
+
+- Migration `1787990000000_scan-media.sql` — `scan_media` (kind / url / resource / dims /
+  duration / position), `scans.status` gains `'draft'`, + `image_quality` / `coverage_gaps`
+  / `submitted_at`.
+- **`gemini.diagnoseCropImageSet(images[], ctx)`** — declared-angle roster in the prompt,
+  cross-reference instruction per angle, `imageQuality` (good/partial/poor) + `coverageGaps[]`
+  in the schema, "confidence MUST drop on partial/poor coverage". 1 image → falls back to the
+  single-image path.
+- **`cloudinary.ts`** — `uploadVideo` (15s/854px cap), `videoFrameUrls` (URL-transform
+  stills at 0.5/2/4s — no ffmpeg), `imageDerivedUrl` (1024px), `fetchImageAsBase64`.
+- **`scans.service.ts`** — `createScanDraft` → `{scanId, requiredAngles, angles}`;
+  `addScanMedia` (uploads to Cloudinary, keeps `scans.image_url` = whole-plant cover);
+  `removeScanMedia` (retake); `submitScanDraft` (parallel-fetch every media → base64,
+  sample 3 video frames, `diagnoseCropImageSet`, 422 `{missingAngles}` unless `force`, then
+  the same async advisory). `getScan`/`listScans` attach `media[]` (one `ANY` query); drafts
+  hidden from history. `purgeStaleDrafts` runs 6-hourly + at boot (`index.ts`).
+  Single-photo `POST /api/scans` path **unchanged** (still used by "Quick scan").
+- Routes: `POST /api/scans/draft`, `POST /:id/media` (multipart `media`, `kind`, `position`),
+  `DELETE /:id/media/:mediaId`, `POST /:id/submit`. `scanMediaUpload` multer (image or one
+  video, 40MB). `AppError.unprocessable` (422).
+- **Officer:** `GET /api/official/scans/:id` — full scan + media set + coverage gaps for the
+  review panel.
+- **App:** `expo-camera` + `expo-video` + `expo-location`. `ScanCaptureScreen` — a guided
+  wizard: setup (field + angle checklist) → full-screen `CameraView` with a frame guide,
+  per-angle title/hint, progress `n/6`, thumbnail strip, each shot uploads in the background
+  → optional 12s video → review grid (tap to retake) + voice note → submit. 422 →
+  "add them / diagnose anyway". "Quick scan — one photo" keeps the old `ScanScreen`
+  (`ScanQuick` route). `ScanResultScreen` — swipeable media gallery (`VideoView` for video)
+  + a coverage-gaps card when `image_quality !== 'good'`.
+- **Dashboard:** ValidationQueue detail panel — `MediaGallery` (thumbnails + `<video>`),
+  farmer-note block, "AI flagged the set as <quality>" with the gap list.
+- **Tested vs Neon + Cloudinary + Gemini** (`scripts/try-scan-set.ts`): draft → 3 photos →
+  422 gate (`missingAngles: [affected_closeup]`) → re-add → submit **8.0s** → Late Blight
+  `conf 0.85` (dropped from 0.95 single-image because `imageQuality: partial` + gaps
+  flagged: "photo 1 is a detached leaf not whole plant", "crop mismatch: potato not rice")
+  → advisory opens on the farmer note. Officer `/scans/:id` returns the media set.
+  Backend + app + dashboard typecheck clean; `expo export` 4.5MB.
+- ⬜ Deploy: Render backend (`migrate:deploy` + code) + dashboard.
+
+### M5 — Tutorial + voice assistant onboarding — ⬜ next
 ### M2 — Per-farmer AI personalisation — ⬜
 ### M4 — Crop insurance — ⬜
 
@@ -565,6 +608,8 @@ starts** (free tier sleeps at 15 min idle → 30-50 s first request) plus brief 
 | 2026-08-29 | Voice note working on device (Tamil) | ✅ root cause: Sarvam rejects audio/m4a; also fixed launch hang + unhandled rejection |
 | 2026-09-03 | **`docs/TECHNICAL_APPROACH.md`** — full-app + Deep-AI-update architecture | ✅ written |
 | 2026-09-03 | **Deep AI M3 — exact GPS + district-wise ID** | ✅ geocode (BigDataCloud, cached) + admin cols on fields/scans/users + officer /districts + expo-location + dashboard district table — tested vs Neon, not yet on Render |
+| 2026-09-03 | **perf pass 3** — Render cold starts + brief churn | ✅ keep-warm workflow + /api/alerts 500 fix + contextDigest coarsened + client timeout 50s + warmUp prefetch |
+| 2026-09-03 | **Deep AI M1 — multi-angle scan** | ✅ scan_media + diagnoseCropImageSet (benched flat latency) + draft/media/submit + Cloudinary video/frames + expo-camera guided wizard + result gallery + officer/dashboard media panel — tested vs Neon+Cloudinary+Gemini (submit 8s, conf drops on partial coverage) |
 
 ---
 
