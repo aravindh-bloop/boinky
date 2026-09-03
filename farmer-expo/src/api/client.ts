@@ -42,12 +42,12 @@ interface RequestOptions {
 }
 
 /**
- * Generous, but never infinite. The free Render instance can take tens of
- * seconds to wake, so this must not be tight — but a request with no timeout at
- * all can hang forever, and anything awaiting it (the launch sequence, for one)
- * hangs with it.
+ * Generous, but never infinite. A cold Render instance can take 40-50s to wake
+ * from sleep, so 30s was firing false "server took too long" errors on the first
+ * request of a session. 50s covers a cold start; a request with no timeout at
+ * all can hang forever and take the launch sequence down with it.
  */
-const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TIMEOUT_MS = 50_000;
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, query, auth = true, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
@@ -222,15 +222,29 @@ function safeParse(t: string): any {
 }
 
 /**
- * Nudge the backend awake at launch.
+ * Nudge the backend awake at launch and pre-fill the cache.
  *
  * The free Render instance sleeps after ~15 minutes idle and takes tens of
  * seconds to come back. Firing this while fonts load and the cached UI paints
- * means the wake-up overlaps with startup instead of following it. Cheap,
- * unauthenticated, and failure is irrelevant.
+ * means the wake-up overlaps with startup instead of following it.
+ *
+ * When a session is already signed in we also pull `/api/home` during the
+ * wake-up and write it under the exact key `useApi('/api/home')` reads, so the
+ * dashboard paints real data the moment it mounts instead of waiting out a cold
+ * start behind a skeleton.
  */
 export function warmUp(): void {
   fetch(`${API_BASE_URL}/health`).catch(() => {});
+  void (async () => {
+    const token = await loadToken();
+    if (!token) return;
+    try {
+      const home = await request('/api/home', { timeoutMs: 60_000 });
+      cache.set('/api/home?{}', home);
+    } catch {
+      // The screen's own fetch will retry — this is only an optimisation.
+    }
+  })();
 }
 
 export const api = { request, upload, transcribe };

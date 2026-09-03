@@ -1,0 +1,38 @@
+name: keep-warm
+
+# Render's free web service sleeps after ~15 min idle and then takes 30-50 s to
+# answer the next request — which is the whole of the app's perceived slowness.
+# This pings /health every ~10 min so the instance stays awake during the day.
+#
+# GitHub's scheduler can lag 5-15 min under load, so this is best-effort. If you
+# want exact intervals, add https://cron-job.org or UptimeRobot hitting the same
+# URL — no signup needed here though, and it lives in the repo.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake the backend
+        run: |
+          URL="https://agripod-backend.onrender.com/health"
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 70 "$URL" || echo 000)
+            echo "attempt $attempt -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/body
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "backend did not respond OK after 5 attempts"
+          exit 1

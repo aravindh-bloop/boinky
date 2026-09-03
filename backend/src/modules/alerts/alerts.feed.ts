@@ -66,6 +66,9 @@ function classifyFactor(f: string): AlertReason {
 const WEATHER_PART_TTL_MS = 15 * 60_000;
 const weatherPartCache = new Map<string, { at: number; items: FeedAlert[] }>();
 
+const toIso = (v: string | Date): string =>
+  v instanceof Date ? v.toISOString() : new Date(v).toISOString();
+
 const SEV_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
 const SOURCE_RANK: Record<AlertSource, number> = {
   outbreak: 4,
@@ -111,7 +114,7 @@ export async function buildFarmerAlertFeed(
       match_reason: a.match_reason ?? null,
       official_name: a.official_name ?? null,
       field_id: null,
-      created_at: a.created_at,
+      created_at: toIso(a.created_at),
     });
   }
 
@@ -142,7 +145,8 @@ export async function buildFarmerAlertFeed(
     if (s !== 0) return s;
     const src = SOURCE_RANK[b.source] - SOURCE_RANK[a.source];
     if (src !== 0) return src;
-    return b.created_at.localeCompare(a.created_at);
+    // created_at may arrive as a Date (pg) or an ISO string — normalise to millis.
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   return localizeFeed(out, farmerId);

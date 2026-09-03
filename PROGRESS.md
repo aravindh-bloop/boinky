@@ -500,6 +500,27 @@ dedicated Insurance tab; full conversational assistant.
 - ⬜ Deploy to Render (`migrate:deploy` + new code) + run `backfill-admin` against the
   Render DB so existing prod scans get districts.
 
+### Perf pass 3 (2026-09-03) — "app feels slow" — ✅
+
+Measured first (Render, warm): every endpoint 100-400 ms, `/api/home` 130 ms, brief
+endpoint 110 ms cached. **The backend is fast when warm — the slowness is Render cold
+starts** (free tier sleeps at 15 min idle → 30-50 s first request) plus brief churn.
+- **`.github/workflows/keep-warm.yml`** — pings `/health` every ~10 min (GitHub cron;
+  best-effort, 5-retry). Kills the cold start. (cron-job.org / UptimeRobot on the same URL
+  is more precise if wanted.)
+- **`/api/alerts` was 500** — `b.created_at.localeCompare` on a pg `Date` (office broadcasts
+  in the feed). `alerts.feed.ts`: normalise `created_at` to ISO, sort by `getTime()`.
+- **Daily brief regenerated on almost every visit** — `contextDigest` hashed the raw 4-day
+  forecast (Open-Meteo revises it hourly) *and* the staleness probe uses cached weather
+  while `regenerate` uses live weather, so the two digests disagreed → endless `stale`.
+  Now the weather part of the digest is just the derived advisory titles + coarse
+  `wetSoon`/`hotSoon` flags; risk is `riskLevel` not the raw score. Verified: 1 regen then
+  stable across repeated calls.
+- **Client `DEFAULT_TIMEOUT_MS` 30 s → 50 s** — a 40 s cold start was surfacing as a false
+  "server took too long" error, then retrying.
+- **`warmUp()` now prefetches `/api/home`** into the SWR cache under the exact `useApi` key
+  during the launch wake-up, so Home paints real data instead of a skeleton on a cold start.
+
 ### M1 — Multi-angle "resource verification" scan — ⬜ next
 ### M5 — Tutorial + voice assistant onboarding — ⬜
 ### M2 — Per-farmer AI personalisation — ⬜

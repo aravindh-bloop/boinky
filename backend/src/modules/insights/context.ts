@@ -323,12 +323,22 @@ const daysBetween = (from: string, to: string) =>
  * not trigger a regeneration, but a new scan, a risk level change, a completed
  * task or a fresh outbreak must. Comparing this against the stored digest is how
  * we decide a cached brief has gone stale.
+ *
+ * Weather is reduced to the advice-relevant signals only — the derived advisory
+ * titles plus a coarse "rain in the next two days" / "hot day ahead" flag. The
+ * raw per-day forecast is deliberately excluded: Open-Meteo revises it through
+ * the day, and the staleness probe (cached weather) and the regeneration (live
+ * weather) would otherwise disagree and churn the brief on every visit.
  */
 export function contextDigest(ctx: FarmContext): string {
+  const days = ctx.weather?.days ?? [];
+  const near = days.slice(0, 2);
   const material = {
     date: ctx.today,
     lang: ctx.farmer.language,
-    fields: ctx.fields.map((f) => [f.id, f.crop, f.daysSinceSown, f.riskLevel, f.riskScore]),
+    // riskLevel (low/medium/high), not the raw score — a 43→46 wobble must not
+    // regenerate the brief, but a level crossing must.
+    fields: ctx.fields.map((f) => [f.id, f.crop, f.daysSinceSown, f.riskLevel]),
     overdue: ctx.tasks.overdue.map((t) => `${t.date}:${t.title}`),
     today: ctx.tasks.today.map((t) => `${t.date}:${t.title}`),
     scans: ctx.recentScans.map((s) => s.id),
@@ -337,14 +347,9 @@ export function contextDigest(ctx: FarmContext): string {
     alerts: ctx.officialAlerts.map((a) => a.title),
     lowStock: ctx.inventory.lowStock.map((i) => i.name),
     expiring: ctx.inventory.expiringSoon.map((i) => i.name),
-    // weather at day granularity only
-    weather: ctx.weather?.days.map((d) => [
-      d.date,
-      d.condition,
-      Math.round(d.precipMm ?? 0),
-      Math.round(d.tempMaxC ?? 0),
-    ]),
     advisories: ctx.weather?.advisories.map((a) => a.title),
+    wetSoon: near.some((d) => (d.precipMm ?? 0) >= 8 || (d.precipProbPct ?? 0) >= 60),
+    hotSoon: near.some((d) => (d.tempMaxC ?? 0) >= 38),
   };
   return createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
 }
