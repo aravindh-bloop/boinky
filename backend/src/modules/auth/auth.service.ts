@@ -13,6 +13,7 @@ export interface UserRow {
   preferred_language: string;
   region: string | null;
   district: string | null;
+  onboarded_at: string | null;
   created_at: string;
 }
 
@@ -95,17 +96,34 @@ export async function getUserById(id: string): Promise<PublicUser> {
 
 export async function updateProfile(
   id: string,
-  patch: { name?: string; preferredLanguage?: string; region?: string; district?: string },
+  patch: {
+    name?: string;
+    preferredLanguage?: string;
+    region?: string;
+    district?: string;
+    onboardedAt?: boolean;
+    tutorialProgress?: Record<string, unknown>;
+  },
 ): Promise<PublicUser> {
   const user = await queryMaybe<UserRow>(
     `update users set
        name = coalesce($2, name),
        preferred_language = coalesce($3, preferred_language),
        region = coalesce($4, region),
-       district = coalesce($5, district)
+       district = coalesce($5, district),
+       onboarded_at = case when $6::boolean then coalesce(onboarded_at, now()) else onboarded_at end,
+       tutorial_progress = coalesce($7::jsonb, tutorial_progress)
      where id = $1
      returning *`,
-    [id, patch.name ?? null, patch.preferredLanguage ?? null, patch.region ?? null, patch.district ?? null],
+    [
+      id,
+      patch.name ?? null,
+      patch.preferredLanguage ?? null,
+      patch.region ?? null,
+      patch.district ?? null,
+      patch.onboardedAt ?? false,
+      patch.tutorialProgress ? JSON.stringify(patch.tutorialProgress) : null,
+    ],
   );
   if (!user) throw AppError.notFound('User not found');
   return toPublic(user);

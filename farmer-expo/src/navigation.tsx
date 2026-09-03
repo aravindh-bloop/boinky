@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer, DefaultTheme, type NavigationState } from '@react-navigation/native';
 import { logEvent } from './debug/eventlog';
+import { api } from './api/client';
+import { TutorialOverlay } from './onboarding/TutorialOverlay';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from './auth/AuthContext';
@@ -175,15 +177,34 @@ function activeRouteName(state: NavigationState | undefined): string {
 }
 
 export default function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
+  // First-run walkthrough: shown once, when the account has never been onboarded.
+  const [showTutorial, setShowTutorial] = useState(false);
+  React.useEffect(() => {
+    if (user && !user.onboarded_at) setShowTutorial(true);
+  }, [user]);
+
+  async function finishTutorial() {
+    setShowTutorial(false);
+    try {
+      await api.request('/api/auth/me', { method: 'PATCH', body: { onboardedAt: true } });
+      await refreshUser();
+    } catch {
+      /* the flag will retry on the next launch — not worth blocking on */
+    }
+  }
+
   if (loading) return <BootLoader />;
   return (
-    <NavigationContainer
-      theme={navTheme}
-      onReady={() => logEvent('nav', 'app ready')}
-      onStateChange={(s) => logEvent('nav', activeRouteName(s as NavigationState))}
-    >
-      {user ? <MainTabs /> : <AuthScreen />}
-    </NavigationContainer>
+    <>
+      <NavigationContainer
+        theme={navTheme}
+        onReady={() => logEvent('nav', 'app ready')}
+        onStateChange={(s) => logEvent('nav', activeRouteName(s as NavigationState))}
+      >
+        {user ? <MainTabs /> : <AuthScreen />}
+      </NavigationContainer>
+      {user && <TutorialOverlay topic="app" visible={showTutorial} onDone={finishTutorial} />}
+    </>
   );
 }

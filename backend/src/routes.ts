@@ -15,6 +15,8 @@ import { homeRouter } from './modules/home/home.routes.js';
 import { insightsRouter } from './modules/insights/insights.routes.js';
 import { i18nRouter } from './modules/i18n/i18n.routes.js';
 import { podRouter } from './modules/pod/pod.routes.js';
+import { ttsRouter } from './modules/tts/tts.routes.js';
+import { tutorialRouter } from './modules/tutorial/tutorial.routes.js';
 import {
   activitiesRouter,
   expensesRouter,
@@ -28,6 +30,8 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/home', homeRouter);
 apiRouter.use('/insights', insightsRouter);
 apiRouter.use('/i18n', i18nRouter);
+apiRouter.use('/tts', ttsRouter);
+apiRouter.use('/tutorial', tutorialRouter);
 apiRouter.use('/fields', fieldsRouter);
 apiRouter.use('/scans', scansRouter);
 apiRouter.use('/risk', riskRouter);

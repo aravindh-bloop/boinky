@@ -205,6 +205,63 @@ export async function generateAdvisory(
   }
 }
 
+/**
+ * Text-to-speech via Sarvam `bulbul:v3` (verified live 2026-09-03; v2 is a hard
+ * 400). Long text is split on sentence boundaries into ≤400-char chunks — one
+ * API call each — and returned as an ordered list of base64 WAV clips for the
+ * client to play back-to-back. Speaker `priya` is a clear female voice available
+ * for every supported language.
+ */
+export async function synthesizeSpeech(
+  text: string,
+  targetLang: string,
+  speaker = 'priya',
+): Promise<string[]> {
+  const clean = text.trim();
+  if (!clean) return [];
+  const chunks = chunkForSpeech(clean, 400);
+  const out: string[] = [];
+  for (const chunk of chunks) {
+    const r = await call<{ audios?: string[] }>('/text-to-speech', {
+      text: chunk,
+      target_language_code: targetLang,
+      model: 'bulbul:v3',
+      speaker,
+      speech_sample_rate: 22050,
+    });
+    if (r.audios?.length) out.push(...r.audios);
+  }
+  return out;
+}
+
+/** Split into ≤maxChars pieces, preferring sentence then clause boundaries. */
+function chunkForSpeech(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  const sentences = text.match(/[^.!?।]+[.!?।]?\s*/g) ?? [text];
+  const chunks: string[] = [];
+  let cur = '';
+  for (const s of sentences) {
+    if ((cur + s).length > maxChars && cur) {
+      chunks.push(cur.trim());
+      cur = '';
+    }
+    if (s.length > maxChars) {
+      // A single very long sentence — hard-split on spaces.
+      for (const word of s.split(/(\s+)/)) {
+        if ((cur + word).length > maxChars && cur) {
+          chunks.push(cur.trim());
+          cur = '';
+        }
+        cur += word;
+      }
+    } else {
+      cur += s;
+    }
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
 async function draftEnglishAdvisory(
   diagnosis: DiagnosisResult,
   ctx: { crop?: string | null; daysToHarvest?: number | null; farmerNote?: string | null },

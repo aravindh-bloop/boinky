@@ -565,8 +565,33 @@ declared-angle mismatches. → submit the whole set in ONE call.
   Backend + app + dashboard typecheck clean; `expo export` 4.5MB.
 - ⬜ Deploy: Render backend (`migrate:deploy` + code) + dashboard.
 
-### M5 — Tutorial + voice assistant onboarding — ⬜ next
-### M2 — Per-farmer AI personalisation — ⬜
+### M5 — Tutorial + voice assistant onboarding — ✅ backend + app, tested
+
+- Migration `1788000000000_tutorial-tts.sql` — `users.onboarded_at` +
+  `users.tutorial_progress`; `tts_cache (hash, lang, audio jsonb)`.
+- **`sarvam.ts::synthesizeSpeech(text, lang, speaker='priya')`** — `bulbul:v3`
+  `/text-to-speech` (verified live: v2 is a hard 400; speakers for v3 are
+  aditya/ritu/priya/neha/…; returns `{audios:[base64 WAV]}`, ~1.5s). Sentence-chunks
+  text ≤400 chars → one call each → `base64[]`.
+- **`modules/tts`** — `getSpeech(text, lang)` hashes `priya::text`, cache hit from
+  `tts_cache` else synthesise + store. `POST /api/tts {text≤1500, lang}` → `{audio[], cached}`.
+  Verified: synth ~1.5s, cached 0.2s.
+- **`modules/tutorial`** — `content.ts` (English source, 9 "app" steps + 6 "pod" steps,
+  written to be read aloud). `GET /api/tutorial?topic=app|pod&lang=` → titles+bodies through
+  `localizeMany` (Tamil verified). `PATCH /api/auth/me` now takes `onboardedAt` +
+  `tutorialProgress`.
+- **App:** `src/onboarding/` — `voice.ts` (`useVoice()`: `/api/tts` → write WAV chunks to
+  cache via `expo-file-system/legacy` → play back-to-back with `expo-audio` `createAudioPlayer`,
+  cancels an in-flight request when superseded) + `TutorialOverlay.tsx` (server-driven step
+  carousel, progress bar, auto-plays the voice per step + a Listen/Stop toggle, Back/Next,
+  Skip). Auto-launches from `RootNavigator` when `user && !user.onboarded_at` →
+  `PATCH {onboardedAt:true}` on finish. Replay from Settings ("How to use AgriPod" / "Set up
+  an AgriPod sensor"). `User` type += `onboarded_at`, `TutorialStep` type.
+- Tested: `/api/tts` + `/api/tutorial` (en + ta) live; app typechecks; `expo export` 4.5MB.
+  Demo farmer `onboarded_at` reset to NULL so the walkthrough shows on next login.
+- ⬜ Deploy + verify voice playback on device.
+
+### M2 — Per-farmer AI personalisation — ⬜ next
 ### M4 — Crop insurance — ⬜
 
 ---
@@ -610,6 +635,7 @@ declared-angle mismatches. → submit the whole set in ONE call.
 | 2026-09-03 | **Deep AI M3 — exact GPS + district-wise ID** | ✅ geocode (BigDataCloud, cached) + admin cols on fields/scans/users + officer /districts + expo-location + dashboard district table — tested vs Neon, not yet on Render |
 | 2026-09-03 | **perf pass 3** — Render cold starts + brief churn | ✅ keep-warm workflow + /api/alerts 500 fix + contextDigest coarsened + client timeout 50s + warmUp prefetch |
 | 2026-09-03 | **Deep AI M1 — multi-angle scan** | ✅ scan_media + diagnoseCropImageSet (benched flat latency) + draft/media/submit + Cloudinary video/frames + expo-camera guided wizard + result gallery + officer/dashboard media panel — tested vs Neon+Cloudinary+Gemini (submit 8s, conf drops on partial coverage) |
+| 2026-09-03 | **Deep AI M5 — tutorial + voice onboarding** | ✅ Sarvam bulbul:v3 TTS + tts_cache + server-driven tutorial (9 app / 6 pod steps, Tamil-localised) + expo-audio voice playback + auto-launch TutorialOverlay + Settings replay — tested /api/tts + /api/tutorial live |
 
 ---
 

@@ -8,7 +8,16 @@ export interface User {
   role: Role;
   preferred_language: string;
   region: string | null;
+  district: string | null;
+  onboarded_at: string | null;
   created_at: string;
+}
+
+export interface TutorialStep {
+  id: string;
+  title: string;
+  body: string;
+  icon: string;
 }
 
 export interface AuthResponse {

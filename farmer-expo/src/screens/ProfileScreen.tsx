@@ -19,6 +19,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api, ApiError } from '../api/client';
 import { cache } from '../api/cache';
 import { useT, normalizeLang } from '../i18n';
+import { TutorialOverlay } from '../onboarding/TutorialOverlay';
 
 export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
@@ -27,6 +28,7 @@ export default function ProfileScreen() {
   const currentLang = normalizeLang(user?.preferred_language);
   const [region, setRegion] = useState(user?.region ?? '');
   const [busy, setBusy] = useState(false);
+  const [tutorial, setTutorial] = useState<'app' | 'pod' | null>(null);
 
   async function patch(body: { preferredLanguage?: string; region?: string }) {
     setBusy(true);
@@ -110,6 +112,28 @@ export default function ProfileScreen() {
           />
         ) : null}
       </Card>
+
+      <Card elevation="flat" style={{ gap: space.xs }}>
+        <Text variant="label" faint>{t('Help')}</Text>
+        <PressableScale onPress={() => setTutorial('app')} style={{ paddingVertical: space.sm }}>
+          <Row gap={space.sm}>
+            <Icon name="insight" size={18} color={palette.primaryDeep} />
+            <Text variant="bodyStrong" style={{ flex: 1 }}>{t('How to use AgriPod')}</Text>
+            <Icon name="right" size={16} color={palette.textFaint} />
+          </Row>
+        </PressableScale>
+        <PressableScale onPress={() => setTutorial('pod')} style={{ paddingVertical: space.sm }}>
+          <Row gap={space.sm}>
+            <Icon name="stock" size={18} color={palette.primaryDeep} />
+            <Text variant="bodyStrong" style={{ flex: 1 }}>{t('Set up an AgriPod sensor')}</Text>
+            <Icon name="right" size={16} color={palette.textFaint} />
+          </Row>
+        </PressableScale>
+      </Card>
+
+      {tutorial && (
+        <TutorialOverlay topic={tutorial} visible onDone={() => setTutorial(null)} />
+      )}
 
       <PressableScale
         onPress={() =>
