@@ -591,8 +591,41 @@ declared-angle mismatches. → submit the whole set in ONE call.
   Demo farmer `onboarded_at` reset to NULL so the walkthrough shows on next login.
 - ⬜ Deploy + verify voice playback on device.
 
-### M2 — Per-farmer AI personalisation — ⬜ next
-### M4 — Crop insurance — ⬜
+### M2 — Per-farmer AI personalisation + "Ask AgriPod" — ✅ backend + app, tested
+
+- Migration `1788010000000_farmer-ai.sql` — `farmer_ai_events` (append-only log),
+  `farmer_ai_profile` (farmer_id PK, summary + `facts jsonb`, source_digest),
+  `assistant_threads` / `assistant_messages` (role, body, body_en, helpful),
+  `scans.advisory_helpful`.
+- **`insights/profile.service.ts`** — `recordEvent(farmerId, kind, summary, refId?)`
+  (dedup within the hour); `getFarmerProfile()` (never blocks — cached row now,
+  background regen when the event-id digest changed; null until there's history).
+  `gemini.distillFarmerProfile(events, prior)` — ≤180-word portrait + structured facts
+  (crops, recurringProblems, productsTried, **productsFailed**, prefersLowCost/Organic,
+  usesPodSensor). "Use ONLY what the events state."
+- **Wired into `buildFarmContext().farmerProfile`** → the daily-brief + advisory prompts
+  ("respect productsFailed, match the organic/low-cost lean") and the digest. **Verified:**
+  after logging a Mancozeb spray + a "did not work" event, the profile picked up
+  `productsFailed: ["Mancozeb 75% WP"]` and the next brief card's basis reads
+  "…your profile notes Mancozeb 75%…".
+- **Event hooks:** scan submit (both paths), officer correction, activity (spraying /
+  fertilizing / any input_name), scan-advisory 👎, assistant chat + 👎.
+- **`modules/assistant`** — `POST /api/assistant/messages {threadId?, text}` → `askAssistant`
+  (Gemini, grounded in `contextForModel(ctx)` + profile + last 8 turns, refuses to invent)
+  → English draft → Sarvam translate to the farmer's language → persisted. `GET /threads`,
+  `GET /threads/:id`, `POST /messages/:id/rating`. **Verified:** grounded answers citing
+  real fields/diagnoses/tasks; thread continuity (follow-up "I sprayed Mancozeb twice"
+  → "stop using it, try Metalaxyl/Cymoxanil").
+- `POST /api/scans/:id/feedback {helpful}` → `scans.advisory_helpful` + a 👎 event.
+- **App:** `screens/AskScreen.tsx` — chat UI, suggested prompts, "AgriPod is thinking…",
+  per-answer Listen (reuses `useVoice` → TTS) + 👍/👎. Reached from an "Ask" pill in the
+  Home header (`Ask` route in the Home stack). `ScanResultScreen` advisory card gets
+  "Was this helpful?" 👍/👎. Assistant types in `api/types.ts`.
+- typecheck clean x3; `expo export` 4.6MB. ⬜ Deploy + device test.
+  (Brief-card-level 👎 deferred — cards aren't individually addressable; advisory +
+  assistant feedback cover the signal.)
+
+### M4 — Crop insurance — ⬜ next
 
 ---
 
@@ -636,6 +669,7 @@ declared-angle mismatches. → submit the whole set in ONE call.
 | 2026-09-03 | **perf pass 3** — Render cold starts + brief churn | ✅ keep-warm workflow + /api/alerts 500 fix + contextDigest coarsened + client timeout 50s + warmUp prefetch |
 | 2026-09-03 | **Deep AI M1 — multi-angle scan** | ✅ scan_media + diagnoseCropImageSet (benched flat latency) + draft/media/submit + Cloudinary video/frames + expo-camera guided wizard + result gallery + officer/dashboard media panel — tested vs Neon+Cloudinary+Gemini (submit 8s, conf drops on partial coverage) |
 | 2026-09-03 | **Deep AI M5 — tutorial + voice onboarding** | ✅ Sarvam bulbul:v3 TTS + tts_cache + server-driven tutorial (9 app / 6 pod steps, Tamil-localised) + expo-audio voice playback + auto-launch TutorialOverlay + Settings replay — tested /api/tts + /api/tutorial live |
+| 2026-09-03 | **Deep AI M2 — personalisation + Ask AgriPod** | ✅ farmer_ai_events/_profile + distillFarmerProfile (productsFailed verified) wired into FarmContext → brief cites it; assistant module (grounded Gemini chat, thread continuity, Sarvam-localised) + AskScreen + feedback loop — tested live vs Neon+Gemini |
 
 ---
 

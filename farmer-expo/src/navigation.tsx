@@ -17,6 +17,7 @@ import ActivityScreen from './screens/ActivityScreen';
 import AlertsScreen from './screens/AlertsScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AskScreen from './screens/AskScreen';
 import FieldsScreen from './screens/FieldsScreen';
 import FieldFormScreen from './screens/FieldFormScreen';
 import FieldDetailScreen from './screens/FieldDetailScreen';
@@ -47,6 +48,7 @@ export type HomeStackParams = {
   Alerts: undefined;
   History: undefined;
   Profile: undefined;
+  Ask: undefined;
   ScanResult: { scanId: string };
   FieldDetail: { fieldId: string };
 };
@@ -96,6 +98,7 @@ function HomeStack() {
       <HomeNav.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ headerTitle: navTitle('Settings') }} />
+      <HomeNav.Screen name="Ask" component={AskScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
       <HomeNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
     </HomeNav.Navigator>

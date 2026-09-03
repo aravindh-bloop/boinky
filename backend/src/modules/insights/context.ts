@@ -6,6 +6,7 @@ import { getWeather } from '../weather/weather.service.js';
 import { listFarmerAlerts } from '../alerts/alerts.service.js';
 import { getNearbyOutbreaksForFarmer } from '../hotspots/hotspots.service.js';
 import { toSarvamLang } from '../../integrations/sarvam.js';
+import { getFarmerProfile } from './profile.service.js';
 
 /**
  * A single, honest snapshot of everything we actually know about one farmer's
@@ -53,6 +54,8 @@ export interface FarmContext {
     expiringSoon: { name: string; expiryDate: string; daysLeft: number }[];
   };
   finance: { spent: number; revenue: number; net: number; windowDays: number };
+  /** A rolling portrait of how this farmer farms (Module 2). Null until there is history. */
+  farmerProfile: { summary: string; facts: Record<string, unknown> } | null;
 }
 
 export interface ContextField {
@@ -122,7 +125,7 @@ export async function buildFarmContext(
 ): Promise<FarmContext> {
   const live = opts.liveWeather ?? true;
 
-  const [me, fields, tasks, scans, activities, nearby, alerts, lowStock, expiring, finance, w] =
+  const [me, fields, tasks, scans, activities, nearby, alerts, lowStock, expiring, finance, w, profile] =
     await Promise.all([
       getUserById(farmerId),
       contextFields(farmerId),
@@ -135,6 +138,7 @@ export async function buildFarmContext(
       expiringItems(farmerId),
       financeSnapshot(farmerId),
       getWeather({ farmerId, cachedOnly: !live }).catch(() => null),
+      getFarmerProfile(farmerId).catch(() => null),
     ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -197,6 +201,7 @@ export async function buildFarmContext(
     })),
     inventory: { lowStock, expiringSoon: expiring },
     finance: { ...finance, windowDays: 180 },
+    farmerProfile: profile ? { summary: profile.summary, facts: profile.facts } : null,
   };
 }
 
@@ -350,6 +355,7 @@ export function contextDigest(ctx: FarmContext): string {
     advisories: ctx.weather?.advisories.map((a) => a.title),
     wetSoon: near.some((d) => (d.precipMm ?? 0) >= 8 || (d.precipProbPct ?? 0) >= 60),
     hotSoon: near.some((d) => (d.tempMaxC ?? 0) >= 38),
+    profile: ctx.farmerProfile?.summary ?? null,
   };
   return createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
 }

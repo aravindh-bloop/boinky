@@ -23,6 +23,14 @@ import { getOwnedField } from '../fields/fields.service.js';
 import { latestSnapshot } from '../risk/risk.service.js';
 import { addScanFollowup } from '../calendar/calendar.service.js';
 import { resolveScanAdmin } from '../../lib/admin-location.js';
+import { recordEvent } from '../insights/profile.service.js';
+
+function scanEventLine(d: DiagnosisResult, crop: string | null): string | null {
+  if (!d.isPlant) return null;
+  const where = crop ? ` on ${crop}` : '';
+  if (d.category === 'healthy') return `Scanned a plant${where} — looked healthy.`;
+  return `Scanned a plant${where} — AI diagnosed ${d.label}${d.severity ? ` (${d.severity} severity)` : ''}.`;
+}
 
 export type ScanStatus =
   | 'draft'
@@ -270,6 +278,8 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
     if (!row) throw new Error('Scan insert returned no row');
     logger.info({ scanId: row.id, status, label: row.diagnosis_label }, 'scan created');
     void resolveScanAdmin(row.id, row.lat, row.lng);
+    const line = scanEventLine(diagnosis, ctxCrop);
+    if (line) void recordEvent(input.farmerId, 'scan', line, row.id);
 
     // Follow-up re-scan reminder for a real problem on a known field.
     if (
@@ -316,6 +326,24 @@ async function finishAdvisory(
     logger.info({ scanId }, 'scan advisory attached');
   } catch (err) {
     logger.error({ err, scanId }, 'scan advisory generation failed');
+  }
+}
+
+/** 👍 / 👎 on the advice a scan gave. A 👎 becomes a profile event. */
+export async function rateAdvisory(
+  scanId: string,
+  farmerId: string,
+  helpful: boolean,
+): Promise<void> {
+  const scan = await getScan(scanId, farmerId);
+  await query(`UPDATE scans SET advisory_helpful = $2 WHERE id = $1`, [scanId, helpful]);
+  if (!helpful) {
+    void recordEvent(
+      farmerId,
+      'advisory_feedback',
+      `Said the advice for "${scan.diagnosis_label ?? 'a scan'}" did not help them.`,
+      scanId,
+    );
   }
 }
 
@@ -653,6 +681,8 @@ export async function submitScanDraft(
   );
 
   void resolveScanAdmin(row.id, row.lat, row.lng);
+  const evtLine = scanEventLine(diagnosis, ctxCrop);
+  if (evtLine) void recordEvent(input.farmerId, 'scan', evtLine, row.id);
 
   if (
     draft.field_id &&

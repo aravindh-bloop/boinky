@@ -20,6 +20,28 @@ export interface TutorialStep {
   icon: string;
 }
 
+export interface AssistantMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  body: string;
+  helpful: boolean | null;
+  created_at: string;
+}
+
+export interface AssistantThreadSummary {
+  id: string;
+  title: string;
+  last_message_at: string;
+  created_at: string;
+  last_message: string | null;
+}
+
+export interface AssistantThread {
+  id: string;
+  title: string;
+  messages: AssistantMessage[];
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

@@ -56,6 +56,16 @@ export default function ScanResultScreen() {
   const [safety, setSafety] = useState<SafetyReport | null>(null);
   const [safetyBusy, setSafetyBusy] = useState(false);
   const [advisoryBusy, setAdvisoryBusy] = useState(false);
+  const [advisoryVote, setAdvisoryVote] = useState<boolean | null>(null);
+
+  async function rateAdvisory(helpful: boolean) {
+    setAdvisoryVote(helpful);
+    try {
+      await api.request(`/api/scans/${scanId}/feedback`, { method: 'POST', body: { helpful } });
+    } catch {
+      /* keep the optimistic vote */
+    }
+  }
 
   const scan = data?.scan;
   // The advisory is written in the background after the scan lands. Poll until it
@@ -200,6 +210,15 @@ export default function ScanResultScreen() {
                 <Text variant="body" style={{ lineHeight: 24 }}>
                   {scan.advisory_text}
                 </Text>
+                <Row gap={space.lg} style={{ marginTop: space.xs }}>
+                  <Text variant="caption" faint>{t('Was this helpful?')}</Text>
+                  <Pressable onPress={() => rateAdvisory(true)} hitSlop={8}>
+                    <Icon name="check" size={16} color={advisoryVote === true ? palette.primary : palette.textFaint} weight={advisoryVote === true ? 'fill' : 'regular'} />
+                  </Pressable>
+                  <Pressable onPress={() => rateAdvisory(false)} hitSlop={8}>
+                    <Icon name="warningCircle" size={16} color={advisoryVote === false ? palette.warn : palette.textFaint} weight={advisoryVote === false ? 'fill' : 'regular'} />
+                  </Pressable>
+                </Row>
               </Card>
             </Reveal>
           ) : awaitingAdvisory ? (

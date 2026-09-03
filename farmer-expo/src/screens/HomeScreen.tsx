@@ -139,24 +139,44 @@ export default function HomeScreen() {
                 {d.user.name?.split(' ')[0] ?? t('farmer')}
               </Text>
             </View>
-            <PressableScale onPress={() => nav.navigate('Profile')} compact>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: radius.pill,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.25)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text variant="subhead" color="#fff" raw>
-                  {(d.user.name?.[0] ?? 'F').toUpperCase()}
-                </Text>
-              </View>
-            </PressableScale>
+            <Row gap={space.sm}>
+              <PressableScale onPress={() => nav.navigate('Ask')} compact>
+                <View
+                  style={{
+                    height: 42,
+                    borderRadius: radius.pill,
+                    paddingHorizontal: space.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    backgroundColor: 'rgba(255,255,255,0.18)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.25)',
+                  }}
+                >
+                  <Icon name="ai" size={16} color="#fff" weight="fill" />
+                  <Text variant="label" color="#fff">{t('Ask')}</Text>
+                </View>
+              </PressableScale>
+              <PressableScale onPress={() => nav.navigate('Profile')} compact>
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: radius.pill,
+                    backgroundColor: 'rgba(255,255,255,0.18)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.25)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text variant="subhead" color="#fff" raw>
+                    {(d.user.name?.[0] ?? 'F').toUpperCase()}
+                  </Text>
+                </View>
+              </PressableScale>
+            </Row>
           </Row>
 
           {w ? (

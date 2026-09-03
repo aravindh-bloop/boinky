@@ -17,6 +17,7 @@ import { i18nRouter } from './modules/i18n/i18n.routes.js';
 import { podRouter } from './modules/pod/pod.routes.js';
 import { ttsRouter } from './modules/tts/tts.routes.js';
 import { tutorialRouter } from './modules/tutorial/tutorial.routes.js';
+import { assistantRouter } from './modules/assistant/assistant.routes.js';
 import {
   activitiesRouter,
   expensesRouter,
@@ -32,6 +33,7 @@ apiRouter.use('/insights', insightsRouter);
 apiRouter.use('/i18n', i18nRouter);
 apiRouter.use('/tts', ttsRouter);
 apiRouter.use('/tutorial', tutorialRouter);
+apiRouter.use('/assistant', assistantRouter);
 apiRouter.use('/fields', fieldsRouter);
 apiRouter.use('/scans', scansRouter);
 apiRouter.use('/risk', riskRouter);

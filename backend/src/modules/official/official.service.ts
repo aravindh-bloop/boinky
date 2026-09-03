@@ -3,6 +3,7 @@ import { AppError } from '../../http/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getManagementGuidance, type DiagnosisResult } from '../../integrations/gemini.js';
 import { generateAdvisory, toSarvamLang } from '../../integrations/sarvam.js';
+import { recordEvent } from '../insights/profile.service.js';
 
 // ── Overview stats ──
 
@@ -285,6 +286,13 @@ export async function validateScan(
   } catch (err) {
     logger.warn({ err, scanId }, 'advisory regen after correction failed — keeping old advisory');
   }
+
+  void recordEvent(
+    scan.farmer_id,
+    'correction',
+    `An extension officer corrected a scan diagnosis from "${scan.diagnosis_label}" to "${label}".`,
+    scanId,
+  );
 
   return apply(scanId, officialId, {
     status: 'corrected',

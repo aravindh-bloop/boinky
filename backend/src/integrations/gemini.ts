@@ -548,6 +548,8 @@ Hard rules:
   the farmer to confirm which plot it came from.
 - Look at recentActivities before recommending anything. Do not tell the farmer to do
   something they already did in the last few days; instead follow up on it.
+- "farmerProfile" is a portrait of how this farmer actually works. Respect it: do not
+  recommend a product it lists under productsFailed, and match its organic / low-cost lean.
 - Connect facts across sources where a real connection exists — a crop's growth stage
   against the forecast, a scan against a nearby outbreak, an overdue task against rain.
   That cross-referencing is the value you add; do not simply restate one field.
@@ -606,6 +608,157 @@ export async function generateFarmBrief(
     raw: parsed,
     model: env.GEMINI_MODEL,
   };
+}
+
+// ── Farmer AI profile (a rolling portrait distilled from the event log) ──
+
+export interface FarmerProfile {
+  summary: string;
+  facts: Record<string, unknown>;
+}
+
+const profileSchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: {
+      type: Type.STRING,
+      description:
+        'Under 180 words, plain spoken English, third person. What they grow and where, ' +
+        'their recurring problems, what has and has not worked for them, how they like to ' +
+        'farm (organic-leaning, cost-conscious, etc.), whether they use the hardware sensor.',
+    },
+    facts: {
+      type: Type.OBJECT,
+      description: 'Structured, only keys you have evidence for',
+      properties: {
+        crops: { type: Type.ARRAY, items: { type: Type.STRING } },
+        recurringProblems: { type: Type.ARRAY, items: { type: Type.STRING } },
+        productsTried: { type: Type.ARRAY, items: { type: Type.STRING } },
+        productsFailed: { type: Type.ARRAY, items: { type: Type.STRING } },
+        prefersLowCost: { type: Type.BOOLEAN },
+        prefersOrganic: { type: Type.BOOLEAN },
+        usesPodSensor: { type: Type.BOOLEAN },
+        notes: { type: Type.ARRAY, items: { type: Type.STRING } },
+      },
+    },
+  },
+  required: ['summary', 'facts'],
+} as const;
+
+const PROFILE_SYSTEM = `You maintain a short working portrait of one smallholder farmer in
+India, for an agriculture assistant to use as background. You are given a log of real events
+(scans, expert corrections, advice they said did or did not work, activities they logged)
+and the previous portrait.
+
+Rules:
+- Use ONLY what the events state. Never invent a crop, a product, a preference or a number.
+- If the previous portrait said something the new events contradict, correct it.
+- "productsFailed" = only products the farmer explicitly reported did not work.
+- Keep it factual and useful, not flattering. No advice, no recommendations — this is a
+  description, not a plan.
+- If there is very little to go on, write a short honest portrait and leave facts sparse.`;
+
+export async function distillFarmerProfile(
+  eventsJson: string,
+  priorJson: string | null,
+): Promise<{ profile: FarmerProfile; model: string }> {
+  let raw: string;
+  try {
+    const res = await ai().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `${PROFILE_SYSTEM}\n\nPrevious portrait:\n${priorJson ?? '(none yet)'}\n\nEvent log (newest first):\n${eventsJson}`,
+            },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: profileSchema as unknown as Record<string, unknown>,
+        temperature: 0.3,
+      },
+    });
+    raw = res.text ?? '';
+  } catch (err) {
+    throw AppError.upstream('Profile generation failed', { reason: (err as Error).message });
+  }
+  try {
+    const o = JSON.parse(raw) as { summary?: unknown; facts?: unknown };
+    const summary = String(o.summary ?? '').trim();
+    if (!summary) throw new Error('empty summary');
+    const facts =
+      o.facts && typeof o.facts === 'object' ? (o.facts as Record<string, unknown>) : {};
+    return { profile: { summary, facts }, model: env.GEMINI_MODEL };
+  } catch {
+    throw AppError.upstream('Profile generation returned an invalid response');
+  }
+}
+
+// ── Conversational assistant ("Ask AgriPod") ──
+
+export interface AssistantTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const ASSISTANT_SYSTEM = `You are AgriPod, an assistant for a smallholder farmer in India.
+You are given a JSON snapshot of THIS farmer's actual operation (fields, crops, weather,
+risk, tasks, recent scans, activities, nearby outbreaks, finances) and a short portrait of
+how they farm.
+
+Answer their question directly and practically, in plain spoken English (it will be
+translated into their language and may be read aloud). Rules:
+- Ground every specific claim in the snapshot or the portrait. If they ask something the
+  snapshot cannot answer, say what you do know and what they would need to check.
+- Never invent a measurement, price, date, field name, or diagnosis.
+- If they previously reported a product did not work for them, do not suggest it again.
+- Prefer low-cost and cultural steps first; name a chemical only when it is warranted, with
+  the label-dose and pre-harvest-interval reminder.
+- Be concise — a few short sentences. No markdown, no headings, no emoji.
+- If the question is not about their farm, answer briefly and steer back.`;
+
+export async function askAssistant(
+  contextJson: string,
+  profileText: string,
+  history: AssistantTurn[],
+  question: string,
+): Promise<string> {
+  const convo = history
+    .slice(-8)
+    .map((t) => `${t.role === 'user' ? 'Farmer' : 'AgriPod'}: ${t.content}`)
+    .join('\n');
+
+  let raw: string;
+  try {
+    const res = await ai().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                `${ASSISTANT_SYSTEM}\n\nFarm snapshot:\n${contextJson}\n\n` +
+                `How this farmer farms:\n${profileText || '(not enough history yet)'}\n\n` +
+                (convo ? `Conversation so far:\n${convo}\n\n` : '') +
+                `Farmer's question: ${question}`,
+            },
+          ],
+        },
+      ],
+      config: { temperature: 0.4 },
+    });
+    raw = res.text ?? '';
+  } catch (err) {
+    throw AppError.upstream('Assistant is unavailable right now', { reason: (err as Error).message });
+  }
+  const answer = raw.trim();
+  if (!answer) throw AppError.upstream('Assistant returned an empty answer');
+  return answer;
 }
 
 function normaliseCard(c: unknown): InsightCard | null {

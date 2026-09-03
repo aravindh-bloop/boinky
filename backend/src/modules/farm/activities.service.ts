@@ -1,5 +1,6 @@
 import { query, queryMaybe, queryOne, withTransaction } from '../../db/query.js';
 import { AppError } from '../../http/errors.js';
+import { recordEvent } from '../insights/profile.service.js';
 
 export const ACTIVITY_KINDS = [
   'irrigation',
@@ -99,7 +100,19 @@ export async function createActivity(farmerId: string, input: ActivityInput): Pr
       `SELECT ${SELECT} FROM activities a LEFT JOIN fields f ON f.id = a.field_id WHERE a.id = $1`,
       [id],
     );
-    return full[0]!;
+    const row = full[0]!;
+
+    // Feed input-related activities into the farmer's AI profile — this is how
+    // "productsTried" and "productsFailed" get populated over time.
+    if (input.inputName || input.kind === 'spraying' || input.kind === 'fertilizing') {
+      void recordEvent(
+        farmerId,
+        'activity',
+        `Applied ${input.inputName ?? input.title}${row.field_name ? ` on ${row.field_name}` : ''}.`,
+        id,
+      );
+    }
+    return row;
   });
 }
 

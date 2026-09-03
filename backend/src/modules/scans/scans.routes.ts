@@ -266,6 +266,16 @@ scansRouter.post(
   }),
 );
 
+scansRouter.post(
+  '/:id/feedback',
+  validate({ body: z.object({ helpful: z.boolean() }) }),
+  asyncHandler(async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    await scans.rateAdvisory(id, req.user!.sub, (req.body as { helpful: boolean }).helpful);
+    res.status(204).end();
+  }),
+);
+
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 
 scansRouter.get(
