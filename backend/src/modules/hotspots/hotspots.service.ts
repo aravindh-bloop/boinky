@@ -28,6 +28,7 @@ export interface HotspotQuery {
   center?: { lat: number; lng: number; radiusKm: number };
   days: number;
   crop?: string;
+  district?: string;
   severity?: 'low' | 'medium' | 'high';
   category?: string;
   includePending?: boolean;
@@ -66,6 +67,10 @@ function buildFilters(q: HotspotQuery) {
   if (q.crop) {
     params.push(q.crop.toLowerCase());
     where.push(`lower(f.crop) = $${params.length}`);
+  }
+  if (q.district) {
+    params.push(q.district);
+    where.push(`s.district = $${params.length}`);
   }
   if (q.severity) {
     params.push(q.severity);

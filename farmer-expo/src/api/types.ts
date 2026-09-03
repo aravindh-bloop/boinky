@@ -25,6 +25,10 @@ export interface Field {
   sown_date: string | null;
   lat: number | null;
   lng: number | null;
+  location_accuracy_m: number | null;
+  district: string | null;
+  subdistrict: string | null;
+  village: string | null;
   area_acres: number | null;
   created_at: string;
   days_since_sown: number | null;
@@ -54,6 +58,8 @@ export interface Scan {
   risk_score: number | null;
   lat: number | null;
   lng: number | null;
+  location_accuracy_m: number | null;
+  district: string | null;
   farmer_note: string | null;
   farmer_note_language: string | null;
   created_at: string;

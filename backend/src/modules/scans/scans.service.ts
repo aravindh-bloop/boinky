@@ -9,6 +9,7 @@ import { downscaleForVision } from '../../lib/image.js';
 import { getOwnedField } from '../fields/fields.service.js';
 import { latestSnapshot } from '../risk/risk.service.js';
 import { addScanFollowup } from '../calendar/calendar.service.js';
+import { resolveScanAdmin } from '../../lib/admin-location.js';
 
 export type ScanStatus =
   | 'pending'
@@ -40,6 +41,8 @@ export interface ScanRow {
   farmer_note_language: string | null;
   lat: number | null;
   lng: number | null;
+  location_accuracy_m: number | null;
+  district: string | null;
   created_at: string;
   raw_model_response?: unknown;
 }
@@ -51,6 +54,7 @@ const SCAN_SELECT = `
   s.validated_by, s.validated_at, s.validation_note, s.risk_score,
   s.farmer_note, s.farmer_note_language,
   ST_Y(s.location::geometry) AS lat, ST_X(s.location::geometry) AS lng,
+  s.location_accuracy_m, s.district,
   s.created_at
 `;
 
@@ -100,6 +104,7 @@ export interface CreateScanInput {
   fieldId?: string;
   lat?: number;
   lng?: number;
+  locationAccuracyM?: number;
   /** The farmer describing the problem in their own words (spoken or typed). */
   farmerNote?: string | null;
   /** Language Sarvam detected in the voice note, e.g. "ta-IN". */
@@ -162,14 +167,15 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
            field_id, farmer_id, image_url, image_public_id,
            diagnosis_label, diagnosis_category, affected_part, confidence, severity,
            raw_model_response, advisory_text, advisory_language, status, risk_score,
-           farmer_note, farmer_note_language, location
+           farmer_note, farmer_note_language, location, location_accuracy_m
          ) VALUES (
            $1, $2, $3, $4,
            $5, $6, $7, $8, $9,
            $10, $11, $12, $13, $14,
            $17, $18,
            CASE WHEN $15::float8 IS NULL OR $16::float8 IS NULL THEN NULL
-                ELSE ST_SetSRID(ST_MakePoint($16, $15), 4326)::geography END
+                ELSE ST_SetSRID(ST_MakePoint($16, $15), 4326)::geography END,
+           $19
          )
          RETURNING *
        )
@@ -193,10 +199,12 @@ export async function createScan(input: CreateScanInput): Promise<ScanRow> {
         lng,
         input.farmerNote?.trim() || null,
         input.farmerNoteLanguage ?? null,
+        input.locationAccuracyM ?? null,
       ],
     );
     if (!row) throw new Error('Scan insert returned no row');
     logger.info({ scanId: row.id, status, label: row.diagnosis_label }, 'scan created');
+    void resolveScanAdmin(row.id, row.lat, row.lng);
 
     // Follow-up re-scan reminder for a real problem on a known field.
     if (

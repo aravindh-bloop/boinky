@@ -9,12 +9,14 @@ import {
   ArrowUpRight,
   ChevronRight,
   ShieldCheck,
+  MapPin,
 } from 'lucide-react';
 import { useApi } from '../lib/useApi';
 import type {
   Overview as OverviewData,
   QueueItem,
   SchemeSummary,
+  DistrictRow,
 } from '../lib/types';
 import { Loading, ErrorBox, timeAgo } from '../components/ui';
 
@@ -32,6 +34,7 @@ export function Overview() {
     '/api/official/validation-queue?includeResolved=true&limit=7',
   );
   const subs = useApi<SchemeSummary>('/api/official/scheme-summary');
+  const districts = useApi<{ districts: DistrictRow[] }>('/api/official/districts?days=30');
 
   if (ov.loading) return <Loading label="Loading overview…" />;
   if (ov.error) return <ErrorBox message={ov.error} onRetry={ov.reload} />;
@@ -173,6 +176,69 @@ export function Overview() {
           )}
         </SectionCard>
       </div>
+
+      {/* ── district-wise outbreak load ── */}
+      <SectionCard
+        title="Outbreak load by district"
+        subtitle="Scans attributed to their exact GPS district · last 30 days"
+        action={{ label: 'Hotspot map', onClick: () => nav('/hotspots') }}
+      >
+        {districts.loading ? (
+          <Loading />
+        ) : (districts.data?.districts ?? []).length === 0 ? (
+          <Empty text="No located scans yet." />
+        ) : (
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wide text-slate-400 text-left">
+                  <th className="px-2 py-2 font-semibold">District</th>
+                  <th className="px-2 py-2 font-semibold text-right">Scans</th>
+                  <th className="px-2 py-2 font-semibold text-right">High severity</th>
+                  <th className="px-2 py-2 font-semibold text-right">Pending</th>
+                  <th className="px-2 py-2 font-semibold text-right">Farmers</th>
+                  <th className="px-2 py-2 font-semibold">Most reported</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {districts.data!.districts.map((r) => (
+                  <tr
+                    key={r.district}
+                    onClick={() => nav(`/queue?district=${encodeURIComponent(r.district)}`)}
+                    className={`cursor-pointer hover:bg-slate-50 ${
+                      r.district === 'Unresolved' ? 'text-slate-400' : ''
+                    }`}
+                  >
+                    <td className="px-2 py-2.5 font-medium text-slate-800 flex items-center gap-1.5">
+                      <MapPin size={13} className="text-slate-400 shrink-0" />
+                      {r.district}
+                    </td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">{r.scans}</td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">
+                      {r.high_severity > 0 ? (
+                        <span className="text-red-600 font-semibold">{r.high_severity}</span>
+                      ) : (
+                        '0'
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">
+                      {r.needs_validation > 0 ? (
+                        <span className="text-amber-600">{r.needs_validation}</span>
+                      ) : (
+                        '0'
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">{r.farmers}</td>
+                    <td className="px-2 py-2.5 text-slate-500 capitalize truncate max-w-[180px]">
+                      {r.top_diagnosis ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
 
       {/* ── analytics ── */}
       <div className="grid grid-cols-3 gap-5 items-start">

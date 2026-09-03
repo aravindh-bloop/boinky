@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
+import { getFix } from '../location';
 import type { Field, Scan } from '../api/types';
 import {
   Button,
@@ -76,6 +77,18 @@ export default function ScanScreen() {
       if (fieldId) fields.fieldId = fieldId;
       if (note.trim()) fields.note = note.trim();
       if (noteLanguage) fields.noteLanguage = noteLanguage;
+
+      // Best-effort exact GPS so the scan is attributed to the right district for
+      // outbreak tracking. Never blocks the diagnosis — the backend falls back to
+      // the field's location.
+      try {
+        const fix = await getFix();
+        fields.lat = String(fix.lat);
+        fields.lng = String(fix.lng);
+        if (fix.accuracyM != null) fields.accuracyM = String(fix.accuracyM);
+      } catch {
+        /* no fix — proceed without */
+      }
 
       const res = await api.upload<{ scan: Scan }>(
         '/api/scans',

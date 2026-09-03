@@ -96,6 +96,15 @@ export default function FieldDetailScreen() {
                 {f.sown_date ? `sown ${f.sown_date}` : 'no sowing date'}
                 {f.days_since_sown != null ? ` · day ${f.days_since_sown}` : ''}
               </Text>
+              {(f.village || f.district) && (
+                <Row gap={4} style={{ marginTop: 2 }}>
+                  <Icon name="hotspot" size={12} color={palette.textFaint} weight="fill" />
+                  <Text variant="caption" faint>
+                    {[f.village, f.district].filter(Boolean).join(', ')}
+                    {f.location_accuracy_m != null ? ` · ±${f.location_accuracy_m} m` : ''}
+                  </Text>
+                </Row>
+              )}
             </View>
             <Chip label={f.crop} bg={palette.surface} color={palette.primaryDeep} />
           </Row>

@@ -1,10 +1,11 @@
 import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, ApiError } from '../api/client';
-import { Button, Card, Field, Row, Screen, Stagger, Text, palette, space } from '../ui';
+import { getFix } from '../location';
+import { Button, Card, Field, Icon, Row, Screen, Stagger, Text, palette, space } from '../ui';
 import type { FieldsStackParams } from '../navigation';
 
 type Nav = NativeStackNavigationProp<FieldsStackParams, 'FieldForm'>;
@@ -19,7 +20,23 @@ export default function FieldFormScreen() {
   const [sownDate, setSownDate] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [accuracyM, setAccuracyM] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
   const [area, setArea] = useState('');
+
+  async function useMyLocation() {
+    setLocating(true);
+    try {
+      const fix = await getFix();
+      setLat(String(fix.lat));
+      setLng(String(fix.lng));
+      setAccuracyM(fix.accuracyM);
+    } catch (e) {
+      alertT('Could not get your location', e instanceof Error ? e.message : '');
+    } finally {
+      setLocating(false);
+    }
+  }
 
   async function save() {
     if (!crop.trim()) return alertT('Crop is required');
@@ -36,6 +53,7 @@ export default function FieldFormScreen() {
           sownDate: sownDate.trim() || undefined,
           lat: lat ? Number(lat) : undefined,
           lng: lng ? Number(lng) : undefined,
+          locationAccuracyM: accuracyM ?? undefined,
           areaAcres: area ? Number(area) : undefined,
         },
       });
@@ -66,14 +84,21 @@ export default function FieldFormScreen() {
         <Card>
           <Text variant="subhead">Location</Text>
           <Text variant="caption" faint>
-            Needed for weather-risk alerts and the regional hotspot map.
+            Used for weather-risk alerts, the hotspot map and district-wise outbreak tracking.
           </Text>
+          <Button
+            title={accuracyM != null ? `Location set · ±${accuracyM} m` : 'Use my current location'}
+            variant="soft"
+            loading={locating}
+            onPress={useMyLocation}
+            icon={<Icon name="hotspot" size={16} color={palette.primaryDeep} weight="fill" />}
+          />
           <Row gap={space.md}>
             <View style={{ flex: 1 }}>
-              <Field label="Latitude" value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="18.5204" />
+              <Field label="Latitude" value={lat} onChangeText={(v) => { setLat(v); setAccuracyM(null); }} keyboardType="numbers-and-punctuation" placeholder="13.0827" />
             </View>
             <View style={{ flex: 1 }}>
-              <Field label="Longitude" value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="73.8567" />
+              <Field label="Longitude" value={lng} onChangeText={(v) => { setLng(v); setAccuracyM(null); }} keyboardType="numbers-and-punctuation" placeholder="80.2707" />
             </View>
           </Row>
           <Field label="Area in acres (optional)" value={area} onChangeText={setArea} keyboardType="decimal-pad" placeholder="2.5" />

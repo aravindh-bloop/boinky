@@ -455,6 +455,58 @@ warm-tinted shadows. Verified rendering on device.
 
 ---
 
+## "Deep AI" update (2026-09-03) — in progress
+
+Full technical approach for the whole app + this update: **`docs/TECHNICAL_APPROACH.md`**.
+Five modules, build order **M3 → M1 → M5 → M2 → M4**. Decisions with the user: in-app
+guided camera; bundled-PostGIS geocoding (fell back to keyless BigDataCloud — see M3);
+dedicated Insurance tab; full conversational assistant.
+
+### M3 — Exact coordinates + district-wise identification — ✅ backend + app + dashboard, tested
+
+- Migration `1787980000000_precise-location.sql` — `users.district`;
+  `fields.{location_accuracy_m,district,subdistrict,village,admin_resolved_at}`;
+  `scans.{location_accuracy_m,district}`; `geocode_cache` (lat/lng rounded to 3dp);
+  `admin_areas` (empty — optional offline PostGIS boundary set).
+- **`src/integrations/geocode.ts::resolveAdmin(lat,lng)`** — tries `admin_areas` (PostGIS
+  `ST_Covers`) when seeded, else **BigDataCloud reverse-geocode** (keyless, free, verified
+  accurate to Indian district/taluk 2026-09-03: `adminLevel 5`=district, taluk regex for
+  sub-district). Cached in `geocode_cache` → ~1s first call, ~80ms cache hit. Never throws.
+  - ⚠️ **Deviation from the agreed "bundled PostGIS" choice:** the district boundary GeoJSON
+    can't be downloaded from this environment. BigDataCloud is a real keyless service and
+    resolves Indian districts correctly; the PostGIS path stays wired and preferred if a
+    boundary set is ever seeded (`admin_areas` + a `scripts/seed-admin-areas.ts`).
+- **`src/lib/admin-location.ts`** — `resolveFieldAdmin` / `resolveScanAdmin`, fire-and-forget
+  from `fields.service` create/update and `scans.service` create.
+- `fields`/`scans` services + routes accept `locationAccuracyM` / `accuracyM`; SELECT
+  projections expose the admin columns. `PATCH /api/auth/me` accepts `district`.
+- **Officer:** `official.service.ts::getDistrictBreakdown(region, days)` +
+  `getOverview().byDistrict` + `district` filter on `getValidationQueue` and hotspots.
+  New `GET /api/official/districts`. `scans.district` scoping.
+- **App:** `expo-location` (~57.0.15), `src/location.ts::getFix()` (permission + high-accuracy
+  fix + `±Xm`). FieldForm "Use my current location" button; ScanScreen captures a fix on
+  submit (best-effort, non-blocking). District shown on FieldDetail + ScanResult.
+  `app.json` — location permissions + `expo-location` plugin.
+- **Dashboard:** Overview "Outbreak load by district" table (click → `/queue?district=`);
+  ValidationQueue reads `?district=` + a removable filter chip + district in the detail panel.
+- **Scripts:** `scripts/backfill-admin.ts` (resolve district for existing located rows —
+  ran against Neon: 3 fields + 7 scans → Chennai), `scripts/try-geocode.ts`,
+  `scripts/try-official-m3.ts`, `scripts/check-m3.ts`. `dev-seed.ts` resolves + stores
+  district for the 3 demo fields and sets both demo users' `district = 'Chennai'`.
+- **Tested:** geocode live (Chennai/Coimbatore/Trichy/rural — all correct); migration on
+  Neon; `seed:dev` re-run; local server — officer `/districts`, `/overview.byDistrict`,
+  `/validation-queue?district=`, farmer `PATCH /me {district}`, `/api/fields` all return
+  the new fields. Backend + app + dashboard typecheck clean; backend builds.
+- ⬜ Deploy to Render (`migrate:deploy` + new code) + run `backfill-admin` against the
+  Render DB so existing prod scans get districts.
+
+### M1 — Multi-angle "resource verification" scan — ⬜ next
+### M5 — Tutorial + voice assistant onboarding — ⬜
+### M2 — Per-farmer AI personalisation — ⬜
+### M4 — Crop insurance — ⬜
+
+---
+
 ## Checkpoint log
 
 | Date | Checkpoint | Result |
@@ -490,6 +542,8 @@ warm-tinted shadows. Verified rendering on device.
 | 2026-08-29 | **App performance pass 2** | ✅ −2.85MB fonts, persisted cache, non-blocking auth, fewer requests |
 | 2026-08-29 | **Voice note on scan (Sarvam STT, Tamil)** | ✅ verified saaras:v4 + auto-detect; note reaches Gemini + advisory; PHI check still the safety gate |
 | 2026-08-29 | Voice note working on device (Tamil) | ✅ root cause: Sarvam rejects audio/m4a; also fixed launch hang + unhandled rejection |
+| 2026-09-03 | **`docs/TECHNICAL_APPROACH.md`** — full-app + Deep-AI-update architecture | ✅ written |
+| 2026-09-03 | **Deep AI M3 — exact GPS + district-wise ID** | ✅ geocode (BigDataCloud, cached) + admin cols on fields/scans/users + officer /districts + expo-location + dashboard district table — tested vs Neon, not yet on Render |
 
 ---
 

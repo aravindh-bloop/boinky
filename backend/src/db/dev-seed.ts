@@ -10,6 +10,7 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
 import { logger } from '../lib/logger.js';
+import { resolveAdmin } from '../integrations/geocode.js';
 
 async function upsertUser(u: {
   name: string;
@@ -17,6 +18,7 @@ async function upsertUser(u: {
   email?: string;
   role: 'farmer' | 'official';
   region: string;
+  district: string;
   lang: string;
 }) {
   const hash = await bcrypt.hash('secret123', 10);
@@ -24,14 +26,15 @@ async function upsertUser(u: {
   // unique index, so target the right one.
   const conflict = u.email ? 'email' : 'phone';
   const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO users (name, phone, email, password_hash, role, preferred_language, region)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
+    `INSERT INTO users (name, phone, email, password_hash, role, preferred_language, region, district)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      ON CONFLICT (${conflict}) DO UPDATE SET
        name = EXCLUDED.name,
        region = EXCLUDED.region,
+       district = EXCLUDED.district,
        preferred_language = EXCLUDED.preferred_language
      RETURNING id`,
-    [u.name, u.phone ?? null, u.email ?? null, hash, u.role, u.lang, u.region],
+    [u.name, u.phone ?? null, u.email ?? null, hash, u.role, u.lang, u.region, u.district],
   );
   return rows[0]!.id;
 }
@@ -55,20 +58,25 @@ const FIELDS: FieldSeed[] = [
 ];
 
 async function upsertField(farmerId: string, f: FieldSeed) {
+  const admin = await resolveAdmin(f.lat, f.lng).catch(() => null);
   const { rowCount } = await pool.query(
     `UPDATE fields SET
        crop = $3, variety = $4, sown_date = CURRENT_DATE - $5::int,
        location = ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography,
-       area_acres = $8
+       area_acres = $8, location_accuracy_m = 12,
+       district = $9, subdistrict = $10, village = $11, admin_resolved_at = now()
      WHERE farmer_id = $1 AND name = $2`,
-    [farmerId, f.name, f.crop, f.variety, f.daysSinceSown, f.lng, f.lat, f.acres],
+    [farmerId, f.name, f.crop, f.variety, f.daysSinceSown, f.lng, f.lat, f.acres,
+     admin?.district ?? null, admin?.subdistrict ?? null, admin?.village ?? null],
   );
   if (rowCount === 0) {
     await pool.query(
-      `INSERT INTO fields (farmer_id, name, crop, variety, sown_date, location, area_acres)
+      `INSERT INTO fields (farmer_id, name, crop, variety, sown_date, location, area_acres,
+                           location_accuracy_m, district, subdistrict, village, admin_resolved_at)
        VALUES ($1, $2, $3, $4, CURRENT_DATE - $5::int,
-               ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography, $8)`,
-      [farmerId, f.name, f.crop, f.variety, f.daysSinceSown, f.lng, f.lat, f.acres],
+               ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography, $8, 12, $9, $10, $11, now())`,
+      [farmerId, f.name, f.crop, f.variety, f.daysSinceSown, f.lng, f.lat, f.acres,
+       admin?.district ?? null, admin?.subdistrict ?? null, admin?.village ?? null],
     );
   }
 }
@@ -79,6 +87,7 @@ async function main() {
     phone: '9990001111',
     role: 'farmer',
     region: 'Chennai',
+    district: 'Chennai',
     lang: 'en',
   });
   await upsertUser({
@@ -86,6 +95,7 @@ async function main() {
     email: 'officer@agri.gov.in',
     role: 'official',
     region: 'Chennai',
+    district: 'Chennai',
     lang: 'en',
   });
 

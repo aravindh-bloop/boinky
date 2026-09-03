@@ -26,6 +26,7 @@ const createSchema = z.object({
   sownDate: dateStr.optional(),
   lat: lat.optional(),
   lng: lng.optional(),
+  locationAccuracyM: z.coerce.number().min(0).max(100000).optional(),
   areaAcres: z.coerce.number().positive().max(100000).optional(),
 });
 

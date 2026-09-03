@@ -1,5 +1,6 @@
 import { query, queryMaybe } from '../../db/query.js';
 import { AppError } from '../../http/errors.js';
+import { resolveFieldAdmin } from '../../lib/admin-location.js';
 
 export interface FieldRow {
   id: string;
@@ -10,6 +11,10 @@ export interface FieldRow {
   sown_date: string | null;
   lat: number | null;
   lng: number | null;
+  location_accuracy_m: number | null;
+  district: string | null;
+  subdistrict: string | null;
+  village: string | null;
   area_acres: number | null;
   created_at: string;
   /** Days since sowing, or null if no sown_date. Convenience for crop-stage logic. */
@@ -22,6 +27,7 @@ const FIELD_SELECT = `
   to_char(f.sown_date, 'YYYY-MM-DD') AS sown_date,
   ST_Y(f.location::geometry) AS lat,
   ST_X(f.location::geometry) AS lng,
+  f.location_accuracy_m, f.district, f.subdistrict, f.village,
   f.area_acres, f.created_at,
   CASE WHEN f.sown_date IS NULL THEN NULL
        ELSE (CURRENT_DATE - f.sown_date) END AS days_since_sown
@@ -34,18 +40,19 @@ export interface FieldInput {
   sownDate?: string; // YYYY-MM-DD
   lat?: number;
   lng?: number;
+  locationAccuracyM?: number;
   areaAcres?: number;
 }
 
 export async function createField(farmerId: string, input: FieldInput): Promise<FieldRow> {
   const [row] = await query<FieldRow>(
     `WITH inserted AS (
-       INSERT INTO fields (farmer_id, name, crop, variety, sown_date, location, area_acres)
+       INSERT INTO fields (farmer_id, name, crop, variety, sown_date, location, location_accuracy_m, area_acres)
        VALUES (
          $1, $2, $3, $4, $5,
          CASE WHEN $6::float8 IS NULL OR $7::float8 IS NULL THEN NULL
               ELSE ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography END,
-         $8
+         $8, $9
        )
        RETURNING *
      )
@@ -58,10 +65,12 @@ export async function createField(farmerId: string, input: FieldInput): Promise<
       input.sownDate ?? null,
       input.lat ?? null,
       input.lng ?? null,
+      input.locationAccuracyM ?? null,
       input.areaAcres ?? null,
     ],
   );
   if (!row) throw new Error('Field insert returned no row');
+  void resolveFieldAdmin(row.id, row.lat, row.lng);
   return row;
 }
 
@@ -101,7 +110,10 @@ export async function updateField(
          location = CASE
            WHEN $8::float8 IS NOT NULL AND $9::float8 IS NOT NULL
              THEN ST_SetSRID(ST_MakePoint($9, $8), 4326)::geography
-           ELSE location END
+           ELSE location END,
+         location_accuracy_m = CASE
+           WHEN $8::float8 IS NOT NULL AND $9::float8 IS NOT NULL THEN $10
+           ELSE location_accuracy_m END
        WHERE id = $1 AND farmer_id = $2
        RETURNING *
      )
@@ -116,9 +128,11 @@ export async function updateField(
       input.areaAcres ?? null,
       input.lat ?? null,
       input.lng ?? null,
+      input.locationAccuracyM ?? null,
     ],
   );
   if (!row) throw AppError.notFound('Field not found');
+  if (input.lat != null && input.lng != null) void resolveFieldAdmin(row.id, row.lat, row.lng);
   return row;
 }
 

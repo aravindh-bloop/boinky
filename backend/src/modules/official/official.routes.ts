@@ -31,9 +31,10 @@ officialRouter.get(
 officialRouter.get(
   '/validation-queue',
   asyncHandler(async (req, res) => {
-    const { crop, includeResolved, limit, offset } = z
+    const { crop, district, includeResolved, limit, offset } = z
       .object({
         crop: z.string().trim().min(1).max(80).optional(),
+        district: z.string().trim().min(1).max(120).optional(),
         includeResolved: z.coerce.boolean().optional(),
         limit: z.coerce.number().int().min(1).max(100).default(30),
         offset: z.coerce.number().int().min(0).default(0),
@@ -43,11 +44,23 @@ officialRouter.get(
     const items = await official.getValidationQueue({
       region,
       crop,
+      district,
       includeResolved,
       limit,
       offset,
     });
     res.json({ items });
+  }),
+);
+
+officialRouter.get(
+  '/districts',
+  asyncHandler(async (req, res) => {
+    const { days } = z
+      .object({ days: z.coerce.number().int().min(7).max(365).default(30) })
+      .parse(req.query);
+    const region = await scopeRegion(req);
+    res.json({ districts: await official.getDistrictBreakdown(region, days) });
   }),
 );
 

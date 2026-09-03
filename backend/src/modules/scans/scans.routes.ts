@@ -45,6 +45,7 @@ const createBody = z.object({
   fieldId: z.string().uuid().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  accuracyM: z.coerce.number().min(0).max(100000).optional(),
   /** The farmer's spoken (transcribed) or typed description of the problem. */
   note: z.string().trim().max(2000).optional(),
   noteLanguage: z.string().trim().max(10).optional(),
@@ -74,6 +75,7 @@ scansRouter.post(
       fieldId: req.body.fieldId,
       lat: req.body.lat,
       lng: req.body.lng,
+      locationAccuracyM: req.body.accuracyM,
       farmerNote: req.body.note,
       farmerNoteLanguage: req.body.noteLanguage,
     });

@@ -12,6 +12,7 @@ export interface UserRow {
   role: UserRole;
   preferred_language: string;
   region: string | null;
+  district: string | null;
   created_at: string;
 }
 
@@ -94,16 +95,17 @@ export async function getUserById(id: string): Promise<PublicUser> {
 
 export async function updateProfile(
   id: string,
-  patch: { name?: string; preferredLanguage?: string; region?: string },
+  patch: { name?: string; preferredLanguage?: string; region?: string; district?: string },
 ): Promise<PublicUser> {
   const user = await queryMaybe<UserRow>(
     `update users set
        name = coalesce($2, name),
        preferred_language = coalesce($3, preferred_language),
-       region = coalesce($4, region)
+       region = coalesce($4, region),
+       district = coalesce($5, district)
      where id = $1
      returning *`,
-    [id, patch.name ?? null, patch.preferredLanguage ?? null, patch.region ?? null],
+    [id, patch.name ?? null, patch.preferredLanguage ?? null, patch.region ?? null, patch.district ?? null],
   );
   if (!user) throw AppError.notFound('User not found');
   return toPublic(user);

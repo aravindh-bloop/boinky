@@ -15,7 +15,9 @@
       "package": "com.agripod.farmer",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#2e7d32",
@@ -42,6 +44,13 @@
         "expo-audio",
         {
           "microphonePermission": "AgriPod uses the microphone so you can describe your crop problem in your own language."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking.",
+          "locationWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking."
         }
       ]
     ]

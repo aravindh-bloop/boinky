@@ -51,6 +51,7 @@ const profileSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   preferredLanguage: z.string().trim().min(2).max(10).optional(),
   region: z.string().trim().min(1).max(120).optional(),
+  district: z.string().trim().min(1).max(120).optional(),
 });
 
 authRouter.patch(

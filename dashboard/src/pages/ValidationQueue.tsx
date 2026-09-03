@@ -1,14 +1,19 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { AlertCircle, CheckCircle, XCircle, PencilLine } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, CheckCircle, XCircle, PencilLine, MapPin, X } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import type { QueueItem } from '../lib/types';
 import { Loading, ErrorBox, SeverityBadge } from '../components/ui';
 
 export function ValidationQueue() {
+  const [params, setParams] = useSearchParams();
+  const district = params.get('district');
   const { data, loading, error, reload } = useApi<{ items: QueueItem[] }>(
-    '/api/official/validation-queue?limit=50',
+    `/api/official/validation-queue?limit=50${
+      district ? `&district=${encodeURIComponent(district)}` : ''
+    }`,
   );
   const [selected, setSelected] = useState<QueueItem | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,7 +54,17 @@ export function ValidationQueue() {
     >
       <div className={`flex-1 pr-4 ${selected ? 'w-2/3 border-r' : 'w-full'}`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Validation Queue</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Validation Queue</h2>
+            {district && (
+              <button
+                onClick={() => setParams({}, { replace: true })}
+                className="flex items-center gap-1 text-sm bg-agri-primary/10 text-agri-primary px-2.5 py-1 rounded-full hover:bg-agri-primary/20"
+              >
+                <MapPin size={13} /> {district} <X size={13} />
+              </button>
+            )}
+          </div>
           <span className="text-sm text-slate-500">{items.length} awaiting review</span>
         </div>
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -135,6 +150,14 @@ export function ValidationQueue() {
               {selected.crop ?? 'crop not linked'} · {selected.farmer_name}
               {selected.farmer_phone ? ` · ${selected.farmer_phone}` : ''}
             </p>
+            {selected.district && (
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <MapPin size={12} /> {selected.district} district
+                {selected.lat != null && selected.lng != null
+                  ? ` · ${selected.lat.toFixed(4)}, ${selected.lng.toFixed(4)}`
+                  : ''}
+              </p>
+            )}
             {selected.advisory_text && (
               <div className="p-3 bg-slate-50 rounded-xl border">
                 <p className="text-xs font-medium mb-1">Advisory the farmer sees</p>

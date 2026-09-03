@@ -5,6 +5,18 @@ export interface Overview {
   activeAlerts: number;
   topDiagnoses: { label: string | null; count: number; high: number }[];
   byCrop: { crop: string | null; count: number }[];
+  byDistrict: { district: string; count: number; high: number }[];
+}
+
+export interface DistrictRow {
+  district: string;
+  scans: number;
+  needs_validation: number;
+  high_severity: number;
+  farmers: number;
+  fields: number;
+  top_diagnosis: string | null;
+  last_activity: string | null;
 }
 
 export interface QueueItem {
@@ -24,6 +36,7 @@ export interface QueueItem {
   created_at: string;
   farmer_name: string;
   farmer_phone: string | null;
+  district: string | null;
 }
 
 export interface HotspotPoint {

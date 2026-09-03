@@ -13,6 +13,7 @@ export interface OverviewStats {
   activeAlerts: number;
   topDiagnoses: { label: string | null; count: number; high: number }[];
   byCrop: { crop: string | null; count: number }[];
+  byDistrict: { district: string; count: number; high: number }[];
 }
 
 function regionFilter(region: string | null, alias: string, params: unknown[]): string {
@@ -84,6 +85,20 @@ export async function getOverview(region: string | null): Promise<OverviewStats>
     p5,
   );
 
+  const p6: unknown[] = [];
+  const rf6 = regionFilter(region, 'u.region', p6);
+  const byDistrict = await query<{ district: string; count: number; high: number }>(
+    `SELECT coalesce(nullif(s.district, ''), 'Unresolved') AS district,
+            count(*)::int AS count,
+            count(*) FILTER (WHERE s.severity = 'high')::int AS high
+       FROM scans s JOIN users u ON u.id = s.farmer_id
+      WHERE ${rf6} AND s.created_at > now() - interval '30 days'
+      GROUP BY 1
+      ORDER BY count DESC
+      LIMIT 12`,
+    p6,
+  );
+
   return {
     region,
     scans: scanAgg,
@@ -91,6 +106,7 @@ export async function getOverview(region: string | null): Promise<OverviewStats>
     activeAlerts: alerts.n,
     topDiagnoses,
     byCrop,
+    byDistrict,
   };
 }
 
@@ -111,18 +127,20 @@ export interface QueueItem {
   farmer_phone: string | null;
   crop: string | null;
   region: string | null;
+  district: string | null;
 }
 
 const QUEUE_SELECT = `
   s.id, s.image_url, s.diagnosis_label, s.diagnosis_category, s.severity, s.confidence,
   s.status, ST_Y(s.location::geometry) AS lat, ST_X(s.location::geometry) AS lng,
   s.created_at, u.name AS farmer_name, u.phone AS farmer_phone,
-  lower(f.crop) AS crop, u.region
+  lower(f.crop) AS crop, u.region, s.district
 `;
 
 export async function getValidationQueue(opts: {
   region: string | null;
   crop?: string;
+  district?: string;
   includeResolved?: boolean;
   limit: number;
   offset: number;
@@ -137,6 +155,10 @@ export async function getValidationQueue(opts: {
   if (opts.region) {
     params.push(opts.region);
     where.push(`u.region = $${params.length}`);
+  }
+  if (opts.district) {
+    params.push(opts.district);
+    where.push(`s.district = $${params.length}`);
   }
   if (opts.crop) {
     params.push(opts.crop.toLowerCase());
@@ -287,6 +309,48 @@ async function apply(
 }
 
 // ── Directory & trends ──
+
+// ── District-wise breakdown ──
+
+export interface DistrictRow {
+  district: string;
+  scans: number;
+  needs_validation: number;
+  high_severity: number;
+  farmers: number;
+  fields: number;
+  top_diagnosis: string | null;
+  last_activity: string | null;
+}
+
+/**
+ * Outbreak load per district over the last `days`, from the resolved
+ * `scans.district` (Module 3). Scans whose coordinate has not been reverse-
+ * geocoded yet fall under "Unresolved".
+ */
+export async function getDistrictBreakdown(
+  region: string | null,
+  days = 30,
+): Promise<DistrictRow[]> {
+  const params: unknown[] = [days];
+  const rf = region ? (params.push(region), `u.region = $2`) : 'TRUE';
+  return query<DistrictRow>(
+    `SELECT coalesce(nullif(s.district, ''), 'Unresolved') AS district,
+            count(*)::int AS scans,
+            count(*) FILTER (WHERE s.status = 'needs_validation')::int AS needs_validation,
+            count(*) FILTER (WHERE s.severity = 'high')::int AS high_severity,
+            count(DISTINCT s.farmer_id)::int AS farmers,
+            count(DISTINCT s.field_id)::int AS fields,
+            mode() WITHIN GROUP (ORDER BY s.diagnosis_label)
+              FILTER (WHERE s.diagnosis_category NOT IN ('healthy', 'unknown')) AS top_diagnosis,
+            max(s.created_at) AS last_activity
+       FROM scans s JOIN users u ON u.id = s.farmer_id
+      WHERE s.created_at > now() - make_interval(days => $1::int) AND ${rf}
+      GROUP BY 1
+      ORDER BY scans DESC`,
+    params,
+  );
+}
 
 export async function getDirectory(opts: {
   region: string | null;

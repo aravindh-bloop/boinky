@@ -133,6 +133,15 @@ export default function ScanResultScreen() {
                   {st.label}
                 </Text>
               </Row>
+              {scan.district ? (
+                <Row gap={4}>
+                  <Icon name="hotspot" size={12} color={palette.textFaint} weight="fill" />
+                  <Text variant="caption" faint>
+                    {t('Logged in {district} district', { district: scan.district })}
+                    {scan.location_accuracy_m != null ? ` · ±${scan.location_accuracy_m} m` : ''}
+                  </Text>
+                </Row>
+              ) : null}
               {scan.validation_note ? (
                 <Text variant="body" style={{ fontStyle: 'italic' }} color={palette.info}>
                   “{scan.validation_note}”
