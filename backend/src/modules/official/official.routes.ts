@@ -64,6 +64,14 @@ officialRouter.get(
   }),
 );
 
+officialRouter.get(
+  '/scans/:id',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    res.json({ scan: await official.getScanForOfficer(id) });
+  }),
+);
+
 officialRouter.post(
   '/scans/:id/validate',
   asyncHandler(async (req, res) => {

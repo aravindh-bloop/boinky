@@ -177,6 +177,32 @@ export async function getValidationQueue(opts: {
   );
 }
 
+/** Full scan detail for the officer review panel — includes the whole media set. */
+export async function getScanForOfficer(scanId: string) {
+  const scan = await queryMaybe(
+    `SELECT s.id, s.image_url, s.diagnosis_label, s.diagnosis_category, s.affected_part,
+            s.severity, s.confidence, s.status, s.advisory_text, s.validation_note,
+            s.image_quality, s.coverage_gaps, s.farmer_note, s.farmer_note_language,
+            s.risk_score, s.district, s.location_accuracy_m,
+            ST_Y(s.location::geometry) AS lat, ST_X(s.location::geometry) AS lng,
+            s.created_at, s.submitted_at,
+            u.name AS farmer_name, u.phone AS farmer_phone, u.region,
+            lower(f.crop) AS crop, f.variety, f.name AS field_name
+       FROM scans s
+       JOIN users u ON u.id = s.farmer_id
+       LEFT JOIN fields f ON f.id = s.field_id
+      WHERE s.id = $1 AND s.status <> 'draft'`,
+    [scanId],
+  );
+  if (!scan) throw AppError.notFound('Scan not found');
+  const media = await query(
+    `SELECT id, kind, url, resource, duration_s, position
+       FROM scan_media WHERE scan_id = $1 ORDER BY position, created_at`,
+    [scanId],
+  );
+  return { ...scan, media };
+}
+
 // ── Validate / correct a scan ──
 
 export type ValidateAction = 'confirm' | 'correct' | 'reject';

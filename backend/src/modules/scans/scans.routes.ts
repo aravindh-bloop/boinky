@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, validate, z } from '../../http/handler.js';
 import { requireAuth } from '../../http/auth.js';
-import { audioUpload, imageUpload } from '../../http/upload.js';
+import { audioUpload, imageUpload, scanMediaUpload, isScanMedia } from '../../http/upload.js';
 import { transcribeAudio } from '../../integrations/sarvam.js';
 import { AppError } from '../../http/errors.js';
 import { logger } from '../../lib/logger.js';
@@ -60,6 +60,30 @@ const listQuery = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+const ANGLE_KINDS = [
+  'whole_plant',
+  'affected_closeup',
+  'leaf_underside',
+  'stem_base',
+  'fruit_panicle',
+  'field_wide',
+  'video',
+  'extra',
+] as const;
+
+const draftBody = z.object({
+  fieldId: z.string().uuid().optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  accuracyM: z.coerce.number().min(0).max(100000).optional(),
+});
+
+const submitBody = z.object({
+  note: z.string().trim().max(2000).optional(),
+  noteLanguage: z.string().trim().max(10).optional(),
+  force: z.coerce.boolean().optional(),
+});
+
 scansRouter.post(
   '/',
   imageUpload.single('image'),
@@ -78,6 +102,85 @@ scansRouter.post(
       locationAccuracyM: req.body.accuracyM,
       farmerNote: req.body.note,
       farmerNoteLanguage: req.body.noteLanguage,
+    });
+    res.status(201).json({ scan });
+  }),
+);
+
+// ── Multi-angle "resource verification" scan (Module 1) ──
+
+scansRouter.post(
+  '/draft',
+  validate({ body: draftBody }),
+  asyncHandler(async (req, res) => {
+    const draft = await scans.createScanDraft({
+      farmerId: req.user!.sub,
+      fieldId: req.body.fieldId,
+      lat: req.body.lat,
+      lng: req.body.lng,
+      locationAccuracyM: req.body.accuracyM,
+    });
+    res.status(201).json(draft);
+  }),
+);
+
+scansRouter.post(
+  '/:id/media',
+  scanMediaUpload.single('media'),
+  asyncHandler(async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    if (!req.file) throw AppError.badRequest('A file is required (field name: "media")');
+    const { kind, position } = z
+      .object({
+        kind: z.enum(ANGLE_KINDS),
+        position: z.coerce.number().int().min(0).max(20).optional(),
+      })
+      .parse(req.body);
+
+    const resource = isScanMedia(req.file.mimetype, req.file.originalname);
+    if (!resource) throw AppError.badRequest('Unsupported media type');
+    if (kind === 'video' && resource !== 'video') {
+      throw AppError.badRequest('kind "video" needs a video file');
+    }
+
+    const media = await scans.addScanMedia(id, req.user!.sub, {
+      kind,
+      resource: kind === 'video' ? 'video' : resource,
+      file: {
+        buffer: req.file.buffer,
+        mimetype: req.file.mimetype,
+        originalname: req.file.originalname,
+      },
+      position,
+    });
+    res.status(201).json({ media });
+  }),
+);
+
+scansRouter.delete(
+  '/:id/media/:mediaId',
+  asyncHandler(async (req, res) => {
+    const { id, mediaId } = z
+      .object({ id: z.string().uuid(), mediaId: z.string().uuid() })
+      .parse(req.params);
+    await scans.removeScanMedia(id, mediaId, req.user!.sub);
+    res.status(204).end();
+  }),
+);
+
+scansRouter.post(
+  '/:id/submit',
+  validate({ body: submitBody }),
+  asyncHandler(async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const me = await getUserById(req.user!.sub);
+    const scan = await scans.submitScanDraft(id, {
+      farmerId: me.id,
+      farmerLanguage: me.preferred_language,
+      farmerRegion: me.region,
+      farmerNote: req.body.note,
+      farmerNoteLanguage: req.body.noteLanguage,
+      force: req.body.force,
     });
     res.status(201).json({ scan });
   }),

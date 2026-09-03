@@ -31,6 +31,9 @@ export class AppError extends Error {
   static conflict(message: string, details?: unknown) {
     return new AppError(409, 'conflict', message, details);
   }
+  static unprocessable(message: string, details?: unknown) {
+    return new AppError(422, 'unprocessable', message, details);
+  }
   static upstream(message: string, details?: unknown) {
     return new AppError(502, 'upstream_error', message, details);
   }

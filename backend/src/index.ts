@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { env, integrations } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { assertDbConnection, closePool, pool } from './db/pool.js';
+import { purgeStaleDrafts } from './modules/scans/scans.service.js';
 
 async function main() {
   await assertDbConnection();
@@ -23,6 +24,12 @@ async function main() {
     pool.query('SELECT 1').catch((err) => logger.debug({ err }, 'keep-alive ping failed'));
   }, 240_000);
   keepAlive.unref();
+
+  // Sweep abandoned scan drafts (started, never submitted) every 6h + once at boot.
+  const sweep = () =>
+    purgeStaleDrafts(24).catch((err) => logger.warn({ err }, 'draft sweep failed'));
+  setTimeout(sweep, 30_000).unref();
+  setInterval(sweep, 6 * 60 * 60_000).unref();
 
   const shutdown = (signal: string) => {
     logger.info({ signal }, 'shutting down');

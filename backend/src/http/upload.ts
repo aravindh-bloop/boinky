@@ -12,6 +12,37 @@ export const imageUpload = multer({
   },
 });
 
+// ── Multi-angle scan media: one image OR one short video per request ──
+const ALLOWED_VIDEO = new Set(['video/mp4', 'video/quicktime', 'video/webm', 'video/3gpp']);
+const MEDIA_EXT = /\.(jpe?g|png|webp|heic|heif|mp4|mov|m4v|webm|3gp)$/i;
+
+/** The native uploader labels every part application/octet-stream — fall back to the name. */
+function isScanMedia(mime: string, name: string): 'image' | 'video' | null {
+  const m = (mime || '').toLowerCase();
+  if (ALLOWED.has(m) || m.startsWith('image/')) return 'image';
+  if (ALLOWED_VIDEO.has(m) || m.startsWith('video/')) return 'video';
+  if ((m === 'application/octet-stream' || m === '') && MEDIA_EXT.test(name || '')) {
+    return /\.(mp4|mov|m4v|webm|3gp)$/i.test(name) ? 'video' : 'image';
+  }
+  return null;
+}
+
+export const scanMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  // A 15 s 480p clip is a few MB; 40 MB is generous headroom for a raw phone capture.
+  limits: { fileSize: 40 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (isScanMedia(file.mimetype, file.originalname)) return cb(null, true);
+    cb(
+      AppError.badRequest(
+        `Unsupported scan media: ${file.mimetype || 'unknown'} (${file.originalname || 'no name'})`,
+      ),
+    );
+  },
+});
+
+export { isScanMedia };
+
 // expo-audio records m4a/aac on both platforms; the rest are what Sarvam accepts,
 // so a recording from anywhere else still goes through.
 const ALLOWED_AUDIO = new Set([
