@@ -5,7 +5,8 @@
 > `ARCHITECTURE.md` (kept for its verified-API-facts log). Companion to
 > `AgriPod_Solution_Document.docx`.
 >
-> Last updated: 2026-09-03
+> Last updated: 2026-09-05 — **the Deep AI update (§13) is fully shipped**; the "*(this
+> update)*" tags below are now live. Deviations from the original plan are noted in §13.
 
 ---
 
@@ -522,13 +523,29 @@ Decisions taken with the user: **in-app guided camera** for multi-angle capture;
 | **M2** | Per-farmer AI personalisation | `farmer_ai_profile`, `farmer_ai_events`, `assistant_threads`, `assistant_messages` | — | `context.ts`, `gemini.ts` prompts, new `/api/assistant`, Home, feedback on advisory/brief |
 | **M4** | Crop insurance | `insurance_policies`, `insurance_claims`, `insurance_claim_media`, `insurance_claim_events`; `schemes.kind`, `scheme_threads.claim_id` | — (reuses M1 media) | new `modules/insurance/`, `official.routes`, new Insurance tab + 3 screens, dashboard Insurance page |
 
-**Build order:** M3 → M1 → M5 → M2 → M4. Each is a full vertical slice (migration → service
-→ routes → live curl test → app → dashboard → `PROGRESS.md` + memory → commit).
+**Build order:** M3 → M1 → M5 → M2 → M4 — **all shipped & tested vs live services.** Each was
+a full vertical slice (migration → service → routes → live curl test → app → dashboard →
+`PROGRESS.md` + memory → commit). Migrations `1787980000000` … `1788020000000`.
 
-**Risks / mitigations:** bench Gemini 3 multi-image latency + part limits live before
-finalising the wizard (`scripts/bench-gemini-set.ts`); Nominatim only as optional cached
-village-name enrichment (PostGIS is source of truth); Sarvam TTS char cap → sentence chunk
-+ cache; keep the one-photo "quick scan" path so nothing regresses.
+**Deviations from the plan, as built:**
+- **M3 geocoding:** the bundled India district GeoJSON couldn't be obtained in the build
+  environment, so `integrations/geocode.ts::resolveAdmin` uses **BigDataCloud reverse-geocode**
+  (keyless, free, verified accurate to Indian district/taluk), cached in `geocode_cache`.
+  The `admin_areas` PostGIS table + `ST_Covers` path stays wired and is *preferred* if a
+  boundary set is ever seeded.
+- **M1:** the whole photo set goes to Gemini in **one** call (benched: latency is flat in
+  image count). The wizard uploads each shot to a **draft scan** as it's taken, then
+  `POST /:id/submit` runs the set diagnosis. Video → 3 Cloudinary URL-transform frame stills.
+- **M2:** the assistant lives at `POST /api/assistant/messages`; the farmer profile is
+  distilled lazily (digest-gated, like the daily brief) and flows through
+  `buildFarmContext().farmerProfile` into every generator.
+- **M4:** `insurance_claim_events` doubles as the timeline **and** the farmer↔officer thread
+  (`kind='message'`) — no `scheme_threads.claim_id` was needed. `ai_assessment` is stripped
+  from the farmer's view of a claim.
+- **Perf pass 3** (not a numbered module): `.github/workflows/keep-warm.yml` pings `/health`
+  every ~10 min (kills Render cold starts); client request timeout 30 s → 50 s; `/api/alerts`
+  500 fixed; `contextDigest` coarsened so the daily brief stops regenerating on forecast
+  jitter.
 
 ---
 
