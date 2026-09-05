@@ -625,7 +625,53 @@ declared-angle mismatches. → submit the whole set in ONE call.
   (Brief-card-level 👎 deferred — cards aren't individually addressable; advisory +
   assistant feedback cover the signal.)
 
-### M4 — Crop insurance — ⬜ next
+### M4 — Crop insurance — ✅ backend + app + dashboard, tested
+
+- Migration `1788020000000_crop-insurance.sql` — `schemes.kind`
+  (subsidy|insurance|credit); `insurance_policies`; `insurance_claims`
+  (`draft → submitted → under_review → surveyor_assigned → approved/rejected → paid`,
+  cause enum, farmer + officer loss %, `ai_assessment jsonb`, district);
+  `insurance_claim_media` (photo/video, per-file GPS); `insurance_claim_events`
+  (unified progress timeline **and** the farmer↔officer thread, `kind='message'`).
+- **`gemini.assessClaimDamage(images, ctx)`** — officer-facing draft:
+  `causePlausible` (consistent/…/inconsistent), rough loss %, `cropVisible`,
+  rationale, notes. **Verified it catches a mismatch**: a "hailstorm" claim whose
+  photos show disease lesions → `inconsistent`, 0%, "hail presents as shredding, not
+  observed here".
+- **`modules/insurance`** — farmer: `enrollPolicy` / `listPolicies` /
+  `listInsuranceSchemes` / `createClaim` (draft) / `addClaimMedia` (Cloudinary,
+  reuses the M1 `scanMediaUpload` + helpers) / `removeClaimMedia` / `submitClaim`
+  (media gate → status `submitted` → background AI assessment) / `getClaim`
+  (`ai_assessment` **striped for the farmer**) / `postClaimMessage`. officer:
+  `listClaimsForOfficer` (district-scoped, pending-first), `decideClaim` (state
+  machine, amount required to approve/pay, writes a `status_change` event),
+  `insuranceSummaryForOfficer`.
+- Routes: `/api/insurance/*` (farmer) + `/api/official/insurance-*` (officer).
+- **Seed:** PMFBY tagged `insurance` + 2 new insurance schemes (RWBCIS, TN State
+  Top-up); KCC / interest-subvention → `credit`. `demo-seed`: 2 active policies +
+  1 under-review claim with a seeded `ai_assessment`.
+- **`recordEvent` hook** — filing a claim feeds the farmer AI profile (M2).
+- **App:** new 6th bottom tab **Insurance** (umbrella icon; TabBar tightened for 6
+  tabs). `InsuranceScreen` (policies + claims list), `InsuranceEnrollScreen` (field →
+  scheme → season/sum/premium), `InsuranceClaimScreen` (2-phase: cause/date/
+  description/link-a-scan → evidence photos via `expo-image-picker` multi-select →
+  submit), `InsuranceClaimDetailScreen` (status stepper + payout card + evidence
+  strip + interleaved timeline/chat + message input).
+- **Dashboard:** new **Crop Insurance** page + nav item — summary cards
+  (paid / pending / approved-not-paid / active policies), status-filtered claims
+  table (✦ marks a claim with an AI assessment), detail panel with the evidence
+  gallery (thumbs + `<video>`), the **violet AI-draft-assessment card** ("an aid, not
+  a decision"), assessed-loss / payout / note inputs, the state-machine decision
+  buttons, and the timeline + officer↔farmer message thread.
+- **Tested end-to-end** (`scripts/try-insurance.ts`): enrol → claim → 2 evidence
+  photos → submit → AI assessment → officer under_review → approved (₹27k, 60%) →
+  paid → summary + full timeline all correct. `ai_assessment` never leaks to the
+  farmer. typecheck clean x3; `expo export` 4.6MB.
+- ⬜ Deploy backend (5 migrations pending) + dashboard.
+
+### ★ Deep AI update COMPLETE — all 5 modules (M3 M1 M5 M2 M4) built + tested vs live services.
+Everything needs one Render deploy: `migrate:deploy` picks up migrations
+`1787980000000` … `1788020000000` (5); no breaking changes to existing endpoints.
 
 ---
 
@@ -670,6 +716,7 @@ declared-angle mismatches. → submit the whole set in ONE call.
 | 2026-09-03 | **Deep AI M1 — multi-angle scan** | ✅ scan_media + diagnoseCropImageSet (benched flat latency) + draft/media/submit + Cloudinary video/frames + expo-camera guided wizard + result gallery + officer/dashboard media panel — tested vs Neon+Cloudinary+Gemini (submit 8s, conf drops on partial coverage) |
 | 2026-09-03 | **Deep AI M5 — tutorial + voice onboarding** | ✅ Sarvam bulbul:v3 TTS + tts_cache + server-driven tutorial (9 app / 6 pod steps, Tamil-localised) + expo-audio voice playback + auto-launch TutorialOverlay + Settings replay — tested /api/tts + /api/tutorial live |
 | 2026-09-03 | **Deep AI M2 — personalisation + Ask AgriPod** | ✅ farmer_ai_events/_profile + distillFarmerProfile (productsFailed verified) wired into FarmContext → brief cites it; assistant module (grounded Gemini chat, thread continuity, Sarvam-localised) + AskScreen + feedback loop — tested live vs Neon+Gemini |
+| 2026-09-05 | **Deep AI M4 — crop insurance** | ✅ policies + claims (draft→…→paid) + evidence media + gemini.assessClaimDamage (mismatch detection verified) + unified timeline/thread + 6th Insurance tab + dashboard Insurance page — tested end-to-end vs Neon+Cloudinary+Gemini. **★ all 5 Deep-AI modules done** |
 
 ---
 

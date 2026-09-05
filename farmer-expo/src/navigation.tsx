@@ -28,6 +28,10 @@ import ScanResultScreen from './screens/ScanResultScreen';
 import SchemesScreen from './screens/SchemesScreen';
 import MySchemesScreen from './screens/MySchemesScreen';
 import SchemeThreadScreen from './screens/SchemeThreadScreen';
+import InsuranceScreen from './screens/InsuranceScreen';
+import InsuranceEnrollScreen from './screens/InsuranceEnrollScreen';
+import InsuranceClaimScreen from './screens/InsuranceClaimScreen';
+import InsuranceClaimDetailScreen from './screens/InsuranceClaimDetailScreen';
 import StockScreen from './screens/StockScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import HarvestScreen from './screens/HarvestScreen';
@@ -76,6 +80,12 @@ export type StockStackParams = {
   Expenses: undefined;
   Harvest: undefined;
   LogActivity: { fieldId?: string } | undefined;
+};
+export type InsuranceStackParams = {
+  InsuranceHome: undefined;
+  Enroll: undefined;
+  FileClaim: { policyId?: string } | undefined;
+  ClaimDetail: { claimId: string };
 };
 
 const screenOpts = {
@@ -142,6 +152,18 @@ function SchemesStack() {
   );
 }
 
+const InsuranceNav = createNativeStackNavigator<InsuranceStackParams>();
+function InsuranceStack() {
+  return (
+    <InsuranceNav.Navigator screenOptions={screenOpts}>
+      <InsuranceNav.Screen name="InsuranceHome" component={InsuranceScreen} options={{ headerShown: false }} />
+      <InsuranceNav.Screen name="Enroll" component={InsuranceEnrollScreen} options={{ headerTitle: navTitle('Insure a field') }} />
+      <InsuranceNav.Screen name="FileClaim" component={InsuranceClaimScreen} options={{ headerTitle: navTitle('File a claim') }} />
+      <InsuranceNav.Screen name="ClaimDetail" component={InsuranceClaimDetailScreen} options={{ headerShown: false }} />
+    </InsuranceNav.Navigator>
+  );
+}
+
 const StockNav = createNativeStackNavigator<StockStackParams>();
 function StockStack() {
   return (
@@ -162,6 +184,7 @@ function MainTabs() {
       <Tabs.Screen name="Fields" component={FieldsStack} />
       <Tabs.Screen name="Scan" component={ScanStack} />
       <Tabs.Screen name="Schemes" component={SchemesStack} />
+      <Tabs.Screen name="Insurance" component={InsuranceStack} />
       <Tabs.Screen name="Stock" component={StockStack} />
     </Tabs.Navigator>
   );

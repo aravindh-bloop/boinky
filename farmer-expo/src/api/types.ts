@@ -42,6 +42,109 @@ export interface AssistantThread {
   messages: AssistantMessage[];
 }
 
+// ── crop insurance ──
+export type ClaimCause =
+  | 'flood'
+  | 'drought'
+  | 'pest_disease'
+  | 'hailstorm'
+  | 'cyclone'
+  | 'fire'
+  | 'unseasonal_rain'
+  | 'frost'
+  | 'other';
+
+export type ClaimStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'surveyor_assigned'
+  | 'approved'
+  | 'rejected'
+  | 'paid';
+
+export interface InsuranceScheme {
+  id: string;
+  title: string;
+  description: string | null;
+  benefit_amount: string | null;
+}
+
+export interface InsurancePolicy {
+  id: string;
+  field_id: string | null;
+  scheme_id: string | null;
+  scheme_title: string | null;
+  field_name: string | null;
+  crop: string;
+  season: string;
+  sum_insured: number | null;
+  premium_paid: number | null;
+  area_acres: number | null;
+  status: 'active' | 'lapsed' | 'expired';
+  start_date: string | null;
+  end_date: string | null;
+  claim_count: number;
+}
+
+export interface ClaimListItem {
+  id: string;
+  cause: ClaimCause;
+  status: ClaimStatus;
+  incident_date: string | null;
+  estimated_loss_pct: number | null;
+  approved_amount: number | null;
+  crop: string;
+  season: string;
+  field_name: string | null;
+  media_count: number;
+  updated_at: string;
+}
+
+export interface ClaimMedia {
+  id: string;
+  kind: 'photo' | 'video';
+  url: string;
+  caption: string | null;
+  lat: number | null;
+  lng: number | null;
+  position: number;
+}
+
+export interface ClaimEvent {
+  id: string;
+  actor_role: 'farmer' | 'official' | 'system';
+  kind: 'created' | 'submitted' | 'status_change' | 'note' | 'message' | 'media_added';
+  from_status: string | null;
+  to_status: string | null;
+  body: string | null;
+  created_at: string;
+}
+
+export interface ClaimDetail {
+  claim: {
+    id: string;
+    cause: ClaimCause;
+    status: ClaimStatus;
+    description: string | null;
+    incident_date: string | null;
+    estimated_loss_pct: number | null;
+    assessed_loss_pct: number | null;
+    approved_amount: number | null;
+    officer_note: string | null;
+    crop: string;
+    season: string;
+    sum_insured: number | null;
+    field_name: string | null;
+    scan_id: string | null;
+    scan_diagnosis: string | null;
+    submitted_at: string | null;
+    created_at: string;
+  };
+  media: ClaimMedia[];
+  events: ClaimEvent[];
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

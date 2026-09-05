@@ -187,3 +187,90 @@ export interface CalendarTemplateTask {
   title: string;
   description: string | null;
 }
+
+// ── crop insurance ──
+export type ClaimStatus =
+  | 'submitted'
+  | 'under_review'
+  | 'surveyor_assigned'
+  | 'approved'
+  | 'rejected'
+  | 'paid';
+
+export interface InsuranceClaimRow {
+  id: string;
+  cause: string;
+  status: ClaimStatus;
+  incident_date: string | null;
+  estimated_loss_pct: number | null;
+  assessed_loss_pct: number | null;
+  approved_amount: number | null;
+  district: string | null;
+  has_assessment: boolean;
+  crop: string;
+  season: string;
+  sum_insured: number | null;
+  farmer_id: string;
+  farmer_name: string;
+  farmer_phone: string | null;
+  region: string | null;
+  media_count: number;
+  submitted_at: string | null;
+  updated_at: string;
+}
+
+export interface ClaimAssessment {
+  causePlausible: 'consistent' | 'partly_consistent' | 'inconsistent' | 'unclear';
+  estimatedLossPct: number | null;
+  cropVisible: string | null;
+  rationale: string;
+  notes: string[];
+}
+
+export interface InsuranceClaimDetail {
+  claim: {
+    id: string;
+    cause: string;
+    status: ClaimStatus;
+    description: string | null;
+    incident_date: string | null;
+    estimated_loss_pct: number | null;
+    assessed_loss_pct: number | null;
+    approved_amount: number | null;
+    officer_note: string | null;
+    ai_assessment: ClaimAssessment | null;
+    crop: string;
+    season: string;
+    sum_insured: number | null;
+    premium_paid: number | null;
+    field_name: string | null;
+    scheme_title: string | null;
+    scan_diagnosis: string | null;
+    farmer_name: string;
+    farmer_phone: string | null;
+    region: string | null;
+    district: string | null;
+    submitted_at: string | null;
+    created_at: string;
+  };
+  media: { id: string; kind: 'photo' | 'video'; url: string; caption: string | null; lat: number | null; lng: number | null }[];
+  events: {
+    id: string;
+    actor_role: 'farmer' | 'official' | 'system';
+    kind: string;
+    from_status: string | null;
+    to_status: string | null;
+    body: string | null;
+    created_at: string;
+  }[];
+}
+
+export interface InsuranceSummary {
+  byStatus: Record<string, number>;
+  byCause: { cause: string; n: number }[];
+  totalPaid: number;
+  activePolicies: number;
+  sumInsured: number;
+  pendingReview: number;
+  approvedNotPaid: number;
+}

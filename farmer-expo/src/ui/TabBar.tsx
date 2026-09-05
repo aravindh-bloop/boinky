@@ -22,6 +22,7 @@ const TAB_ICON: Record<string, IconName> = {
   Fields: 'fields',
   Scan: 'scan',
   Schemes: 'schemes',
+  Insurance: 'umbrella',
   Stock: 'stock',
 };
 
@@ -53,21 +54,22 @@ function TabButton({
     >
       <Animated.View
         style={[
-          { paddingHorizontal: 16, paddingVertical: 5, borderRadius: radius.pill },
+          { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
           pill,
         ]}
       >
         <Icon
           name={TAB_ICON[name] ?? 'circle'}
-          size={23}
+          size={22}
           weight={focused ? 'fill' : 'regular'}
           color={focused ? palette.primaryDeep : palette.textFaint}
         />
       </Animated.View>
       <Text
         variant="caption"
+        numberOfLines={1}
         color={focused ? palette.primaryDeep : palette.textFaint}
-        style={{ fontFamily: focused ? 'NunitoSans_700Bold' : 'NunitoSans_600SemiBold', fontSize: 11 }}
+        style={{ fontFamily: focused ? 'NunitoSans_700Bold' : 'NunitoSans_600SemiBold', fontSize: 10.5 }}
       >
         {t(name)}
       </Text>

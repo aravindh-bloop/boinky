@@ -540,16 +540,27 @@ async function seedInsurance(c: Ctx) {
     `SELECT id, image_url FROM scans WHERE farmer_id = $1 AND image_url <> '' ORDER BY created_at DESC LIMIT 1`,
     [c.farmerId],
   );
+  const aiAssessment = {
+    causePlausible: 'consistent',
+    estimatedLossPct: 40,
+    cropVisible: 'rice',
+    rationale:
+      'The photo shows rice plants bent flat in one direction with standing water and silt on the leaves, which is typical of lodging from heavy rain and waterlogging. The panicles are not yet shattered, so grain loss may be limited if the water drains quickly.',
+    notes: [
+      'Only the low end of the plot is visible — the officer should check how much of the 2 acres is affected.',
+      'Assess again in 3-4 days: lodged rice can partially recover if it re-erects before flowering.',
+    ],
+  };
   const { rows: cl } = await pool.query<{ id: string }>(
     `INSERT INTO insurance_claims
        (policy_id, farmer_id, field_id, scan_id, cause, description, incident_date,
-        estimated_loss_pct, status, district, submitted_at, created_at, updated_at)
+        estimated_loss_pct, status, district, ai_assessment, submitted_at, created_at, updated_at)
      VALUES ($1,$2,$3,$4,'unseasonal_rain',
              'Three days of heavy rain last week waterlogged the low end of the plot and lodged the crop.',
-             CURRENT_DATE - 8, 45, 'under_review', 'Chennai',
+             CURRENT_DATE - 8, 45, 'under_review', 'Chennai', $5,
              now() - interval '6 days', now() - interval '6 days', now() - interval '2 days')
      RETURNING id`,
-    [p1[0]!.id, c.farmerId, north, img[0]?.id ?? null],
+    [p1[0]!.id, c.farmerId, north, img[0]?.id ?? null, JSON.stringify(aiAssessment)],
   );
   const claimId = cl[0]!.id;
   if (img[0]) {
