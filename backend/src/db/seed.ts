@@ -65,14 +65,22 @@ async function seedSchemes() {
   let upserts = 0;
   for (const s of SCHEMES) {
     await pool.query(
-      `INSERT INTO schemes (title, description, eligibility_criteria, benefit_amount, apply_link)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO schemes (title, description, eligibility_criteria, benefit_amount, apply_link, kind)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (title) DO UPDATE SET
          description = EXCLUDED.description,
          eligibility_criteria = EXCLUDED.eligibility_criteria,
          benefit_amount = EXCLUDED.benefit_amount,
-         apply_link = EXCLUDED.apply_link`,
-      [s.title, s.description, JSON.stringify(s.eligibility_criteria), s.benefit_amount, s.apply_link],
+         apply_link = EXCLUDED.apply_link,
+         kind = EXCLUDED.kind`,
+      [
+        s.title,
+        s.description,
+        JSON.stringify(s.eligibility_criteria),
+        s.benefit_amount,
+        s.apply_link,
+        s.kind ?? 'subsidy',
+      ],
     );
     upserts++;
   }

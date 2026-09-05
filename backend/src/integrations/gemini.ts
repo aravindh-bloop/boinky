@@ -698,6 +698,111 @@ export async function distillFarmerProfile(
   }
 }
 
+// ── Crop-insurance claim: officer-facing draft damage assessment ──
+
+export interface ClaimAssessment {
+  causePlausible: 'consistent' | 'partly_consistent' | 'inconsistent' | 'unclear';
+  estimatedLossPct: number | null;
+  cropVisible: string | null;
+  rationale: string;
+  notes: string[];
+}
+
+const claimSchema = {
+  type: Type.OBJECT,
+  properties: {
+    causePlausible: {
+      type: Type.STRING,
+      enum: ['consistent', 'partly_consistent', 'inconsistent', 'unclear'],
+      description: 'Whether the visible damage matches the cause the farmer claimed',
+    },
+    estimatedLossPct: {
+      type: Type.NUMBER,
+      description: 'Rough crop-loss estimate 0-100 from the photos, or null if not judgeable',
+    },
+    cropVisible: { type: Type.STRING, description: 'The crop you can see, or empty' },
+    rationale: { type: Type.STRING, description: '2-3 sentences an officer can read' },
+    notes: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ['causePlausible', 'rationale', 'notes'],
+} as const;
+
+export async function assessClaimDamage(
+  images: ScanImageInput[],
+  ctx: {
+    cause: string;
+    crop?: string | null;
+    description?: string | null;
+    incidentDate?: string | null;
+    scanDiagnosis?: string | null;
+  },
+): Promise<ClaimAssessment> {
+  const facts = [
+    `Cause claimed by the farmer: ${ctx.cause}`,
+    ctx.crop ? `Crop: ${ctx.crop}` : '',
+    ctx.incidentDate ? `Incident date: ${ctx.incidentDate}` : '',
+    ctx.description ? `Farmer's description: "${ctx.description}"` : '',
+    ctx.scanDiagnosis ? `A crop scan on this field diagnosed: ${ctx.scanDiagnosis}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const prompt = `You are assisting a crop-insurance officer. ${images.length} evidence photo(s)
+from the farmer's field are attached.${facts ? `\n\n${facts}` : ''}
+
+Give a NEUTRAL draft assessment for the officer — this is an aid, not a decision:
+- causePlausible: does the visible damage match the claimed cause? (flood → waterlogging /
+  silt / lodging; hailstorm → shredded leaves, bruised stems; drought → wilting, scorch;
+  pest_disease → lesions, feeding damage; fire → charring; frost → blackened tissue.)
+- estimatedLossPct: a rough figure from what you can see, or null if the photos don't show
+  enough of the field to judge.
+- rationale: 2-3 plain sentences.
+- notes: anything the officer should check in person (photos don't show the whole field,
+  damage could predate the incident, crop stage, etc.).
+Never state a definitive loss percentage as fact. If the photos are too few or unclear,
+say so and set estimatedLossPct to null.`;
+
+  let raw: string;
+  try {
+    const res = await ai().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            ...images.map((im) => ({ inlineData: { mimeType: im.mimeType, data: im.base64 } })),
+            { text: prompt },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: claimSchema as unknown as Record<string, unknown>,
+        temperature: 0.2,
+      },
+    });
+    raw = res.text ?? '';
+  } catch (err) {
+    throw AppError.upstream('Claim assessment failed', { reason: (err as Error).message });
+  }
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    const pct = Number(o.estimatedLossPct);
+    const plaus = ['consistent', 'partly_consistent', 'inconsistent', 'unclear'];
+    return {
+      causePlausible: (plaus.includes(String(o.causePlausible))
+        ? o.causePlausible
+        : 'unclear') as ClaimAssessment['causePlausible'],
+      estimatedLossPct: Number.isFinite(pct) ? Math.min(100, Math.max(0, Math.round(pct))) : null,
+      cropVisible: o.cropVisible ? String(o.cropVisible).trim() || null : null,
+      rationale: String(o.rationale ?? '').trim(),
+      notes: Array.isArray(o.notes) ? o.notes.map(String).filter(Boolean) : [],
+    };
+  } catch {
+    throw AppError.upstream('Claim assessment returned an invalid response');
+  }
+}
+
 // ── Conversational assistant ("Ask AgriPod") ──
 
 export interface AssistantTurn {

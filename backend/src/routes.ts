@@ -18,6 +18,7 @@ import { podRouter } from './modules/pod/pod.routes.js';
 import { ttsRouter } from './modules/tts/tts.routes.js';
 import { tutorialRouter } from './modules/tutorial/tutorial.routes.js';
 import { assistantRouter } from './modules/assistant/assistant.routes.js';
+import { insuranceRouter } from './modules/insurance/insurance.routes.js';
 import {
   activitiesRouter,
   expensesRouter,
@@ -47,6 +48,7 @@ apiRouter.use('/activities', activitiesRouter);
 apiRouter.use('/expenses', expensesRouter);
 apiRouter.use('/harvests', harvestsRouter);
 apiRouter.use('/schemes', schemesRouter);
+apiRouter.use('/insurance', insuranceRouter);
 apiRouter.use('/inventory', inventoryRouter);
 apiRouter.use('/pod', podRouter);
 apiRouter.use('/official', officialRouter);

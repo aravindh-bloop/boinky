@@ -10,6 +10,8 @@ export interface SchemeSeed {
   eligibility_criteria: Record<string, unknown>;
   benefit_amount: string;
   apply_link: string;
+  /** 'subsidy' (default) | 'insurance' | 'credit' */
+  kind?: 'subsidy' | 'insurance' | 'credit';
 }
 
 export const SCHEMES: SchemeSeed[] = [
@@ -36,6 +38,25 @@ export const SCHEMES: SchemeSeed[] = [
     eligibility_criteria: { country: 'India', has_crop: true },
     benefit_amount: 'Sum insured = scale of finance; low farmer premium',
     apply_link: 'https://pmfby.gov.in',
+    kind: 'insurance',
+  },
+  {
+    title: 'Restructured Weather Based Crop Insurance Scheme (RWBCIS)',
+    description:
+      'Insurance that pays out on adverse weather — deficit or excess rainfall, high or low temperature, humidity — measured at a reference weather station, without a field survey. Available for notified crops in notified areas.',
+    eligibility_criteria: { country: 'India', has_crop: true },
+    benefit_amount: 'Payout by weather index vs the notified term sheet',
+    apply_link: 'https://pmfby.gov.in',
+    kind: 'insurance',
+  },
+  {
+    title: 'Tamil Nadu State Crop Insurance Top-up',
+    description:
+      'State supplement to PMFBY for Tamil Nadu farmers — covers a share of the farmer premium for notified crops including paddy, groundnut and sugarcane, and speeds up claim settlement for localised calamities.',
+    eligibility_criteria: { state: 'Tamil Nadu', has_crop: true },
+    benefit_amount: 'Farmer premium share borne by the state',
+    apply_link: 'https://www.tn.gov.in/scheme/data_view/6811',
+    kind: 'insurance',
   },
   {
     title: 'Kisan Credit Card (KCC)',
@@ -44,6 +65,7 @@ export const SCHEMES: SchemeSeed[] = [
     eligibility_criteria: { country: 'India', landholder: true },
     benefit_amount: 'Up to Rs 3 lakh at 4% effective interest',
     apply_link: 'https://www.myscheme.gov.in/schemes/kcc',
+    kind: 'credit',
   },
   {
     title: 'Dr. Panjabrao Deshmukh Vyaj Sanwlat Yojana (Interest Subvention)',
@@ -52,6 +74,7 @@ export const SCHEMES: SchemeSeed[] = [
     eligibility_criteria: { state: 'Maharashtra', requires: 'timely loan repayment' },
     benefit_amount: '0% interest on crop loans up to Rs 3 lakh',
     apply_link: 'https://krishi.maharashtra.gov.in',
+    kind: 'credit',
   },
   {
     title: 'Pradhan Mantri Krishi Sinchayee Yojana - Per Drop More Crop (Micro Irrigation)',

@@ -7,6 +7,8 @@ import { cropProfile, knownCrops } from '../risk/crop-profiles.js';
 import { query } from '../../db/query.js';
 import * as official from './official.service.js';
 import * as apps from '../schemes/applications.service.js';
+import * as ins from '../insurance/insurance.service.js';
+import { CLAIM_CAUSES } from '../insurance/insurance.service.js';
 
 export const officialRouter = Router();
 
@@ -228,6 +230,83 @@ officialRouter.post(
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     await apps.setThreadStatus(id, 'closed');
     res.status(204).end();
+  }),
+);
+
+// ── crop insurance ──────────────────────────────────────────────────────
+
+const CLAIM_STATUSES = [
+  'submitted',
+  'under_review',
+  'surveyor_assigned',
+  'approved',
+  'rejected',
+  'paid',
+] as const;
+
+officialRouter.get(
+  '/insurance-summary',
+  asyncHandler(async (req, res) => {
+    res.json(await ins.insuranceSummaryForOfficer(await scopeRegion(req)));
+  }),
+);
+
+officialRouter.get(
+  '/insurance-claims',
+  asyncHandler(async (req, res) => {
+    const q = z
+      .object({
+        status: z.enum(CLAIM_STATUSES).optional(),
+        cause: z.enum(CLAIM_CAUSES).optional(),
+        district: z.string().trim().min(1).max(120).optional(),
+        limit: z.coerce.number().int().min(1).max(200).default(100),
+        offset: z.coerce.number().int().min(0).default(0),
+      })
+      .parse(req.query);
+    const items = await ins.listClaimsForOfficer({
+      region: await scopeRegion(req),
+      status: q.status,
+      cause: q.cause,
+      district: q.district,
+      limit: q.limit,
+      offset: q.offset,
+    });
+    res.json({ items });
+  }),
+);
+
+officialRouter.get(
+  '/insurance-claims/:id',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    res.json(await ins.getClaim(id, { id: req.user!.sub, role: 'official' }));
+  }),
+);
+
+officialRouter.post(
+  '/insurance-claims/:id/decision',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z
+      .object({
+        status: z.enum(['under_review', 'surveyor_assigned', 'approved', 'rejected', 'paid']),
+        note: z.string().trim().max(2000).optional(),
+        approvedAmount: z.coerce.number().min(0).max(100_000_000).optional(),
+        assessedLossPct: z.coerce.number().int().min(0).max(100).optional(),
+      })
+      .parse(req.body);
+    const claim = await ins.decideClaim(id, req.user!.sub, body);
+    res.json({ claim });
+  }),
+);
+
+officialRouter.post(
+  '/insurance-claims/:id/messages',
+  asyncHandler(async (req, res) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { body } = z.object({ body: z.string().trim().min(1).max(2000) }).parse(req.body);
+    await ins.postClaimMessage(id, { id: req.user!.sub, role: 'official' }, body);
+    res.status(201).json({ ok: true });
   }),
 );
 

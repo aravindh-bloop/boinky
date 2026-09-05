@@ -69,6 +69,7 @@ async function wipe(farmerId: string, officerId: string) {
     [farmerId],
   );
   await pool.query(`DELETE FROM pod_devices WHERE farmer_id = $1`, [farmerId]);
+  await pool.query(`DELETE FROM insurance_policies WHERE farmer_id = $1`, [farmerId]);
   // neighbour + their scans
   const { rows } = await pool.query<{ id: string }>(`SELECT id FROM users WHERE phone = $1`, [
     NEIGHBOUR_PHONE,
@@ -504,6 +505,71 @@ async function seedSchemes(c: Ctx) {
   logger.info({ applications: appIds.length }, 'demo schemes seeded');
 }
 
+// ── crop-insurance policies + claims ────────────────────────────────────
+async function seedInsurance(c: Ctx) {
+  const { rows: sch } = await pool.query<{ id: string; title: string }>(
+    `SELECT id, title FROM schemes WHERE kind = 'insurance' ORDER BY title`,
+  );
+  const pmfby = sch.find((s) => s.title.includes('PMFBY')) ?? sch[0];
+  if (!pmfby) return;
+
+  // Two policies: one on the rice plot (has a claim), one on the groundnut plot.
+  const north = F(c, 'North Plot');
+  const back = F(c, 'Back Acre');
+  const { rows: p1 } = await pool.query<{ id: string }>(
+    `INSERT INTO insurance_policies
+       (farmer_id, field_id, scheme_id, crop, season, sum_insured, premium_paid, area_acres,
+        status, start_date, end_date, created_at)
+     VALUES ($1,$2,$3,'rice','Kharif 2026',52000,780,2,'active',
+             CURRENT_DATE - 70, CURRENT_DATE + 50, now() - interval '70 days')
+     RETURNING id`,
+    [c.farmerId, north, pmfby.id],
+  );
+  await pool.query(
+    `INSERT INTO insurance_policies
+       (farmer_id, field_id, scheme_id, crop, season, sum_insured, premium_paid, area_acres,
+        status, start_date, end_date, created_at)
+     VALUES ($1,$2,$3,'groundnut','Kharif 2026',30000,900,1,'active',
+             CURRENT_DATE - 45, CURRENT_DATE + 65, now() - interval '45 days')`,
+    [c.farmerId, back, pmfby.id],
+  );
+
+  // One claim on the rice policy — under review, with an evidence photo (reuse a
+  // seeded scan image so no upload is needed) and a short officer conversation.
+  const { rows: img } = await pool.query<{ image_url: string; id: string }>(
+    `SELECT id, image_url FROM scans WHERE farmer_id = $1 AND image_url <> '' ORDER BY created_at DESC LIMIT 1`,
+    [c.farmerId],
+  );
+  const { rows: cl } = await pool.query<{ id: string }>(
+    `INSERT INTO insurance_claims
+       (policy_id, farmer_id, field_id, scan_id, cause, description, incident_date,
+        estimated_loss_pct, status, district, submitted_at, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,'unseasonal_rain',
+             'Three days of heavy rain last week waterlogged the low end of the plot and lodged the crop.',
+             CURRENT_DATE - 8, 45, 'under_review', 'Chennai',
+             now() - interval '6 days', now() - interval '6 days', now() - interval '2 days')
+     RETURNING id`,
+    [p1[0]!.id, c.farmerId, north, img[0]?.id ?? null],
+  );
+  const claimId = cl[0]!.id;
+  if (img[0]) {
+    await pool.query(
+      `INSERT INTO insurance_claim_media (claim_id, kind, url, caption, lat, lng, position)
+       VALUES ($1,'photo',$2,'Lodged crop at the low end',13.0827,80.2707,0)`,
+      [claimId, img[0].image_url],
+    );
+  }
+  await pool.query(
+    `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, from_status, to_status, body, created_at) VALUES
+       ($1,$2,'farmer','created',NULL,NULL,'Started a claim for unseasonal rain.', now() - interval '6 days'),
+       ($1,$2,'farmer','submitted','draft','submitted','Submitted with 1 photo.', now() - interval '6 days'),
+       ($1,$3,'official','status_change','submitted','under_review','A surveyor will visit within 5 working days.', now() - interval '2 days'),
+       ($1,$2,'farmer','message',NULL,NULL,'The water has drained now but the crop is still bent over.', now() - interval '1 day')`,
+    [claimId, c.farmerId, c.officerId],
+  );
+  logger.info({ policies: 2, claims: 1 }, 'demo insurance seeded');
+}
+
 async function main() {
   const c = await ids();
   await wipe(c.farmerId, c.officerId);
@@ -516,6 +582,7 @@ async function main() {
   await seedAlerts(c);
   await seedPod(c);
   await seedSchemes(c);
+  await seedInsurance(c);
   await seedComputed(c);
 
   const counts = await pool.query(
