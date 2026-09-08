@@ -4,8 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import type { Alert as AlertT, AlertSource, ReasonKind } from '../api/types';
 import {
-  Card,
   Chip,
+  ExpandableCard,
   Icon,
   EmptyState,
   ErrorState,
@@ -14,7 +14,6 @@ import {
   ScreenHeader,
   SkeletonList,
   Text,
-  PressableScale,
   palette,
   severity as sev,
   space,
@@ -92,30 +91,14 @@ export default function AlertsScreen() {
           const meta = item.source ? SOURCE_META[item.source] : null;
           return (
             <Reveal index={Math.min(index, 6)}>
-              <Card elevation="raised" accent={meta?.tint}>
-                {meta && (
-                  <Row
-                    gap={5}
-                    style={{
-                      alignSelf: 'flex-start',
-                      backgroundColor: meta.soft,
-                      borderRadius: 999,
-                      paddingHorizontal: 9,
-                      paddingVertical: 3,
-                    }}
-                  >
-                    <Icon name={meta.icon} size={13} color={meta.tint} weight="fill" />
-                    <Text variant="caption" color={meta.tint} style={{ fontWeight: '700' }}>
-                      {meta.label}
-                    </Text>
-                  </Row>
-                )}
-                <Row between>
-                  <Text variant="subhead" style={{ flex: 1 }}>
-                    {item.title}
-                  </Text>
-                  {s && <Chip label={s} size="sm" bg={sev[s].bg} color={sev[s].fg} />}
-                </Row>
+              <ExpandableCard
+                title={item.title}
+                icon={meta?.icon ?? 'alerts'}
+                accent={meta?.tint ?? palette.coral}
+                accentSoft={meta?.soft ?? palette.coralSoft}
+                subtitle={meta?.label}
+                trailing={s ? <Chip label={s} size="sm" bg={sev[s].bg} color={sev[s].fg} /> : undefined}
+              >
                 <Text variant="body">{item.message}</Text>
 
                 {item.reasons && item.reasons.length > 0 && (
@@ -128,17 +111,13 @@ export default function AlertsScreen() {
                       borderTopColor: palette.hairline,
                     }}
                   >
-                    <Text
-                      variant="caption"
-                      faint
-                      style={{ fontWeight: '700', letterSpacing: 0.4 }}
-                    >
+                    <Text variant="caption" faint style={{ fontWeight: '700', letterSpacing: 0.4 }}>
                       WHY WE'RE FLAGGING THIS
                     </Text>
                     {item.reasons.map((r, i) => (
                       <Row key={i} gap={8} style={{ alignItems: 'flex-start' }}>
                         <View style={{ paddingTop: 1 }}>
-                          <Icon name={REASON_ICON[r.kind]} size={13} color={palette.textMuted} />
+                          <Icon name={REASON_ICON[r.kind]} size={13} color={meta?.tint ?? palette.textMuted} />
                         </View>
                         <Text variant="caption" muted style={{ flex: 1 }}>
                           {r.text}
@@ -156,7 +135,7 @@ export default function AlertsScreen() {
                     month: 'short',
                   })}
                 </Text>
-              </Card>
+              </ExpandableCard>
             </Reveal>
           );
         }}

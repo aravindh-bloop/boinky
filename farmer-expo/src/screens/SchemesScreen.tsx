@@ -7,8 +7,9 @@ import { alertT } from '../i18n/alert';
 import type { Scheme, SchemeApplication } from '../api/types';
 import {
   Button,
-  Card,
   Chip,
+  Dot,
+  ExpandableCard,
   Icon,
   ErrorState,
   EmptyState,
@@ -119,43 +120,53 @@ export default function SchemesScreen() {
             <EmptyState icon="schemes" title="Nothing here" body="No matching schemes right now." />
           )
         }
-        renderItem={({ item, index }) => (
-          <Reveal index={Math.min(index, 8)}>
-            <Card elevation="flat">
-              <Text variant="subhead">{item.title}</Text>
-              {item.match_reasons?.length ? (
-                <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
-                  {item.match_reasons.map((r) => (
-                    <Chip key={r} label={r} size="sm" bg={palette.leafSoft} color={palette.primaryDeep} />
-                  ))}
-                </Row>
-              ) : null}
-              {item.description ? (
-                <Text variant="body" muted>
-                  {item.description}
-                </Text>
-              ) : null}
-              {item.benefit_amount ? (
-                <Row gap={space.xs}>
-                  <Icon name="money" size={16} color={palette.primaryDeep} weight="fill" />
-                  <Text variant="bodyStrong" color={palette.primaryDeep}>
-                    {item.benefit_amount}
+        renderItem={({ item, index }) => {
+          const app = byScheme.get(item.id);
+          const statusColor = app ? STATUS_COLOR[app.status] ?? palette.textMuted : null;
+          return (
+            <Reveal index={Math.min(index, 8)}>
+              <ExpandableCard
+                title={item.title}
+                icon="schemes"
+                accent={palette.gold}
+                accentSoft={palette.goldSoft}
+                subtitle={
+                  app
+                    ? STATUS_LABEL[app.status] ?? app.status
+                    : item.benefit_amount ?? 'Tap for details'
+                }
+                trailing={
+                  statusColor ? (
+                    <Dot color={statusColor} />
+                  ) : item.benefit_amount ? (
+                    <Chip label={item.benefit_amount} size="sm" bg={palette.goldSoft} color="#8A6A22" />
+                  ) : undefined
+                }
+              >
+                {item.match_reasons?.length ? (
+                  <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+                    {item.match_reasons.map((r) => (
+                      <Chip key={r} label={r} size="sm" bg={palette.leafSoft} color={palette.primaryDeep} />
+                    ))}
+                  </Row>
+                ) : null}
+                {item.description ? (
+                  <Text variant="body" muted>
+                    {item.description}
                   </Text>
-                </Row>
-              ) : null}
-              {(() => {
-                const app = byScheme.get(item.id);
-                return app ? (
-                  <Row gap={6} style={{ marginTop: space.xs }}>
-                    <View
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 4,
-                        backgroundColor: STATUS_COLOR[app.status] ?? palette.textMuted,
-                      }}
-                    />
-                    <Text variant="caption" color={STATUS_COLOR[app.status] ?? palette.textMuted}>
+                ) : null}
+                {item.benefit_amount ? (
+                  <Row gap={space.xs}>
+                    <Icon name="money" size={16} color={palette.gold} weight="fill" />
+                    <Text variant="bodyStrong" color="#8A6A22">
+                      {item.benefit_amount}
+                    </Text>
+                  </Row>
+                ) : null}
+                {app ? (
+                  <Row gap={6}>
+                    <Dot color={statusColor!} />
+                    <Text variant="caption" color={statusColor!}>
                       {STATUS_LABEL[app.status] ?? app.status}
                       {app.status === 'disbursed' && app.amount
                         ? ` · ₹${Math.round(app.amount).toLocaleString('en-IN')}`
@@ -163,7 +174,7 @@ export default function SchemesScreen() {
                     </Text>
                   </Row>
                 ) : (
-                  <Row gap={space.sm} style={{ marginTop: space.xs, flexWrap: 'wrap' }}>
+                  <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
                     <View style={{ minWidth: 130 }}>
                       <Button
                         title="Apply for this"
@@ -187,21 +198,21 @@ export default function SchemesScreen() {
                       </Row>
                     </PressableScale>
                   </Row>
-                );
-              })()}
-              {item.apply_link ? (
-                <PressableScale onPress={() => Linking.openURL(item.apply_link!)} style={{ alignSelf: 'flex-start' }}>
-                  <Row gap={4}>
-                    <Text variant="caption" color={palette.textMuted}>
-                      Official page
-                    </Text>
-                    <Icon name="arrowRight" size={13} color={palette.textMuted} />
-                  </Row>
-                </PressableScale>
-              ) : null}
-            </Card>
-          </Reveal>
-        )}
+                )}
+                {item.apply_link ? (
+                  <PressableScale onPress={() => Linking.openURL(item.apply_link!)} style={{ alignSelf: 'flex-start' }}>
+                    <Row gap={4}>
+                      <Text variant="caption" color={palette.textMuted}>
+                        Official page
+                      </Text>
+                      <Icon name="arrowRight" size={13} color={palette.textMuted} />
+                    </Row>
+                  </PressableScale>
+                ) : null}
+              </ExpandableCard>
+            </Reveal>
+          );
+        }}
       />
     </View>
   );

@@ -1,7 +1,8 @@
 import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api } from '../api/client';
 import type { Expense, Field, FinanceSummary } from '../api/types';
@@ -14,19 +15,20 @@ import {
   ErrorState,
   Reveal,
   Row,
+  ScreenHeader,
   SelectChip,
   SkeletonList,
   Field as Input,
   Text,
   PressableScale,
   palette,
-  radius,
   space,
 } from '../ui';
 
 const CATS = ['seed', 'fertilizer', 'pesticide', 'labour', 'machinery', 'irrigation', 'transport', 'other'];
 
 export default function ExpensesScreen() {
+  const nav = useNavigation<any>();
   const list = useApi<{ expenses: Expense[] }>('/api/expenses', { limit: 100 });
   const sum = useApi<FinanceSummary>('/api/expenses/summary', { days: 365 });
   const fields = useApi<{ fields: Field[] }>('/api/fields');
@@ -70,22 +72,42 @@ export default function ExpensesScreen() {
           sum.reload();
         }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.giant, gap: space.sm }}
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingTop: 0,
+          paddingBottom: space.giant,
+          gap: space.sm,
+        }}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
-            <Card elevation="raised">
-              <Text variant="label" muted>
-                SPENT THIS YEAR
-              </Text>
-              <Text variant="hero" color={palette.clay}>
-                ₹{(sum.data?.totalSpent ?? 0).toLocaleString('en-IN')}
-              </Text>
-              <Row gap={space.sm} style={{ flexWrap: 'wrap', marginTop: space.xs }}>
+            <ScreenHeader
+              tone="money"
+              title="Expenses"
+              subtitle="Your true cost of cultivation, this year."
+              onBack={() => nav.goBack()}
+              style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+              stats={[
+                {
+                  label: 'Spent this year',
+                  value: `₹${(sum.data?.totalSpent ?? 0).toLocaleString('en-IN')}`,
+                  icon: 'expense',
+                },
+              ]}
+            />
+
+            {(sum.data?.byCategory ?? []).length > 0 && (
+              <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
                 {(sum.data?.byCategory ?? []).slice(0, 5).map((c) => (
-                  <Chip key={c.category} label={`${c.category} ₹${Math.round(c.amount)}`} size="sm" bg={palette.claySoft} color={palette.soil} />
+                  <Chip
+                    key={c.category}
+                    label={`${c.category} ₹${Math.round(c.amount)}`}
+                    size="sm"
+                    bg={palette.claySoft}
+                    color={palette.soil}
+                  />
                 ))}
               </Row>
-            </Card>
+            )}
 
             {adding ? (
               <Animated.View entering={FadeIn}>

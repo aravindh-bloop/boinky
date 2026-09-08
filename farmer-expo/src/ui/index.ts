@@ -15,6 +15,7 @@ export { AnimatedNumber } from './AnimatedNumber';
 export { RiskGauge } from './RiskGauge';
 export { AiBrief } from './AiBrief';
 export { ScreenHeader, type HeaderStat } from './ScreenHeader';
+export { ExpandableCard } from './ExpandableCard';
 export { cropMeta, growthStage, type CropMeta, type GrowthStage } from './crops';
 export { VoiceNote } from './VoiceNote';
 export { Sparkline } from './Sparkline';

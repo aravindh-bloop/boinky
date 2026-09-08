@@ -1,7 +1,8 @@
 import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api } from '../api/client';
 import type { Field, Harvest } from '../api/types';
@@ -13,6 +14,7 @@ import {
   ErrorState,
   Reveal,
   Row,
+  ScreenHeader,
   SelectChip,
   SkeletonList,
   Field as Input,
@@ -23,6 +25,7 @@ import {
 } from '../ui';
 
 export default function HarvestScreen() {
+  const nav = useNavigation<any>();
   const list = useApi<{ harvests: Harvest[] }>('/api/harvests', { limit: 100 });
   const fields = useApi<{ fields: Field[] }>('/api/fields');
 
@@ -70,17 +73,28 @@ export default function HarvestScreen() {
         refreshing={list.refreshing}
         onRefresh={list.reload}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.giant, gap: space.sm }}
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingTop: 0,
+          paddingBottom: space.giant,
+          gap: space.sm,
+        }}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
-            <Card elevation="raised">
-              <Text variant="label" muted>
-                TOTAL REVENUE RECORDED
-              </Text>
-              <Text variant="hero" color={palette.primary}>
-                ₹{totalRevenue.toLocaleString('en-IN')}
-              </Text>
-            </Card>
+            <ScreenHeader
+              tone="money"
+              title="Harvest records"
+              subtitle="What you've harvested and sold this season."
+              onBack={() => nav.goBack()}
+              style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+              stats={[
+                {
+                  label: 'Revenue recorded',
+                  value: `₹${totalRevenue.toLocaleString('en-IN')}`,
+                  icon: 'revenue',
+                },
+              ]}
+            />
             {adding ? (
               <Animated.View entering={FadeIn}>
                 <Card>

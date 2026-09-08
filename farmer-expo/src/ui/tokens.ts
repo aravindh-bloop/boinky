@@ -190,12 +190,12 @@ export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
 };
 
 export const gradients = {
-  // the dashboard hero — a deep, confident green
-  hero: ['#5F8544', '#496A34'] as const,
-  canopy: ['#5F8544', '#496A34'] as const,
-  // lighter green — the scan FAB, CTAs
-  dawn: ['#7EA35D', '#6A8E4C'] as const,
-  dusk: ['#425F32', '#5E7F45'] as const,
+  // the dashboard hero — deep phthalo green (blue-leaning, saturated)
+  hero: ['#0F5138', '#0A3527'] as const,
+  canopy: ['#0F5138', '#0A3527'] as const,
+  // lighter phthalo — the scan FAB, CTAs
+  dawn: ['#1C7A56', '#125E41'] as const,
+  dusk: ['#0C3B2C', '#154A38'] as const,
   gold: ['#DDB35F', '#D19E3B'] as const,
   // the loading-screen sunrise
   sunrise: ['#FDEBD4', '#F9D3A6', '#EEB076'] as const,
@@ -209,13 +209,13 @@ export const gradients = {
  * enough to carry white text.
  */
 export const tone = {
-  crop: { grad: ['#5F8544', '#3F5E2C'] as const, solid: palette.primary },
-  weather: { grad: ['#3E7CA8', '#2C5D82'] as const, solid: palette.sky },
+  crop: { grad: ['#0F5138', '#0A3527'] as const, solid: palette.primary },
+  weather: { grad: ['#2F6E9C', '#204E73'] as const, solid: palette.sky },
   alert: { grad: ['#CF6B45', '#A9482A'] as const, solid: palette.coral },
   money: { grad: ['#C99A3F', '#9C7526'] as const, solid: palette.gold },
   ai: { grad: ['#7A6FB8', '#564A93'] as const, solid: palette.iris },
-  task: { grad: ['#5C8F6C', '#3E6A4C'] as const, solid: palette.leaf },
-  scan: { grad: ['#4E9A6B', '#356E4A'] as const, solid: '#4E9A6B' },
+  task: { grad: ['#14603F', '#0B3B2A'] as const, solid: palette.leaf },
+  scan: { grad: ['#125A3E', '#0A3728'] as const, solid: '#125A3E' },
 } as const;
 
 export type ToneKey = keyof typeof tone;

@@ -122,7 +122,7 @@ function FieldsStack() {
       <FieldsNav.Screen name="FieldsList" component={FieldsScreen} options={{ headerShown: false }} />
       <FieldsNav.Screen name="FieldForm" component={FieldFormScreen} options={{ headerTitle: navTitle('New field') }} />
       <FieldsNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
-      <FieldsNav.Screen name="Calendar" component={CalendarScreen} options={{ headerTitle: navTitle('Crop calendar') }} />
+      <FieldsNav.Screen name="Calendar" component={CalendarScreen} options={{ headerShown: false }} />
       <FieldsNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
       <FieldsNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
       <FieldsNav.Screen name="Weather" component={WeatherScreen} options={{ headerShown: false }} />
@@ -169,8 +169,8 @@ function StockStack() {
   return (
     <StockNav.Navigator screenOptions={screenOpts}>
       <StockNav.Screen name="StockMain" component={StockScreen} options={{ headerShown: false }} />
-      <StockNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerTitle: navTitle('Expenses') }} />
-      <StockNav.Screen name="Harvest" component={HarvestScreen} options={{ headerTitle: navTitle('Harvest records') }} />
+      <StockNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerShown: false }} />
+      <StockNav.Screen name="Harvest" component={HarvestScreen} options={{ headerShown: false }} />
       <StockNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
     </StockNav.Navigator>
   );
