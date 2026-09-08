@@ -12,6 +12,7 @@ import type { AggTask, HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
+  Divider,
   Icon,
   Reveal,
   Row,
@@ -22,6 +23,7 @@ import {
   haptic,
   palette,
   radius,
+  severity as sev,
   space,
   weatherIcon,
 } from '../ui';
@@ -83,11 +85,20 @@ export default function HomeScreen() {
   const w =
     d.weather ??
     (lw
-      ? { place: lw.place.label, current: lw.current, today: lw.daily[0] ?? null }
+      ? {
+          place: lw.place.label,
+          current: lw.current,
+          today: lw.daily[0] ?? null,
+          topAdvisory: lw.advisories[0] ?? null,
+          advisoryCount: lw.advisories.length,
+          sprayWindow: lw.sprayWindow,
+        }
       : null);
 
-  const alerts = d.alerts.count + (d.nearbyOutbreaks?.count ?? 0);
+  const outbreaks = d.nearbyOutbreaks?.count ?? 0;
   const todo = d.tasks.today.filter((x) => !x.is_done);
+  const fields = d.fieldRisk;
+  const hi = d.highestRisk;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
@@ -95,14 +106,14 @@ export default function HomeScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + space.md,
           paddingHorizontal: space.lg,
-          paddingBottom: space.xxl,
+          paddingBottom: space.xxxl,
           gap: space.md,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={palette.primary} />}
       >
         {/* header */}
-        <Row between style={{ alignItems: 'flex-start' }}>
+        <Row between style={{ alignItems: 'flex-start', marginBottom: space.xs }}>
           <View>
             <Text variant="label" faint>
               {greeting()}
@@ -113,10 +124,10 @@ export default function HomeScreen() {
           </View>
           <Row gap={space.sm}>
             <PressableScale onPress={() => nav.navigate('Ask')} compact>
-              <View style={hs.chip}>
-                <Icon name="ai" size={15} color={palette.primaryDeep} weight="fill" />
-                <Text variant="label" color={palette.primaryDeep}>
-                  {t('Ask')}
+              <View style={[hs.chip, { backgroundColor: palette.irisSoft }]}>
+                <Icon name="ai" size={15} color={palette.iris} weight="fill" />
+                <Text variant="label" color={palette.iris}>
+                  {t('Ask AI')}
                 </Text>
               </View>
             </PressableScale>
@@ -139,42 +150,139 @@ export default function HomeScreen() {
           onAction={openInsight}
         />
 
-        {/* weather + status, one slim row */}
+        {/* weather */}
         {w && (
           <Reveal>
             <Card elevation="raised" onPress={() => nav.navigate('Weather')}>
-              <Row between>
-                <Row gap={space.sm} style={{ alignItems: 'center', flex: 1 }}>
-                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={28} color={palette.primary} weight="fill" />
+              <Row between style={{ alignItems: 'center' }}>
+                <Row gap={space.md} style={{ alignItems: 'center' }}>
+                  <View style={[hs.iconWrap, { backgroundColor: palette.skySoft }]}>
+                    <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={24} color={palette.sky} weight="fill" />
+                  </View>
                   <View>
-                    <Text variant="bodyStrong" raw color={palette.text}>
-                      {Math.round(w.current.tempC ?? 0)}°  ·  {w.current.condition}
+                    <Text variant="title" raw color={palette.text}>
+                      {Math.round(w.current.tempC ?? 0)}°
                     </Text>
-                    <Text variant="caption" faint raw numberOfLines={1}>
-                      {w.place ?? t('your field')}
-                      {w.today ? `  ·  H ${Math.round(w.today.tempMaxC ?? 0)}° L ${Math.round(w.today.tempMinC ?? 0)}°` : ''}
+                    <Text variant="caption" muted raw>
+                      {w.current.condition}
                     </Text>
                   </View>
                 </Row>
-                <Row gap={space.xs}>
-                  {d.tasks.overdueCount > 0 && (
-                    <StatusPill
-                      value={d.tasks.overdueCount}
-                      tint={palette.honey}
-                      onPress={() => nav.navigate('Tasks')}
-                    />
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <Text variant="caption" faint raw numberOfLines={1}>
+                    {w.place ?? t('your field')}
+                  </Text>
+                  {w.today && (
+                    <Text variant="caption" faint raw>
+                      H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
+                    </Text>
                   )}
-                  {alerts > 0 && (
-                    <StatusPill value={alerts} tint={palette.danger} onPress={() => nav.navigate('Alerts')} />
-                  )}
-                </Row>
+                </View>
               </Row>
+              {w.sprayWindow ? (
+                <>
+                  <Divider style={{ marginTop: space.xs }} />
+                  <Row gap={6} style={{ marginTop: space.xs }}>
+                    <Icon name="spray" size={13} color={palette.primary} weight="fill" />
+                    <Text variant="caption" color={palette.primaryDeep} raw style={{ flex: 1 }}>
+                      {t('Good to spray')} {fmtHr(w.sprayWindow.start)}–{fmtHr(w.sprayWindow.end)}
+                    </Text>
+                  </Row>
+                </>
+              ) : w.topAdvisory ? (
+                <>
+                  <Divider style={{ marginTop: space.xs }} />
+                  <Row gap={6} style={{ marginTop: space.xs }}>
+                    <Icon name="warning" size={13} color={palette.warn} weight="fill" />
+                    <Text variant="caption" color={palette.textMuted} raw numberOfLines={1} style={{ flex: 1 }}>
+                      {w.topAdvisory.title}
+                      {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
+                    </Text>
+                  </Row>
+                </>
+              ) : null}
             </Card>
           </Reveal>
         )}
 
-        {/* today's tasks — compact */}
-        <Reveal index={1}>
+        {/* crops + risk */}
+        {fields.length > 0 && (
+          <Reveal index={1}>
+            <Card elevation="raised">
+              <Row between>
+                <Text variant="overline">{t('Your crops')}</Text>
+                <PressableScale onPress={() => nav.getParent()?.navigate('Fields' as never)} compact>
+                  <Text variant="label" color={palette.primary}>
+                    {t('All fields')}
+                  </Text>
+                </PressableScale>
+              </Row>
+              <View style={{ gap: 2, marginTop: 2 }}>
+                {fields.slice(0, 3).map((f) => {
+                  const lvl = f.riskLevel ?? 'low';
+                  return (
+                    <PressableScale
+                      key={f.id}
+                      onPress={() => nav.navigate('FieldDetail', { fieldId: f.id })}
+                      feedback="tap"
+                    >
+                      <Row gap={space.sm} style={{ paddingVertical: 7 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sev[lvl].fg }} />
+                        <Text variant="body" raw style={{ flex: 1 }} numberOfLines={1}>
+                          {f.name || cap(f.crop)}
+                        </Text>
+                        <Text variant="caption" faint raw>
+                          {cap(f.crop)}
+                          {f.daysSinceSown != null ? ` · ${t('day')} ${f.daysSinceSown}` : ''}
+                        </Text>
+                        {(lvl === 'medium' || lvl === 'high') && (
+                          <Text variant="caption" color={sev[lvl].fg}>
+                            {t(sev[lvl].label)}
+                          </Text>
+                        )}
+                      </Row>
+                    </PressableScale>
+                  );
+                })}
+                {fields.length > 3 && (
+                  <PressableScale
+                    onPress={() => nav.getParent()?.navigate('Fields' as never)}
+                    compact
+                    style={{ paddingVertical: 4 }}
+                  >
+                    <Text variant="caption" color={palette.primary}>
+                      + {fields.length - 3} {t('more')}
+                    </Text>
+                  </PressableScale>
+                )}
+              </View>
+              {hi && (hi.riskLevel === 'medium' || hi.riskLevel === 'high') && hi.riskScore != null && (
+                <View
+                  style={{
+                    marginTop: space.sm,
+                    backgroundColor: sev[hi.riskLevel].bg,
+                    borderRadius: radius.md,
+                    padding: space.sm,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space.sm,
+                  }}
+                >
+                  <Icon name="shield" size={15} color={sev[hi.riskLevel].fg} weight="fill" />
+                  <Text variant="caption" color={sev[hi.riskLevel].fg} style={{ flex: 1 }} raw>
+                    {t('{field} needs watching — {level} disease risk this week', {
+                      field: hi.name,
+                      level: t(sev[hi.riskLevel].label).toLowerCase(),
+                    })}
+                  </Text>
+                </View>
+              )}
+            </Card>
+          </Reveal>
+        )}
+
+        {/* today's tasks */}
+        <Reveal index={2}>
           <Card elevation="raised">
             <Row between>
               <Text variant="overline">{t('To do today')}</Text>
@@ -207,9 +315,39 @@ export default function HomeScreen() {
           </Card>
         </Reveal>
 
+        {/* alerts / outbreaks */}
+        {(d.alerts.count > 0 || outbreaks > 0) && (
+          <Reveal index={3}>
+            <Card onPress={() => nav.navigate('Alerts')} accent={palette.coral} elevation="raised">
+              <Row gap={space.sm}>
+                <View style={[hs.iconWrap, { backgroundColor: palette.coralSoft }]}>
+                  <Icon name="alerts" size={18} color={palette.coral} weight="fill" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyStrong" raw>
+                    {outbreaks > 0
+                      ? t('{n} outbreak(s) reported near you', { n: outbreaks })
+                      : t('{n} advisory from your area', { n: d.alerts.count })}
+                  </Text>
+                  {outbreaks > 0 && d.nearbyOutbreaks?.nearestKm != null ? (
+                    <Text variant="caption" muted raw>
+                      {t('Nearest about {km} km away', { km: d.nearbyOutbreaks.nearestKm })}
+                    </Text>
+                  ) : d.alerts.latest[0] ? (
+                    <Text variant="caption" muted numberOfLines={1} raw>
+                      {d.alerts.latest[0].title}
+                    </Text>
+                  ) : null}
+                </View>
+                <Icon name="right" size={16} color={palette.textFaint} />
+              </Row>
+            </Card>
+          </Reveal>
+        )}
+
         {/* recent scans */}
         {d.recentScans.length > 0 && (
-          <Reveal index={2}>
+          <Reveal index={4}>
             <View style={{ gap: space.sm }}>
               <Row between>
                 <Text variant="overline">{t('Recent scans')}</Text>
@@ -238,6 +376,26 @@ export default function HomeScreen() {
             </View>
           </Reveal>
         )}
+
+        {/* scan CTA */}
+        <Reveal index={5}>
+          <PressableScale onPress={() => nav.getParent()?.navigate('Scan' as never)} feedback="press">
+            <View style={hs.cta}>
+              <View style={[hs.iconWrap, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+                <Icon name="scan" size={20} color="#fff" weight="fill" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong" color="#fff">
+                  {t('See a problem on your crop?')}
+                </Text>
+                <Text variant="caption" color="rgba(255,255,255,0.85)">
+                  {t('Scan it for a diagnosis in seconds')}
+                </Text>
+              </View>
+              <Icon name="right" size={18} color="#fff" />
+            </View>
+          </PressableScale>
+        </Reveal>
       </ScrollView>
     </View>
   );
@@ -272,31 +430,9 @@ function TaskRow({ task, onDone }: { task: AggTask; onDone: () => void }) {
   );
 }
 
-function StatusPill({ value, tint, onPress }: { value: number; tint: string; onPress: () => void }) {
-  return (
-    <PressableScale onPress={onPress} compact>
-      <View
-        style={{
-          minWidth: 26,
-          height: 26,
-          borderRadius: radius.pill,
-          paddingHorizontal: 8,
-          backgroundColor: tint + '22',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text variant="label" color={tint} raw>
-          {String(value)}
-        </Text>
-      </View>
-    </PressableScale>
-  );
-}
-
 const hs = {
   chip: {
-    height: 36,
+    height: 34,
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
     flexDirection: 'row' as const,
@@ -305,14 +441,33 @@ const hs = {
     backgroundColor: palette.primarySoft,
   },
   avatar: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: radius.pill,
     backgroundColor: palette.primary,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  cta: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: space.md,
+    backgroundColor: palette.primary,
+    borderRadius: radius.xl,
+    padding: space.lg,
+  },
 };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtHr = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', hour12: true }).replace(' ', '');
 
 function greeting() {
   const h = new Date().getHours();

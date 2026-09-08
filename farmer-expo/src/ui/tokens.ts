@@ -21,22 +21,31 @@ export const palette = {
   borderStrong: '#D3D8CC',
   hairline: '#ECEEE8',
 
-  // the one colour: fresh sage-olive green
+  // primary — fresh sage-olive green (crop health, main actions, success)
   primary: '#6E9150',
   primaryDeep: '#4C6B38',
   primaryPress: '#628345',
-  primarySoft: '#EBF1E3',
+  primarySoft: '#E9F0E0',
   leaf: '#82A862',
   leafSoft: '#EFF4E8',
   sage: '#A6B79A',
 
-  // legacy accent names — kept so screens don't break, tuned to the new system.
-  // 'clay' / 'honey' are now just the same green family or a neutral.
-  clay: '#8A6F52', // rare warm-neutral (kept muted)
-  claySoft: '#F0EBE3',
+  // category accents — each feature area has a signature tint
+  sky: '#4E86B4', // weather, water, irrigation
+  skySoft: '#E3EEF5',
+  iris: '#7E76B4', // AI, insight, "ask AgriPod"
+  irisSoft: '#ECEAF6',
+  gold: '#D6A548', // money, harvest, schemes
+  goldSoft: '#F8EED6',
+  coral: '#DD7A55', // alerts, outbreaks, urgent
+  coralSoft: '#FBE7DE',
+
+  // legacy accent names — kept so screens don't break, remapped to the system
+  clay: '#DD7A55', // == coral
+  claySoft: '#FBE7DE',
   soil: '#4A4A42',
-  honey: '#C79A4E', // amber, only for a warn state
-  honeySoft: '#F6EEDD',
+  honey: '#D6A548', // == gold / amber warn
+  honeySoft: '#F8EED6',
   cream: '#F2F3EE',
 
   // text — cool near-black
@@ -46,14 +55,14 @@ export const palette = {
   onPrimary: '#FFFFFF',
   onDark: '#F1F3EE',
 
-  // semantic — restrained
+  // semantic
   success: '#6E9150',
-  successSoft: '#EBF1E3',
-  warn: '#C79A4E',
-  warnSoft: '#F6EEDD',
-  danger: '#C0604A',
-  dangerSoft: '#F5E4DF',
-  info: '#5E8087',
+  successSoft: '#E9F0E0',
+  warn: '#D6A548',
+  warnSoft: '#F8EED6',
+  danger: '#C9553C',
+  dangerSoft: '#F7E1DB',
+  info: '#4E86B4',
 
   // sunrise scene — used only by the loading screen
   sky1: '#FDEBD4',
