@@ -202,3 +202,20 @@ export const gradients = {
   sunriseSoft: ['#FDEEDC', '#F8E0C4'] as const,
   paper: ['#F2F4EC', '#EDF0E8'] as const,
 };
+
+/**
+ * Screen-header gradients — one per feature area, so every screen opens with a
+ * band of its own colour instead of black text on the canvas. Each is dark
+ * enough to carry white text.
+ */
+export const tone = {
+  crop: { grad: ['#5F8544', '#3F5E2C'] as const, solid: palette.primary },
+  weather: { grad: ['#3E7CA8', '#2C5D82'] as const, solid: palette.sky },
+  alert: { grad: ['#CF6B45', '#A9482A'] as const, solid: palette.coral },
+  money: { grad: ['#C99A3F', '#9C7526'] as const, solid: palette.gold },
+  ai: { grad: ['#7A6FB8', '#564A93'] as const, solid: palette.iris },
+  task: { grad: ['#5C8F6C', '#3E6A4C'] as const, solid: palette.leaf },
+  scan: { grad: ['#4E9A6B', '#356E4A'] as const, solid: '#4E9A6B' },
+} as const;
+
+export type ToneKey = keyof typeof tone;

@@ -108,6 +108,26 @@ export function Dot({ color = palette.leaf, size = 8 }: { color?: string; size?:
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
 }
 
+/** A thin rounded progress track — growth stages, budgets, quotas. */
+export function ProgressBar({
+  pct,
+  color = palette.primary,
+  track = palette.surfaceSunken,
+  height = 6,
+}: {
+  pct: number;
+  color?: string;
+  track?: string;
+  height?: number;
+}) {
+  const w = Math.max(0, Math.min(1, pct));
+  return (
+    <View style={{ height, borderRadius: height, backgroundColor: track, overflow: 'hidden' }}>
+      <View style={{ width: `${w * 100}%`, height: '100%', borderRadius: height, backgroundColor: color }} />
+    </View>
+  );
+}
+
 export function Row({
   children,
   gap = space.sm,
