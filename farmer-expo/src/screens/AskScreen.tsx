@@ -16,7 +16,8 @@ import { alertT } from '../i18n/alert';
 import { useT } from '../i18n';
 import { useVoice } from '../onboarding/voice';
 import type { AssistantMessage } from '../api/types';
-import { Icon, PressableScale, Row, Text, palette, radius, space } from '../ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Icon, PressableScale, Row, Text, palette, radius, space, tone } from '../ui';
 
 const SUGGESTIONS = [
   'What is the biggest risk to my crops this week?',
@@ -88,25 +89,28 @@ export default function AskScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={insets.top + 44}
     >
-      <View
+      <LinearGradient
+        colors={tone.ai.grad}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.95, y: 1 }}
         style={{
           paddingTop: insets.top + space.sm,
           paddingHorizontal: space.lg,
-          paddingBottom: space.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: palette.hairline,
+          paddingBottom: space.md,
+          borderBottomLeftRadius: 22,
+          borderBottomRightRadius: 22,
         }}
       >
         <Row gap={space.sm}>
-          <PressableScale onPress={() => nav.goBack()} compact>
-            <Icon name="left" size={22} color={palette.text} />
+          <PressableScale onPress={() => nav.goBack()} compact hitSlop={8}>
+            <Icon name="left" size={22} color="#fff" />
           </PressableScale>
-          <Icon name="ai" size={18} color={palette.primaryDeep} weight="fill" />
-          <Text variant="subhead" style={{ flex: 1 }}>
+          <Icon name="ai" size={18} color="#fff" weight="fill" />
+          <Text variant="subhead" color="#fff" style={{ flex: 1 }}>
             {t('Ask AgriPod')}
           </Text>
         </Row>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         ref={scroller}
@@ -122,12 +126,12 @@ export default function AskScreen() {
                   width: 56,
                   height: 56,
                   borderRadius: radius.pill,
-                  backgroundColor: palette.primarySoft,
+                  backgroundColor: palette.irisSoft,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Icon name="ai" size={28} color={palette.primaryDeep} weight="duotone" />
+                <Icon name="ai" size={28} color={palette.iris} weight="duotone" />
               </View>
               <Text variant="title" center>{t('Ask AgriPod')}</Text>
               <Text variant="body" muted center>
@@ -140,14 +144,22 @@ export default function AskScreen() {
                   key={s}
                   onPress={() => send(s)}
                   style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space.sm,
                     borderWidth: 1,
-                    borderColor: palette.border,
+                    borderColor: palette.irisSoft,
+                    backgroundColor: palette.surface,
                     borderRadius: radius.lg,
-                    paddingVertical: space.sm,
+                    paddingVertical: space.sm + 2,
                     paddingHorizontal: space.md,
                   }}
                 >
-                  <Text variant="body" color={palette.primaryDeep}>{t(s)}</Text>
+                  <Icon name="ai" size={13} color={palette.iris} weight="fill" />
+                  <Text variant="body" color={palette.text} style={{ flex: 1 }}>
+                    {t(s)}
+                  </Text>
+                  <Icon name="right" size={13} color={palette.iris} />
                 </Pressable>
               ))}
             </View>

@@ -107,7 +107,7 @@ function HomeStack() {
       <HomeNav.Screen name="Activity" component={ActivityScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
-      <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ headerTitle: navTitle('Settings') }} />
+      <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Ask" component={AskScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
       <HomeNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
