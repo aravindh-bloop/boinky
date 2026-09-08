@@ -74,7 +74,7 @@ export default function SchemeThreadScreen() {
       keyboardVerticalOffset={insets.top + 44}
     >
       <LinearGradient
-        colors={tone.money.grad}
+        colors={tone.scheme.grad}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.95, y: 1 }}
         style={{

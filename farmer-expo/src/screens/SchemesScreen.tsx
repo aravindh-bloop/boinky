@@ -39,6 +39,22 @@ const STATUS_COLOR: Record<string, string> = {
   disbursed: palette.success,
 };
 
+// Schemes have no category, so give each row a stable colour from the palette
+// (hashed off its id) — the list reads as a mix, not a wall of one hue.
+const ACCENTS: { fg: string; soft: string; icon: 'schemes' | 'money' | 'scroll' | 'shield' | 'leaf' | 'revenue' }[] = [
+  { fg: palette.sky, soft: palette.skySoft, icon: 'schemes' },
+  { fg: palette.iris, soft: palette.irisSoft, icon: 'scroll' },
+  { fg: palette.primary, soft: palette.primarySoft, icon: 'leaf' },
+  { fg: palette.gold, soft: palette.goldSoft, icon: 'money' },
+  { fg: palette.coral, soft: palette.coralSoft, icon: 'shield' },
+  { fg: '#3E8E9C', soft: '#D6EBEE', icon: 'revenue' },
+];
+const accentFor = (id: string) => {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ACCENTS[h % ACCENTS.length]!;
+};
+
 export default function SchemesScreen() {
   const nav = useNavigation<any>();
   const [forMe, setForMe] = useState<'me' | 'all'>('me');
@@ -82,7 +98,7 @@ export default function SchemesScreen() {
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
             <ScreenHeader
-              tone="money"
+              tone="scheme"
               title="Schemes & subsidies"
               subtitle="Government support you may be eligible for."
               style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
@@ -123,13 +139,14 @@ export default function SchemesScreen() {
         renderItem={({ item, index }) => {
           const app = byScheme.get(item.id);
           const statusColor = app ? STATUS_COLOR[app.status] ?? palette.textMuted : null;
+          const ac = accentFor(item.id);
           return (
             <Reveal index={Math.min(index, 8)}>
               <ExpandableCard
                 title={item.title}
-                icon="schemes"
-                accent={palette.gold}
-                accentSoft={palette.goldSoft}
+                icon={ac.icon}
+                accent={statusColor ?? ac.fg}
+                accentSoft={ac.soft}
                 subtitle={
                   app
                     ? STATUS_LABEL[app.status] ?? app.status
@@ -139,7 +156,7 @@ export default function SchemesScreen() {
                   statusColor ? (
                     <Dot color={statusColor} />
                   ) : item.benefit_amount ? (
-                    <Chip label={item.benefit_amount} size="sm" bg={palette.goldSoft} color="#8A6A22" />
+                    <Chip label={item.benefit_amount} size="sm" bg={ac.soft} color={ac.fg} />
                   ) : undefined
                 }
               >
@@ -157,8 +174,8 @@ export default function SchemesScreen() {
                 ) : null}
                 {item.benefit_amount ? (
                   <Row gap={space.xs}>
-                    <Icon name="money" size={16} color={palette.gold} weight="fill" />
-                    <Text variant="bodyStrong" color="#8A6A22">
+                    <Icon name="money" size={16} color={ac.fg} weight="fill" />
+                    <Text variant="bodyStrong" color={ac.fg}>
                       {item.benefit_amount}
                     </Text>
                   </Row>

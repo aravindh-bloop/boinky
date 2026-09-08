@@ -18,6 +18,7 @@ import {
   Text,
   palette,
   space,
+  tone,
 } from '../ui';
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -56,7 +57,7 @@ export default function MySchemesScreen() {
         }}
       >
         <ScreenHeader
-          tone="money"
+          tone="scheme"
           title="My schemes"
           subtitle="Your applications and questions to the extension office."
           onBack={() => nav.goBack()}
@@ -80,7 +81,7 @@ export default function MySchemesScreen() {
               return (
                 <Card key={a.id} elevation="flat" accent={st.color}>
                   <Row gap={space.sm}>
-                    <Icon name="scroll" size={16} color={palette.gold} weight="fill" />
+                    <Icon name="scroll" size={16} color={tone.scheme.solid} weight="fill" />
                     <Text variant="subhead" style={{ flex: 1 }}>
                       {a.scheme_title}
                     </Text>

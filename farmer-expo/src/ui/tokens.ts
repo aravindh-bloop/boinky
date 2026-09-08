@@ -216,6 +216,7 @@ export const tone = {
   ai: { grad: ['#7A6FB8', '#564A93'] as const, solid: palette.iris },
   task: { grad: ['#14603F', '#0B3B2A'] as const, solid: palette.leaf },
   scan: { grad: ['#125A3E', '#0A3728'] as const, solid: '#125A3E' },
+  scheme: { grad: ['#47569C', '#313E78'] as const, solid: '#47569C' },
 } as const;
 
 export type ToneKey = keyof typeof tone;
