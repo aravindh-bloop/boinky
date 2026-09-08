@@ -12,7 +12,6 @@ import type { AggTask, HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
-  Divider,
   Icon,
   Reveal,
   Row,
@@ -153,10 +152,10 @@ export default function HomeScreen() {
         {/* weather */}
         {w && (
           <Reveal>
-            <Card elevation="raised" onPress={() => nav.navigate('Weather')}>
+            <Card elevation="raised" tint="sky" onPress={() => nav.navigate('Weather')}>
               <Row between style={{ alignItems: 'center' }}>
                 <Row gap={space.md} style={{ alignItems: 'center' }}>
-                  <View style={[hs.iconWrap, { backgroundColor: palette.skySoft }]}>
+                  <View style={[hs.iconWrap, { backgroundColor: '#FFFFFF' }]}>
                     <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={24} color={palette.sky} weight="fill" />
                   </View>
                   <View>
@@ -180,26 +179,20 @@ export default function HomeScreen() {
                 </View>
               </Row>
               {w.sprayWindow ? (
-                <>
-                  <Divider style={{ marginTop: space.xs }} />
-                  <Row gap={6} style={{ marginTop: space.xs }}>
-                    <Icon name="spray" size={13} color={palette.primary} weight="fill" />
-                    <Text variant="caption" color={palette.primaryDeep} raw style={{ flex: 1 }}>
-                      {t('Good to spray')} {fmtHr(w.sprayWindow.start)}–{fmtHr(w.sprayWindow.end)}
-                    </Text>
-                  </Row>
-                </>
+                <View style={hs.weatherNote}>
+                  <Icon name="spray" size={13} color={palette.primary} weight="fill" />
+                  <Text variant="caption" color={palette.primaryDeep} raw style={{ flex: 1 }}>
+                    {t('Good to spray')} {fmtHr(w.sprayWindow.start)}–{fmtHr(w.sprayWindow.end)}
+                  </Text>
+                </View>
               ) : w.topAdvisory ? (
-                <>
-                  <Divider style={{ marginTop: space.xs }} />
-                  <Row gap={6} style={{ marginTop: space.xs }}>
-                    <Icon name="warning" size={13} color={palette.warn} weight="fill" />
-                    <Text variant="caption" color={palette.textMuted} raw numberOfLines={1} style={{ flex: 1 }}>
-                      {w.topAdvisory.title}
-                      {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
-                    </Text>
-                  </Row>
-                </>
+                <View style={hs.weatherNote}>
+                  <Icon name="warning" size={13} color={palette.warn} weight="fill" />
+                  <Text variant="caption" color={palette.textMuted} raw numberOfLines={1} style={{ flex: 1 }}>
+                    {w.topAdvisory.title}
+                    {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
+                  </Text>
+                </View>
               ) : null}
             </Card>
           </Reveal>
@@ -208,7 +201,7 @@ export default function HomeScreen() {
         {/* crops + risk */}
         {fields.length > 0 && (
           <Reveal index={1}>
-            <Card elevation="raised">
+            <Card elevation="raised" tint="green">
               <Row between>
                 <Text variant="overline">{t('Your crops')}</Text>
                 <PressableScale onPress={() => nav.getParent()?.navigate('Fields' as never)} compact>
@@ -318,9 +311,9 @@ export default function HomeScreen() {
         {/* alerts / outbreaks */}
         {(d.alerts.count > 0 || outbreaks > 0) && (
           <Reveal index={3}>
-            <Card onPress={() => nav.navigate('Alerts')} accent={palette.coral} elevation="raised">
+            <Card onPress={() => nav.navigate('Alerts')} tint="coral" elevation="raised">
               <Row gap={space.sm}>
-                <View style={[hs.iconWrap, { backgroundColor: palette.coralSoft }]}>
+                <View style={[hs.iconWrap, { backgroundColor: '#FFFFFF' }]}>
                   <Icon name="alerts" size={18} color={palette.coral} weight="fill" />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -454,6 +447,15 @@ const hs = {
     borderRadius: radius.md,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
+  },
+  weatherNote: {
+    marginTop: space.xs,
+    paddingTop: space.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(65,131,180,0.18)',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
   },
   cta: {
     flexDirection: 'row' as const,

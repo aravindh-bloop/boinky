@@ -9,43 +9,43 @@
 import type { TextStyle, ViewStyle } from 'react-native';
 
 export const palette = {
-  // canvas & surfaces — cool paper, not warm
-  canvas: '#F4F6F2',
-  canvasAlt: '#ECEFE8',
+  // canvas & surfaces — a soft green-grey paper, distinctly not white
+  canvas: '#EDF0E8',
+  canvasAlt: '#E4E9DD',
   surface: '#FFFFFF',
-  surfaceAlt: '#F7F8F4',
-  surfaceSunken: '#EFF1EC',
+  surfaceAlt: '#F6F8F2',
+  surfaceSunken: '#E9EDE2',
 
   // lines — soft cool grey
-  border: '#E4E7DF',
-  borderStrong: '#D3D8CC',
-  hairline: '#ECEEE8',
+  border: '#DFE4D7',
+  borderStrong: '#CDD4C2',
+  hairline: '#E7EBDF',
 
   // primary — fresh sage-olive green (crop health, main actions, success)
   primary: '#6E9150',
-  primaryDeep: '#4C6B38',
+  primaryDeep: '#425F32',
   primaryPress: '#628345',
-  primarySoft: '#E9F0E0',
+  primarySoft: '#E0EACF',
   leaf: '#82A862',
-  leafSoft: '#EFF4E8',
+  leafSoft: '#E5EFD6',
   sage: '#A6B79A',
 
   // category accents — each feature area has a signature tint
-  sky: '#4E86B4', // weather, water, irrigation
-  skySoft: '#E3EEF5',
-  iris: '#7E76B4', // AI, insight, "ask AgriPod"
-  irisSoft: '#ECEAF6',
-  gold: '#D6A548', // money, harvest, schemes
-  goldSoft: '#F8EED6',
-  coral: '#DD7A55', // alerts, outbreaks, urgent
-  coralSoft: '#FBE7DE',
+  sky: '#4183B4', // weather, water, irrigation
+  skySoft: '#D6E6F1',
+  iris: '#7A6FB8', // AI, insight, "ask AgriPod"
+  irisSoft: '#E5E1F3',
+  gold: '#D19E3B', // money, harvest, schemes
+  goldSoft: '#F5E7C6',
+  coral: '#DB7048', // alerts, outbreaks, urgent
+  coralSoft: '#F8DECF',
 
   // legacy accent names — kept so screens don't break, remapped to the system
-  clay: '#DD7A55', // == coral
-  claySoft: '#FBE7DE',
+  clay: '#DB7048', // == coral
+  claySoft: '#F8DECF',
   soil: '#4A4A42',
-  honey: '#D6A548', // == gold / amber warn
-  honeySoft: '#F8EED6',
+  honey: '#D19E3B', // == gold / amber warn
+  honeySoft: '#F5E7C6',
   cream: '#F2F3EE',
 
   // text — cool near-black
@@ -57,12 +57,12 @@ export const palette = {
 
   // semantic
   success: '#6E9150',
-  successSoft: '#E9F0E0',
-  warn: '#D6A548',
-  warnSoft: '#F8EED6',
+  successSoft: '#E0EACF',
+  warn: '#D19E3B',
+  warnSoft: '#F5E7C6',
   danger: '#C9553C',
-  dangerSoft: '#F7E1DB',
-  info: '#4E86B4',
+  dangerSoft: '#F7DDD5',
+  info: '#4183B4',
 
   // sunrise scene — used only by the loading screen
   sky1: '#FDEBD4',
