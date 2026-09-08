@@ -50,7 +50,7 @@ export function Field({ label, hint, error, right, style, onFocus, onBlur, place
           {
             flexDirection: 'row',
             alignItems: 'center',
-            borderWidth: 1.5,
+            borderWidth: 1,
             borderRadius: radius.lg,
             paddingHorizontal: space.md,
           },

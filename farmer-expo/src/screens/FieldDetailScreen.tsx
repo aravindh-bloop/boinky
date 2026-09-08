@@ -88,7 +88,7 @@ export default function FieldDetailScreen() {
         <Reveal>
           <Row between>
             <View style={{ flex: 1 }}>
-              <Text variant="hero" color={palette.primaryDeep}>
+              <Text variant="hero">
                 {f.name || cap(f.crop)}
               </Text>
               <Text variant="body" muted>

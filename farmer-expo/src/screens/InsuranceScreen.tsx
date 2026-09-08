@@ -72,7 +72,7 @@ export default function InsuranceScreen() {
       }
     >
       <View>
-        <Text variant="hero" color={palette.primaryDeep}>{t('Crop insurance')}</Text>
+        <Text variant="hero">{t('Crop insurance')}</Text>
         <Text variant="body" muted>
           {t('Insure a field, and claim with photo evidence if weather or pests damage the crop.')}
         </Text>

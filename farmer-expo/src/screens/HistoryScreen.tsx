@@ -49,7 +49,7 @@ export default function HistoryScreen() {
         }}
         ListHeaderComponent={
           <Row between style={{ marginBottom: space.sm }}>
-            <Text variant="hero" color={palette.primaryDeep}>
+            <Text variant="hero">
               Scan history
             </Text>
             <PressableScale onPress={() => nav.goBack()} compact>

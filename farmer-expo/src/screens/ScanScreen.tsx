@@ -148,7 +148,7 @@ export default function ScanScreen() {
           showsVerticalScrollIndicator={false}
         >
         <View>
-          <Text variant="hero" color={palette.primaryDeep}>
+          <Text variant="hero">
             Scan a crop
           </Text>
           <Text variant="body" muted>

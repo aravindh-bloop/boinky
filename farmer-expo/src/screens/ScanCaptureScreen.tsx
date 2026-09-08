@@ -377,7 +377,7 @@ export default function ScanCaptureScreen() {
           contentContainerStyle={{ paddingTop: insets.top + space.xl, paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.xxl }}
         >
           <View>
-            <Text variant="hero" color={palette.primaryDeep}>{t('Scan a crop')}</Text>
+            <Text variant="hero">{t('Scan a crop')}</Text>
             <Text variant="body" muted>
               {t('A guided set of photos from every angle — the more the AI sees, the more accurate the diagnosis.')}
             </Text>
@@ -442,7 +442,7 @@ export default function ScanCaptureScreen() {
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + space.lg, paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.xxl }}
       >
-        <Text variant="hero" color={palette.primaryDeep}>{t('Review the set')}</Text>
+        <Text variant="hero">{t('Review the set')}</Text>
 
         <Animated.View entering={FadeIn}>
           <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>

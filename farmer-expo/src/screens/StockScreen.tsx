@@ -86,7 +86,7 @@ export default function StockScreen() {
         }}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
-            <Text variant="hero" color={palette.primaryDeep}>
+            <Text variant="hero">
               Stock & money
             </Text>
 

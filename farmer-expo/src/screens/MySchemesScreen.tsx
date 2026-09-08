@@ -56,7 +56,7 @@ export default function MySchemesScreen() {
           gap: space.md,
         }}
       >
-        <Text variant="hero" color={palette.primaryDeep}>
+        <Text variant="hero">
           My schemes
         </Text>
         <SegmentedControl

@@ -61,7 +61,7 @@ export default function AlertsScreen() {
         ListHeaderComponent={
           <View style={{ gap: space.xs, marginBottom: space.xs }}>
             <Row between>
-              <Text variant="hero" color={palette.primaryDeep}>
+              <Text variant="hero">
                 Alerts
               </Text>
               <PressableScale onPress={() => nav.goBack()} compact>

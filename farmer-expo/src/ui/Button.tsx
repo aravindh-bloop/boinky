@@ -1,7 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, View, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { gradients, palette, radius, shadow, space } from './tokens';
+import { palette, radius, shadow, space } from './tokens';
 import { Text } from './Text';
 import { PressableScale } from './Pressable';
 import { haptic } from './haptics';
@@ -73,44 +72,29 @@ export function Button({
     onPress();
   };
 
-  if (variant === 'primary' || variant === 'sunrise') {
-    return (
-      <PressableScale
-        onPress={handlePress}
-        disabled={disabled || loading}
-        feedback="press"
-        style={[
-          { borderRadius: size === 'lg' ? radius.xl : radius.lg, opacity: disabled ? 0.5 : 1 },
-          shadow.e1,
-          style as ViewStyle,
-        ]}
-      >
-        <LinearGradient
-          colors={variant === 'sunrise' ? gradients.gold : gradients.dawn}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={shape}
-        >
-          {inner}
-        </LinearGradient>
-      </PressableScale>
-    );
-  }
-
   const bg =
-    variant === 'soft'
-      ? palette.primarySoft
-      : variant === 'danger'
-        ? palette.danger
-        : 'transparent';
+    variant === 'primary' || variant === 'sunrise'
+      ? palette.primary
+      : variant === 'soft'
+        ? palette.primarySoft
+        : variant === 'danger'
+          ? palette.danger
+          : 'transparent';
   const border = variant === 'ghost' ? { borderWidth: 1, borderColor: palette.borderStrong } : null;
+  const solid = variant === 'primary' || variant === 'sunrise' || variant === 'danger';
 
   return (
     <PressableScale
       onPress={handlePress}
       disabled={disabled || loading}
       feedback="press"
-      style={[shape, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }, border, style as ViewStyle]}
+      style={[
+        shape,
+        { backgroundColor: bg, opacity: disabled ? 0.5 : 1 },
+        border,
+        solid ? shadow.e0 : null,
+        style as ViewStyle,
+      ]}
     >
       {inner}
     </PressableScale>

@@ -81,7 +81,7 @@ export default function SchemesScreen() {
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
             <Row between>
-              <Text variant="hero" color={palette.primaryDeep}>
+              <Text variant="hero">
                 Schemes & subsidies
               </Text>
               <PressableScale onPress={() => nav.navigate('MySchemes')} compact>

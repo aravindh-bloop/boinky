@@ -165,7 +165,7 @@ export default function InsuranceClaimScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: palette.canvas }}>
         <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingTop: insets.top + space.md }}>
-          <Text variant="hero" color={palette.primaryDeep}>{t('File a claim')}</Text>
+          <Text variant="hero">{t('File a claim')}</Text>
 
           <Card elevation="flat">
             <Text variant="subhead">{t('Insured field')}</Text>
@@ -243,7 +243,7 @@ export default function InsuranceClaimScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingTop: insets.top + space.md }}>
-        <Text variant="hero" color={palette.primaryDeep}>{t('Photograph the damage')}</Text>
+        <Text variant="hero">{t('Photograph the damage')}</Text>
         <Text variant="body" muted>
           {t('Take clear photos — a wide shot of the field and close-ups of the worst areas. An officer uses these to assess the loss.')}
         </Text>

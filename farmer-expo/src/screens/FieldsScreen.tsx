@@ -49,7 +49,7 @@ export default function FieldsScreen() {
       >
         <Row between style={{ marginBottom: space.xs, alignItems: 'flex-start' }}>
           <View>
-            <Text variant="hero" color={palette.primaryDeep}>
+            <Text variant="hero">
               {t('My fields')}
             </Text>
             <Text variant="body" muted>

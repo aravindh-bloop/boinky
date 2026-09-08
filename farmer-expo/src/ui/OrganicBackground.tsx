@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, useWindowDimensions, type ViewStyle } from 'react-native';
-import { Canvas, Circle, Group, BlurMask, LinearGradient, vec, Rect } from '@shopify/react-native-skia';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { palette } from './tokens';
 
 interface Props {
@@ -9,38 +9,20 @@ interface Props {
   style?: ViewStyle;
 }
 
-/** Each tint fades from a soft wash at the top into the page canvas. */
-const TINTS = {
-  sunrise: { wash: palette.claySoft, glow: palette.sky2 },
-  harvest: { wash: palette.honeySoft, glow: palette.honey },
-  green: { wash: palette.primarySoft, glow: palette.leaf },
-  calm: { wash: '#E7EEEF', glow: palette.info },
-};
-
 /**
- * A soft coloured wash behind a screen header — a top-down gradient into the
- * canvas with one diffuse glow. Static and memoised: a Skia blur is not
- * something to re-record when the screen above re-renders with new data.
+ * A whisper of colour behind a screen header — a soft green tint at the very top
+ * that dissolves into the canvas within the first inch. Deliberately minimal:
+ * the app is clean white/canvas, not a wall of gradient.
  */
-function OrganicBackgroundBase({ tint = 'sunrise', height = 240, style }: Props) {
-  const { width } = useWindowDimensions();
-  const t = TINTS[tint] ?? TINTS.sunrise;
-
+function OrganicBackgroundBase({ height = 200, style }: Props) {
   return (
-    <Canvas style={[StyleSheet.absoluteFill, { height }, style]} pointerEvents="none">
-      <Rect x={0} y={0} width={width} height={height}>
-        <LinearGradient
-          start={vec(0, 0)}
-          end={vec(0, height)}
-          colors={[t.wash, palette.canvas]}
-          positions={[0, 0.9]}
-        />
-      </Rect>
-      <Group opacity={0.5}>
-        <BlurMask blur={64} style="normal" />
-        <Circle cx={width * 0.82} cy={height * 0.1} r={height * 0.42} color={t.glow} opacity={0.22} />
-      </Group>
-    </Canvas>
+    <View style={[StyleSheet.absoluteFill, { height }, style]} pointerEvents="none">
+      <LinearGradient
+        colors={[palette.primarySoft, palette.canvas]}
+        locations={[0, 0.85]}
+        style={{ flex: 1, opacity: 0.55 }}
+      />
+    </View>
   );
 }
 

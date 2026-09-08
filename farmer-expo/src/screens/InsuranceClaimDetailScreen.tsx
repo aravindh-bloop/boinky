@@ -100,7 +100,7 @@ export default function InsuranceClaimDetailScreen() {
         contentContainerStyle={{ padding: space.lg, gap: space.md, paddingTop: insets.top + space.md }}
       >
         <Row between>
-          <Text variant="hero" color={palette.primaryDeep} style={{ flex: 1 }}>
+          <Text variant="hero" style={{ flex: 1 }}>
             {claim.crop} · {t('claim')}
           </Text>
           <Chip label={t(st.label)} bg={st.color + '22'} color={st.color} />
