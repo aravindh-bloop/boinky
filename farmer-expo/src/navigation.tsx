@@ -29,9 +29,10 @@ import SchemesScreen from './screens/SchemesScreen';
 import MySchemesScreen from './screens/MySchemesScreen';
 import SchemeThreadScreen from './screens/SchemeThreadScreen';
 import InsuranceScreen from './screens/InsuranceScreen';
-import InsuranceEnrollScreen from './screens/InsuranceEnrollScreen';
-import InsuranceClaimScreen from './screens/InsuranceClaimScreen';
-import InsuranceClaimDetailScreen from './screens/InsuranceClaimDetailScreen';
+import PolicyFormScreen from './screens/PolicyFormScreen';
+import StartClaimScreen from './screens/StartClaimScreen';
+import ClaimTrackScreen from './screens/ClaimTrackScreen';
+import EscalateScreen from './screens/EscalateScreen';
 import StockScreen from './screens/StockScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import HarvestScreen from './screens/HarvestScreen';
@@ -83,9 +84,10 @@ export type StockStackParams = {
 };
 export type InsuranceStackParams = {
   InsuranceHome: undefined;
-  Enroll: undefined;
-  FileClaim: { policyId?: string } | undefined;
-  ClaimDetail: { claimId: string };
+  PolicyForm: { policyId?: string } | undefined;
+  StartClaim: { policyRefId: string };
+  ClaimTrack: { claimId: string };
+  Escalate: { claimId: string };
 };
 
 const screenOpts = {
@@ -157,9 +159,10 @@ function InsuranceStack() {
   return (
     <InsuranceNav.Navigator screenOptions={screenOpts}>
       <InsuranceNav.Screen name="InsuranceHome" component={InsuranceScreen} options={{ headerShown: false }} />
-      <InsuranceNav.Screen name="Enroll" component={InsuranceEnrollScreen} options={{ headerTitle: navTitle('Insure a field') }} />
-      <InsuranceNav.Screen name="FileClaim" component={InsuranceClaimScreen} options={{ headerTitle: navTitle('File a claim') }} />
-      <InsuranceNav.Screen name="ClaimDetail" component={InsuranceClaimDetailScreen} options={{ headerShown: false }} />
+      <InsuranceNav.Screen name="PolicyForm" component={PolicyFormScreen} options={{ headerTitle: navTitle('Add a PMFBY policy') }} />
+      <InsuranceNav.Screen name="StartClaim" component={StartClaimScreen} options={{ headerTitle: navTitle('Track a claim') }} />
+      <InsuranceNav.Screen name="ClaimTrack" component={ClaimTrackScreen} options={{ headerShown: false }} />
+      <InsuranceNav.Screen name="Escalate" component={EscalateScreen} options={{ headerShown: false }} />
     </InsuranceNav.Navigator>
   );
 }

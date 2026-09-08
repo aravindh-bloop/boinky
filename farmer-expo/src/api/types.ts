@@ -42,7 +42,7 @@ export interface AssistantThread {
   messages: AssistantMessage[];
 }
 
-// ── crop insurance ──
+// ── crop insurance: PMFBY claim tracker ──
 export type ClaimCause =
   | 'flood'
   | 'drought'
@@ -52,97 +52,160 @@ export type ClaimCause =
   | 'fire'
   | 'unseasonal_rain'
   | 'frost'
+  | 'prevented_sowing'
   | 'other';
 
-export type ClaimStatus =
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'surveyor_assigned'
-  | 'approved'
-  | 'rejected'
-  | 'paid';
+export type LossType = 'localised' | 'widespread' | 'post_harvest' | 'prevented_sowing' | 'mid_season';
+export type ClaimStage = 'intimation' | 'survey' | 'assessment' | 'approval' | 'payout' | 'closed';
+export type Rung = 'block' | 'district' | 'dgrc' | 'state' | 'ombudsman' | 'krph' | 'cpgrams';
 
-export interface InsuranceScheme {
-  id: string;
-  title: string;
-  description: string | null;
-  benefit_amount: string | null;
+export interface StageInfo {
+  key: ClaimStage;
+  label: string;
+  owner: string;
+  slaDays: number | null;
+  meaning: string;
+  ifStuck: string;
 }
 
-export interface InsurancePolicy {
+export interface StageClock {
+  stage: ClaimStage;
+  daysAtStage: number;
+  slaDays: number | null;
+  overdueBy: number;
+  breached: boolean;
+  expectedBy: string | null;
+  penalInterestDue: boolean;
+}
+
+export interface InsuranceReference {
+  causes: ClaimCause[];
+  lossTypes: LossType[];
+  stages: StageInfo[];
+  rungs: { rung: Rung; label: string; role: string }[];
+}
+
+export interface PolicyRef {
   id: string;
   field_id: string | null;
-  scheme_id: string | null;
-  scheme_title: string | null;
   field_name: string | null;
-  crop: string;
+  application_no: string | null;
   season: string;
+  crop: string;
+  insurance_unit: string | null;
+  insurer_name: string | null;
   sum_insured: number | null;
   premium_paid: number | null;
   area_acres: number | null;
-  status: 'active' | 'lapsed' | 'expired';
-  start_date: string | null;
-  end_date: string | null;
+  district: string | null;
+  source: 'manual' | 'ocr' | 'ncip';
+  ncip_verified_at: string | null;
   claim_count: number;
-}
-
-export interface ClaimListItem {
-  id: string;
-  cause: ClaimCause;
-  status: ClaimStatus;
-  incident_date: string | null;
-  estimated_loss_pct: number | null;
-  approved_amount: number | null;
-  crop: string;
-  season: string;
-  field_name: string | null;
-  media_count: number;
-  updated_at: string;
-}
-
-export interface ClaimMedia {
-  id: string;
-  kind: 'photo' | 'video';
-  url: string;
-  caption: string | null;
-  lat: number | null;
-  lng: number | null;
-  position: number;
-}
-
-export interface ClaimEvent {
-  id: string;
-  actor_role: 'farmer' | 'official' | 'system';
-  kind: 'created' | 'submitted' | 'status_change' | 'note' | 'message' | 'media_added';
-  from_status: string | null;
-  to_status: string | null;
-  body: string | null;
   created_at: string;
 }
 
-export interface ClaimDetail {
-  claim: {
-    id: string;
-    cause: ClaimCause;
-    status: ClaimStatus;
-    description: string | null;
-    incident_date: string | null;
-    estimated_loss_pct: number | null;
-    assessed_loss_pct: number | null;
-    approved_amount: number | null;
-    officer_note: string | null;
-    crop: string;
-    season: string;
-    sum_insured: number | null;
-    field_name: string | null;
-    scan_id: string | null;
-    scan_diagnosis: string | null;
-    submitted_at: string | null;
-    created_at: string;
+export interface ClaimTrackListItem {
+  id: string;
+  policy_ref_id: string;
+  cause: ClaimCause;
+  loss_type: LossType;
+  stage: ClaimStage;
+  stage_since: string;
+  outcome: 'approved' | 'rejected' | 'partial' | 'pending' | null;
+  incident_date: string | null;
+  docket_id: string | null;
+  amount_expected: number | null;
+  amount_paid: number | null;
+  crop: string;
+  season: string;
+  insurer_name: string | null;
+  district: string | null;
+  field_name: string | null;
+  sum_insured: number | null;
+  updated_at: string;
+  clock: StageClock;
+}
+
+export interface ClaimTrackEvent {
+  id: string;
+  source: 'farmer' | 'officer' | 'sms' | 'ncip' | 'system';
+  kind: 'stage_change' | 'note' | 'docket' | 'payment' | 'escalation';
+  from_stage: string | null;
+  to_stage: string | null;
+  body: string | null;
+  at: string;
+}
+
+export interface ClaimTrackEscalationRef {
+  id: string;
+  rung: Rung;
+  channel: string;
+  reason: string;
+  status: string;
+  external_ref: string | null;
+  officer_note: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface ClaimTrackDetail {
+  claim: ClaimTrackListItem & {
+    application_no: string | null;
+    insurance_unit: string | null;
+    farmer_estimated_loss_pct: number | null;
+    note: string | null;
+    paid_on: string | null;
   };
-  media: ClaimMedia[];
-  events: ClaimEvent[];
+  stageInfo: StageInfo;
+  clock: StageClock;
+  timeline: (StageInfo & { state: 'done' | 'current' | 'upcoming' })[];
+  events: ClaimTrackEvent[];
+  escalations: ClaimTrackEscalationRef[];
+  canEscalate: boolean;
+}
+
+export interface DirectoryContact {
+  id: string;
+  district: string | null;
+  rung: Rung;
+  designation: string;
+  name: string | null;
+  office: string | null;
+  phone: string | null;
+  email: string | null;
+  url: string | null;
+  note: string | null;
+  verified: boolean;
+  last_verified: string | null;
+}
+
+export interface EscalationOptions {
+  district: string | null;
+  recommended: Rung;
+  rungs: {
+    rung: Rung;
+    label: string;
+    role: string;
+    contacts: DirectoryContact[];
+  }[];
+  letterEn: string;
+}
+
+export interface MyEscalation {
+  id: string;
+  claim_id: string;
+  rung: Rung;
+  channel: string;
+  reason: string;
+  status: string;
+  external_ref: string | null;
+  letter_en: string | null;
+  letter_ta: string | null;
+  officer_note: string | null;
+  created_at: string;
+  cause: ClaimCause;
+  crop: string;
+  season: string;
 }
 
 export interface AuthResponse {

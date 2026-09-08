@@ -1,179 +1,239 @@
 import React from 'react';
-import { View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
 import { useT } from '../i18n';
-import type { ClaimListItem, InsurancePolicy } from '../api/types';
+import type { ClaimTrackListItem, MyEscalation, PolicyRef } from '../api/types';
 import {
   Button,
   Card,
   Chip,
   EmptyState,
+  ErrorState,
   Icon,
+  PressableScale,
   Reveal,
   Row,
-  Screen,
   ScreenHeader,
-  SectionHeader,
+  SkeletonList,
   Text,
   palette,
+  radius,
   space,
 } from '../ui';
 import type { InsuranceStackParams } from '../navigation';
+import { stageLabel, slaBadge } from './insuranceShared';
 
 type Nav = NativeStackNavigationProp<InsuranceStackParams, 'InsuranceHome'>;
-
-export const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: palette.textMuted },
-  submitted: { label: 'Submitted', color: palette.info },
-  under_review: { label: 'Under review', color: palette.warn },
-  surveyor_assigned: { label: 'Surveyor assigned', color: palette.warn },
-  approved: { label: 'Approved', color: palette.primary },
-  rejected: { label: 'Rejected', color: palette.danger },
-  paid: { label: 'Paid', color: palette.success },
-};
-
-const CAUSE_LABEL: Record<string, string> = {
-  flood: 'Flood',
-  drought: 'Drought',
-  pest_disease: 'Pest / disease',
-  hailstorm: 'Hailstorm',
-  cyclone: 'Cyclone',
-  fire: 'Fire',
-  unseasonal_rain: 'Unseasonal rain',
-  frost: 'Frost',
-  other: 'Other',
-};
-
-const rupee = (n: number | null) =>
-  n == null ? '—' : `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function InsuranceScreen() {
   const nav = useNavigation<Nav>();
   const t = useT();
-  const policies = useApi<{ policies: InsurancePolicy[] }>('/api/insurance/policies');
-  const claims = useApi<{ claims: ClaimListItem[] }>('/api/insurance/claims');
+  const pols = useApi<{ policies: PolicyRef[] }>('/api/insurance/policies');
+  const claims = useApi<{ claims: ClaimTrackListItem[] }>('/api/insurance/claims');
+  const escs = useApi<{ escalations: MyEscalation[] }>('/api/insurance/escalations');
 
-  const pols = policies.data?.policies ?? [];
-  const cls = claims.data?.claims ?? [];
+  const policies = pols.data?.policies ?? [];
+  const claimList = claims.data?.claims ?? [];
+  const openEsc = (escs.data?.escalations ?? []).filter(
+    (e) => e.status !== 'resolved' && e.status !== 'closed',
+  );
+  const loading = pols.loading && claims.loading;
+
+  const reload = () => {
+    pols.reload();
+    claims.reload();
+    escs.reload();
+  };
 
   return (
-    <Screen
-      scroll
-      padded={false}
-      edges={[]}
-      footer={
-        <Button
-          title={t('File a claim')}
-          size="lg"
-          disabled={pols.length === 0}
-          onPress={() => nav.navigate('FileClaim', {})}
-          icon={<Icon name="umbrella" size={18} color="#fff" weight="fill" />}
-        />
-      }
-    >
-      <ScreenHeader
-        tone="weather"
-        title={t('Crop insurance')}
-        subtitle={t('Insure a field, and claim with photo evidence if weather or pests damage the crop.')}
-        stats={
-          pols.length
-            ? [
-                { label: t('Policies'), value: pols.length, icon: 'umbrella' },
-                { label: t('Claims'), value: cls.length, icon: 'scroll' },
-              ]
-            : undefined
-        }
-      />
+    <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: space.giant }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pols.refreshing || claims.refreshing}
+              onRefresh={reload}
+              tintColor="#fff"
+            />
+          }
+        >
+          <ScreenHeader
+            tone="weather"
+            title={t('Crop insurance')}
+            subtitle={t('Track your PMFBY claim and escalate it if it gets stuck.')}
+            stats={
+              policies.length
+                ? [
+                    { label: t('Policies'), value: policies.length, icon: 'umbrella' },
+                    { label: t('Claims'), value: claimList.length, icon: 'scroll' },
+                    { label: t('Escalations'), value: openEsc.length, icon: 'alerts' },
+                  ]
+                : undefined
+            }
+          />
 
-      <View style={{ padding: space.lg, gap: space.md }}>
-      {/* policies */}
-      <SectionHeader
-        title={t('My policies')}
-        action={{ label: t('Insure a field'), onPress: () => nav.navigate('Enroll') }}
-      />
-      {policies.loading ? (
-        <Card elevation="flat"><Text variant="body" muted>{t('Loading…')}</Text></Card>
-      ) : pols.length === 0 ? (
-        <EmptyState
-          icon="umbrella"
-          title={t('No policies yet')}
-          body={t('Enrol a field under a crop-insurance scheme to be able to claim.')}
-          action={{ label: t('Insure a field'), onPress: () => nav.navigate('Enroll') }}
-        />
-      ) : (
-        pols.map((p, i) => (
-          <Reveal key={p.id} index={i}>
-            <Card elevation="flat" accent={p.status === 'active' ? palette.success : palette.textFaint}>
-              <Row between>
-                <Text variant="subhead">{p.field_name || p.crop}</Text>
-                <Chip
-                  label={t(p.status)}
-                  bg={p.status === 'active' ? palette.successSoft : palette.surfaceSunken}
-                  color={p.status === 'active' ? palette.success : palette.textMuted}
-                />
-              </Row>
-              <Text variant="caption" muted>
-                {p.crop} · {p.season}
-                {p.scheme_title ? ` · ${p.scheme_title.split('(')[0].trim()}` : ''}
-              </Text>
-              <Row gap={space.lg} style={{ marginTop: space.xs }}>
-                <View>
-                  <Text variant="overline" color={palette.sky}>{t('Sum insured')}</Text>
-                  <Text variant="bodyStrong" color={palette.sky}>{rupee(p.sum_insured)}</Text>
-                </View>
-                <View>
-                  <Text variant="overline" color={palette.gold}>{t('Premium paid')}</Text>
-                  <Text variant="bodyStrong" color="#8A6A22">{rupee(p.premium_paid)}</Text>
-                </View>
-                {p.claim_count > 0 && (
-                  <View>
-                    <Text variant="overline" color={palette.textFaint}>{t('Claims')}</Text>
-                    <Text variant="bodyStrong">{p.claim_count}</Text>
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md }}>
+            {loading ? (
+              <SkeletonList count={3} />
+            ) : pols.error ? (
+              <ErrorState message={pols.error} onRetry={reload} />
+            ) : policies.length === 0 ? (
+              <EmptyState
+                icon="umbrella"
+                title={t('Add your PMFBY policy')}
+                body={t(
+                  'Enter the policy from your crop-insurance acknowledgement slip or SMS. Then you can track a claim through every stage and escalate it if it stalls.',
+                )}
+                action={{ label: t('Add a policy'), onPress: () => nav.navigate('PolicyForm') }}
+              />
+            ) : (
+              <>
+                {/* tracked claims first — they need attention */}
+                {claimList.length > 0 && (
+                  <View style={{ gap: space.sm }}>
+                    <Text variant="overline">{t('Tracked claims')}</Text>
+                    {claimList.map((c, i) => (
+                      <Reveal key={c.id} index={Math.min(i, 5)}>
+                        <ClaimRow claim={c} t={t} onPress={() => nav.navigate('ClaimTrack', { claimId: c.id })} />
+                      </Reveal>
+                    ))}
                   </View>
                 )}
-              </Row>
-            </Card>
-          </Reveal>
-        ))
-      )}
 
-      {/* claims */}
-      <SectionHeader title={t('My claims')} style={{ marginTop: space.lg }} />
-      {cls.length === 0 ? (
-        <Text variant="body" muted style={{ paddingVertical: space.sm }}>
-          {t('No claims filed.')}
-        </Text>
-      ) : (
-        cls.map((c, i) => {
-          const st = CLAIM_STATUS[c.status] ?? { label: c.status, color: palette.textMuted };
-          return (
-            <Reveal key={c.id} index={i}>
-              <Card onPress={() => nav.navigate('ClaimDetail', { claimId: c.id })} elevation="flat" accent={st.color}>
-                <Row between>
-                  <Text variant="subhead">{t(CAUSE_LABEL[c.cause] ?? c.cause)}</Text>
-                  <Row gap={5}>
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: st.color }} />
-                    <Text variant="caption" color={st.color}>{t(st.label)}</Text>
-                  </Row>
+                {/* policies */}
+                <Row between style={{ marginTop: claimList.length ? space.sm : 0 }}>
+                  <Text variant="overline">{t('My policies')}</Text>
+                  <PressableScale onPress={() => nav.navigate('PolicyForm')} compact>
+                    <Row gap={4}>
+                      <Icon name="plus" size={14} color={palette.primary} weight="bold" />
+                      <Text variant="label" color={palette.primary}>
+                        {t('Add')}
+                      </Text>
+                    </Row>
+                  </PressableScale>
                 </Row>
-                <Text variant="caption" muted>
-                  {c.crop} · {c.field_name ?? c.season}
-                  {c.incident_date ? ` · ${c.incident_date}` : ''}
+                {policies.map((p, i) => {
+                  const claim = claimList.find((c) => c.policy_ref_id === p.id);
+                  return (
+                    <Reveal key={p.id} index={Math.min(i, 5)}>
+                      <PolicyCard
+                        policy={p}
+                        hasClaim={!!claim}
+                        t={t}
+                        onTrack={() =>
+                          claim
+                            ? nav.navigate('ClaimTrack', { claimId: claim.id })
+                            : nav.navigate('StartClaim', { policyRefId: p.id })
+                        }
+                        onEdit={() => nav.navigate('PolicyForm', { policyId: p.id })}
+                      />
+                    </Reveal>
+                  );
+                })}
+
+                <Text variant="caption" faint style={{ marginTop: space.sm }}>
+                  {t(
+                    'AgriPod does not decide or pay claims — that is the government pipeline. It tracks yours and helps you push it forward.',
+                  )}
                 </Text>
-                {c.status === 'paid' || c.approved_amount != null ? (
-                  <Text variant="caption" color={palette.success}>
-                    {t('Payout')}: {rupee(c.approved_amount)}
-                  </Text>
-                ) : null}
-              </Card>
-            </Reveal>
-          );
-        })
-      )}
-      <View style={{ height: space.xl }} />
-      </View>
-    </Screen>
+              </>
+            )}
+          </View>
+        </ScrollView>
+    </View>
   );
 }
+
+function ClaimRow({
+  claim,
+  t,
+  onPress,
+}: {
+  claim: ClaimTrackListItem;
+  t: ReturnType<typeof useT>;
+  onPress: () => void;
+}) {
+  const badge = slaBadge(claim.clock, claim.outcome, t);
+  return (
+    <PressableScale onPress={onPress} style={[cardStyle, { borderLeftWidth: 3, borderLeftColor: badge.color }]}>
+      <Row between>
+        <Text variant="subhead" raw>
+          {t(claim.cause.replace('_', ' / '))} · {claim.crop}
+        </Text>
+        <Chip label={badge.label} size="sm" bg={badge.soft} color={badge.color} />
+      </Row>
+      <Row between style={{ marginTop: 2 }}>
+        <Text variant="caption" muted raw>
+          {t('Stage')}: {stageLabel(claim.stage, t)}
+        </Text>
+        <Icon name="right" size={14} color={palette.textFaint} />
+      </Row>
+    </PressableScale>
+  );
+}
+
+function PolicyCard({
+  policy,
+  hasClaim,
+  t,
+  onTrack,
+  onEdit,
+}: {
+  policy: PolicyRef;
+  hasClaim: boolean;
+  t: ReturnType<typeof useT>;
+  onTrack: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <Card elevation="flat" accent={palette.sky}>
+      <Row between>
+        <Row gap={space.sm} style={{ flex: 1 }}>
+          <Icon name="umbrella" size={16} color={palette.sky} weight="fill" />
+          <Text variant="subhead" raw numberOfLines={1}>
+            {policy.crop} · {policy.season}
+          </Text>
+        </Row>
+        <PressableScale onPress={onEdit} compact hitSlop={8}>
+          <Icon name="gear" size={15} color={palette.textFaint} />
+        </PressableScale>
+      </Row>
+      <Text variant="caption" muted raw>
+        {[
+          policy.insurer_name,
+          policy.application_no ? `#${policy.application_no}` : null,
+          policy.sum_insured ? `${t('Sum insured')} ₹${policy.sum_insured.toLocaleString('en-IN')}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      </Text>
+      {policy.district ? (
+        <Row gap={4}>
+          <Icon name="hotspot" size={11} color={palette.textFaint} weight="fill" />
+          <Text variant="caption" faint raw>
+            {policy.district}
+          </Text>
+        </Row>
+      ) : null}
+      <View style={{ marginTop: space.xs }}>
+        <Button
+          title={hasClaim ? t('Open the claim') : t('Track a claim')}
+          size="sm"
+          variant={hasClaim ? 'primary' : 'soft'}
+          onPress={onTrack}
+        />
+      </View>
+    </Card>
+  );
+}
+
+const cardStyle = {
+  backgroundColor: palette.surface,
+  borderRadius: radius.xl,
+  borderWidth: 1,
+  borderColor: palette.hairline,
+  padding: space.md,
+};
