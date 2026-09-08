@@ -6,12 +6,12 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
 import { useDailyBrief } from '../api/useDailyBrief';
+import { api } from '../api/client';
 import { useT } from '../i18n';
-import type { HomeData, InsightCard, Weather } from '../api/types';
+import type { AggTask, HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
-  Divider,
   Icon,
   Reveal,
   Row,
@@ -19,6 +19,7 @@ import {
   Text,
   ErrorState,
   PressableScale,
+  haptic,
   palette,
   radius,
   space,
@@ -82,17 +83,11 @@ export default function HomeScreen() {
   const w =
     d.weather ??
     (lw
-      ? {
-          place: lw.place.label,
-          current: lw.current,
-          today: lw.daily[0] ?? null,
-          topAdvisory: lw.advisories[0] ?? null,
-          advisoryCount: lw.advisories.length,
-          sprayWindow: lw.sprayWindow,
-        }
+      ? { place: lw.place.label, current: lw.current, today: lw.daily[0] ?? null }
       : null);
 
   const alerts = d.alerts.count + (d.nearbyOutbreaks?.count ?? 0);
+  const todo = d.tasks.today.filter((x) => !x.is_done);
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
@@ -100,8 +95,8 @@ export default function HomeScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + space.md,
           paddingHorizontal: space.lg,
-          paddingBottom: space.giant,
-          gap: space.lg,
+          paddingBottom: space.xxl,
+          gap: space.md,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={palette.primary} />}
@@ -135,7 +130,7 @@ export default function HomeScreen() {
           </Row>
         </Row>
 
-        {/* the brief leads */}
+        {/* the brief */}
         <AiBrief
           brief={briefApi.brief}
           loading={briefApi.loading}
@@ -144,74 +139,77 @@ export default function HomeScreen() {
           onAction={openInsight}
         />
 
-        {/* status — weather + the three counts, one card */}
-        <Reveal>
-          <Card elevation="raised" padded={false}>
-            {w && (
-              <PressableScale onPress={() => nav.navigate('Weather')} feedback="tap">
-                <View style={{ padding: space.lg, gap: space.xs }}>
-                  <Row between>
-                    <Row gap={space.md} style={{ alignItems: 'center' }}>
-                      <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={32} color={palette.primary} weight="fill" />
-                      <View>
-                        <Text variant="title" raw color={palette.text}>
-                          {Math.round(w.current.tempC ?? 0)}°
-                        </Text>
-                        <Text variant="caption" muted raw>
-                          {w.current.condition}
-                        </Text>
-                      </View>
-                    </Row>
-                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <Row gap={4}>
-                        <Icon name="hotspot" size={10} color={palette.textFaint} weight="fill" />
-                        <Text variant="caption" faint raw numberOfLines={1}>
-                          {w.place ?? t('your field')}
-                        </Text>
-                      </Row>
-                      {w.today && (
-                        <Text variant="caption" faint raw>
-                          H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
-                        </Text>
-                      )}
-                    </View>
-                  </Row>
-                  {w.topAdvisory && (
-                    <Row gap={6}>
-                      <Icon name="warning" size={12} color={palette.honey} weight="fill" />
-                      <Text variant="caption" color={palette.textMuted} style={{ flex: 1 }} numberOfLines={1} raw>
-                        {w.topAdvisory.title}
-                        {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
-                      </Text>
-                    </Row>
+        {/* weather + status, one slim row */}
+        {w && (
+          <Reveal>
+            <Card elevation="raised" onPress={() => nav.navigate('Weather')}>
+              <Row between>
+                <Row gap={space.sm} style={{ alignItems: 'center', flex: 1 }}>
+                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={28} color={palette.primary} weight="fill" />
+                  <View>
+                    <Text variant="bodyStrong" raw color={palette.text}>
+                      {Math.round(w.current.tempC ?? 0)}°  ·  {w.current.condition}
+                    </Text>
+                    <Text variant="caption" faint raw numberOfLines={1}>
+                      {w.place ?? t('your field')}
+                      {w.today ? `  ·  H ${Math.round(w.today.tempMaxC ?? 0)}° L ${Math.round(w.today.tempMinC ?? 0)}°` : ''}
+                    </Text>
+                  </View>
+                </Row>
+                <Row gap={space.xs}>
+                  {d.tasks.overdueCount > 0 && (
+                    <StatusPill
+                      value={d.tasks.overdueCount}
+                      tint={palette.honey}
+                      onPress={() => nav.navigate('Tasks')}
+                    />
                   )}
-                </View>
+                  {alerts > 0 && (
+                    <StatusPill value={alerts} tint={palette.danger} onPress={() => nav.navigate('Alerts')} />
+                  )}
+                </Row>
+              </Row>
+            </Card>
+          </Reveal>
+        )}
+
+        {/* today's tasks — compact */}
+        <Reveal index={1}>
+          <Card elevation="raised">
+            <Row between>
+              <Text variant="overline">{t('To do today')}</Text>
+              <PressableScale onPress={() => nav.navigate('Tasks')} compact>
+                <Text variant="label" color={palette.primary}>
+                  {t('All tasks')}
+                </Text>
               </PressableScale>
-            )}
-            {w && <Divider />}
-            <Row style={{ paddingVertical: space.md }}>
-              <Glance value={d.tasks.today.length} label={t('today')} onPress={() => nav.navigate('Tasks')} />
-              <Divider style={{ width: 1, height: 30 }} />
-              <Glance
-                value={d.tasks.overdueCount}
-                label={t('overdue')}
-                tint={d.tasks.overdueCount > 0 ? palette.honey : undefined}
-                onPress={() => nav.navigate('Tasks')}
-              />
-              <Divider style={{ width: 1, height: 30 }} />
-              <Glance
-                value={alerts}
-                label={t('alerts')}
-                tint={alerts > 0 ? palette.danger : undefined}
-                onPress={() => nav.navigate('Alerts')}
-              />
             </Row>
+            {todo.length === 0 ? (
+              <Text variant="caption" muted>
+                {d.tasks.upcomingCount > 0
+                  ? t('Nothing due today. {n} coming up this week.', { n: d.tasks.upcomingCount })
+                  : t('Nothing due today.')}
+              </Text>
+            ) : (
+              <View style={{ gap: 2, marginTop: 2 }}>
+                {todo.slice(0, 3).map((task) => (
+                  <TaskRow key={task.id} task={task} onDone={reload} />
+                ))}
+                {todo.length > 3 && (
+                  <PressableScale onPress={() => nav.navigate('Tasks')} compact style={{ paddingVertical: 4 }}>
+                    <Text variant="caption" color={palette.primary}>
+                      + {todo.length - 3} {t('more')}
+                    </Text>
+                  </PressableScale>
+                )}
+              </View>
+            )}
           </Card>
         </Reveal>
 
         {/* recent scans */}
         {d.recentScans.length > 0 && (
-          <Reveal index={1}>
+          <Reveal index={2}>
             <View style={{ gap: space.sm }}>
               <Row between>
                 <Text variant="overline">{t('Recent scans')}</Text>
@@ -224,10 +222,10 @@ export default function HomeScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
                 {d.recentScans.map((s) => (
                   <PressableScale key={s.id} onPress={() => nav.navigate('ScanResult', { scanId: s.id })} compact>
-                    <View style={{ width: 104, gap: 5 }}>
+                    <View style={{ width: 96, gap: 4 }}>
                       <Image
                         source={{ uri: s.image_url }}
-                        style={{ width: 104, height: 104, borderRadius: radius.lg }}
+                        style={{ width: 96, height: 96, borderRadius: radius.lg }}
                         contentFit="cover"
                       />
                       <Text variant="caption" numberOfLines={1} raw>
@@ -240,69 +238,56 @@ export default function HomeScreen() {
             </View>
           </Reveal>
         )}
-
-        {/* shortcuts */}
-        <Reveal index={2}>
-          <Row gap={space.sm}>
-            <QuietLink icon="fields" label={t('Fields')} onPress={() => nav.getParent()?.navigate('Fields' as never)} />
-            <QuietLink icon="calendar" label={t('Calendar')} onPress={() => nav.navigate('Tasks')} />
-            <QuietLink icon="activity" label={t('Activity')} onPress={() => nav.navigate('Activity')} />
-            <QuietLink icon="money" label={t('Money')} onPress={() => nav.getParent()?.navigate('Stock' as never)} />
-          </Row>
-        </Reveal>
       </ScrollView>
     </View>
   );
 }
 
-function Glance({
-  value,
-  label,
-  tint,
-  onPress,
-}: {
-  value: number;
-  label: string;
-  tint?: string;
-  onPress: () => void;
-}) {
+function TaskRow({ task, onDone }: { task: AggTask; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    haptic.tap();
+    try {
+      await api.request(`/api/calendar/tasks/${task.id}`, { method: 'PATCH', body: { isDone: true } });
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <PressableScale onPress={onPress} compact style={{ flex: 1 }}>
-      <View style={{ alignItems: 'center', gap: 3 }}>
-        <Text variant="title" raw color={tint ?? palette.text}>
-          {String(value)}
+    <PressableScale onPress={toggle} feedback={false} disabled={busy}>
+      <Row gap={space.sm} style={{ paddingVertical: 6 }}>
+        <Icon name="circle" size={18} color={palette.borderStrong} />
+        <Text variant="body" style={{ flex: 1 }} numberOfLines={1} raw>
+          {task.title}
         </Text>
-        <Text variant="overline">{label}</Text>
-      </View>
+        {task.field_name ? (
+          <Text variant="caption" faint raw numberOfLines={1}>
+            {task.field_name}
+          </Text>
+        ) : null}
+      </Row>
     </PressableScale>
   );
 }
 
-function QuietLink({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: React.ComponentProps<typeof Icon>['name'];
-  label: string;
-  onPress: () => void;
-}) {
+function StatusPill({ value, tint, onPress }: { value: number; tint: string; onPress: () => void }) {
   return (
-    <PressableScale onPress={onPress} compact style={{ flex: 1 }}>
+    <PressableScale onPress={onPress} compact>
       <View
         style={{
+          minWidth: 26,
+          height: 26,
+          borderRadius: radius.pill,
+          paddingHorizontal: 8,
+          backgroundColor: tint + '22',
           alignItems: 'center',
-          gap: 6,
-          paddingVertical: space.md,
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: palette.hairline,
-          backgroundColor: palette.surface,
+          justifyContent: 'center',
         }}
       >
-        <Icon name={icon} size={17} color={palette.primary} weight="regular" />
-        <Text variant="caption" muted>
-          {label}
+        <Text variant="label" color={tint} raw>
+          {String(value)}
         </Text>
       </View>
     </PressableScale>
