@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
@@ -14,6 +13,7 @@ import {
   LoaderScreen,
   PressableScale,
   Row,
+  ScreenHeader,
   SegmentedControl,
   Text,
   palette,
@@ -29,7 +29,6 @@ const STATUS: Record<string, { label: string; color: string }> = {
 };
 
 export default function MySchemesScreen() {
-  const insets = useSafeAreaInsets();
   const nav = useNavigation<any>();
   const [tab, setTab] = useState<'apps' | 'questions'>('apps');
   const apps = useApi<{ applications: SchemeApplication[] }>('/api/schemes/applications');
@@ -50,15 +49,19 @@ export default function MySchemesScreen() {
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: 0,
           paddingHorizontal: space.lg,
           paddingBottom: space.giant,
           gap: space.md,
         }}
       >
-        <Text variant="hero">
-          My schemes
-        </Text>
+        <ScreenHeader
+          tone="money"
+          title="My schemes"
+          subtitle="Your applications and questions to the extension office."
+          onBack={() => nav.goBack()}
+          style={{ marginHorizontal: -space.lg, marginBottom: space.sm }}
+        />
         <SegmentedControl
           value={tab}
           onChange={setTab}
@@ -75,8 +78,9 @@ export default function MySchemesScreen() {
             apps.data!.applications.map((a) => {
               const st = STATUS[a.status] ?? { label: a.status, color: palette.textMuted };
               return (
-                <Card key={a.id} elevation="flat">
-                  <Row between>
+                <Card key={a.id} elevation="flat" accent={st.color}>
+                  <Row gap={space.sm}>
+                    <Icon name="scroll" size={16} color={palette.gold} weight="fill" />
                     <Text variant="subhead" style={{ flex: 1 }}>
                       {a.scheme_title}
                     </Text>

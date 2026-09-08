@@ -14,10 +14,10 @@ import {
   Reveal,
   Row,
   Screen,
+  ScreenHeader,
   SectionHeader,
   Text,
   palette,
-  radius,
   space,
 } from '../ui';
 import type { InsuranceStackParams } from '../navigation';
@@ -61,6 +61,8 @@ export default function InsuranceScreen() {
   return (
     <Screen
       scroll
+      padded={false}
+      edges={[]}
       footer={
         <Button
           title={t('File a claim')}
@@ -71,13 +73,21 @@ export default function InsuranceScreen() {
         />
       }
     >
-      <View>
-        <Text variant="hero">{t('Crop insurance')}</Text>
-        <Text variant="body" muted>
-          {t('Insure a field, and claim with photo evidence if weather or pests damage the crop.')}
-        </Text>
-      </View>
+      <ScreenHeader
+        tone="weather"
+        title={t('Crop insurance')}
+        subtitle={t('Insure a field, and claim with photo evidence if weather or pests damage the crop.')}
+        stats={
+          pols.length
+            ? [
+                { label: t('Policies'), value: pols.length, icon: 'umbrella' },
+                { label: t('Claims'), value: cls.length, icon: 'scroll' },
+              ]
+            : undefined
+        }
+      />
 
+      <View style={{ padding: space.lg, gap: space.md }}>
       {/* policies */}
       <SectionHeader
         title={t('My policies')}
@@ -95,7 +105,7 @@ export default function InsuranceScreen() {
       ) : (
         pols.map((p, i) => (
           <Reveal key={p.id} index={i}>
-            <Card elevation="flat">
+            <Card elevation="flat" accent={p.status === 'active' ? palette.success : palette.textFaint}>
               <Row between>
                 <Text variant="subhead">{p.field_name || p.crop}</Text>
                 <Chip
@@ -110,12 +120,12 @@ export default function InsuranceScreen() {
               </Text>
               <Row gap={space.lg} style={{ marginTop: space.xs }}>
                 <View>
-                  <Text variant="overline" color={palette.textFaint}>{t('Sum insured')}</Text>
-                  <Text variant="bodyStrong">{rupee(p.sum_insured)}</Text>
+                  <Text variant="overline" color={palette.sky}>{t('Sum insured')}</Text>
+                  <Text variant="bodyStrong" color={palette.sky}>{rupee(p.sum_insured)}</Text>
                 </View>
                 <View>
-                  <Text variant="overline" color={palette.textFaint}>{t('Premium paid')}</Text>
-                  <Text variant="bodyStrong">{rupee(p.premium_paid)}</Text>
+                  <Text variant="overline" color={palette.gold}>{t('Premium paid')}</Text>
+                  <Text variant="bodyStrong" color="#8A6A22">{rupee(p.premium_paid)}</Text>
                 </View>
                 {p.claim_count > 0 && (
                   <View>
@@ -140,7 +150,7 @@ export default function InsuranceScreen() {
           const st = CLAIM_STATUS[c.status] ?? { label: c.status, color: palette.textMuted };
           return (
             <Reveal key={c.id} index={i}>
-              <Card onPress={() => nav.navigate('ClaimDetail', { claimId: c.id })} elevation="flat">
+              <Card onPress={() => nav.navigate('ClaimDetail', { claimId: c.id })} elevation="flat" accent={st.color}>
                 <Row between>
                   <Text variant="subhead">{t(CAUSE_LABEL[c.cause] ?? c.cause)}</Text>
                   <Row gap={5}>
@@ -163,6 +173,7 @@ export default function InsuranceScreen() {
         })
       )}
       <View style={{ height: space.xl }} />
+      </View>
     </Screen>
   );
 }

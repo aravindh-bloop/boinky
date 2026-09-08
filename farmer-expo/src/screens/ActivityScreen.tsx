@@ -14,21 +14,11 @@ import {
   ScreenHeader,
   SkeletonList,
   Text,
+  kindMeta,
   palette,
   radius,
   space,
 } from '../ui';
-
-const KIND_ICON: Record<string, any> = {
-  irrigation: 'irrigate',
-  spraying: 'spray',
-  fertilizing: 'fertilize',
-  sowing: 'fields',
-  weeding: 'weeding',
-  scouting: 'scout',
-  harvest: 'harvest',
-  other: 'activity',
-};
 
 export default function ActivityScreen() {
   const nav = useNavigation<any>();
@@ -74,41 +64,44 @@ export default function ActivityScreen() {
             <EmptyState icon="activity" title="No activity yet" body="Log irrigation, spraying, fertilising and more to build your farm record." />
           )
         }
-        renderItem={({ item, index }) => (
-          <Reveal index={Math.min(index, 8)}>
-            <Card elevation="flat" style={{ flexDirection: 'row', gap: space.md }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radius.md,
-                  backgroundColor: palette.surfaceSunken,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name={KIND_ICON[item.kind] ?? 'activity'} size={20} color={palette.primaryDeep} weight="fill" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong">{item.title}</Text>
-                <Text variant="caption" faint>
-                  {item.field_name ?? 'no field'} · {fmt(item.activity_date)}
-                  {item.quantity ? ` · ${item.quantity}${item.unit ?? ''}` : ''}
-                </Text>
-                {item.note ? (
-                  <Text variant="caption" muted numberOfLines={2}>
-                    {item.note}
+        renderItem={({ item, index }) => {
+          const km = kindMeta(item.kind);
+          return (
+            <Reveal index={Math.min(index, 8)}>
+              <Card elevation="flat" accent={km.tint} style={{ flexDirection: 'row', gap: space.md }}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.md,
+                    backgroundColor: km.soft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name={km.icon} size={20} color={km.tint} weight="fill" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyStrong">{item.title}</Text>
+                  <Text variant="caption" faint>
+                    {item.field_name ?? 'no field'} · {fmt(item.activity_date)}
+                    {item.quantity ? ` · ${item.quantity}${item.unit ?? ''}` : ''}
+                  </Text>
+                  {item.note ? (
+                    <Text variant="caption" muted numberOfLines={2}>
+                      {item.note}
+                    </Text>
+                  ) : null}
+                </View>
+                {item.cost ? (
+                  <Text variant="bodyStrong" color={palette.coral}>
+                    ₹{Math.round(item.cost)}
                   </Text>
                 ) : null}
-              </View>
-              {item.cost ? (
-                <Text variant="bodyStrong" color={palette.clay}>
-                  ₹{Math.round(item.cost)}
-                </Text>
-              ) : null}
-            </Card>
-          </Reveal>
-        )}
+              </Card>
+            </Reveal>
+          );
+        }}
       />
     </View>
   );

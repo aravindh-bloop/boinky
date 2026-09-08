@@ -14,19 +14,11 @@ import {
   Text,
   PressableScale,
   haptic,
+  kindMeta,
   palette,
   radius,
   space,
 } from '../ui';
-
-const KIND_ICON: Record<string, any> = {
-  irrigation: 'irrigate',
-  spraying: 'spray',
-  fertilizing: 'fertilize',
-  scouting: 'scout',
-  harvest: 'harvest',
-  other: 'calendar',
-};
 
 export default function TasksScreen() {
   const nav = useNavigation<any>();
@@ -83,7 +75,9 @@ export default function TasksScreen() {
             {section.title.toUpperCase()} · {section.data.length}
           </Text>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const km = kindMeta(item.task_type);
+          return (
           <PressableScale onPress={() => toggle(item)} feedback={false} style={{ opacity: item.is_done ? 0.5 : 1 }}>
             <View
               style={{
@@ -94,13 +88,15 @@ export default function TasksScreen() {
                 padding: space.md,
                 borderWidth: 1,
                 borderColor: palette.hairline,
+                borderLeftWidth: 3,
+                borderLeftColor: item.is_done ? palette.border : km.tint,
               }}
             >
               <PressableScale onPress={() => toggle(item)} compact hitSlop={8}>
                 <Icon
                   name={item.is_done ? 'check' : 'circle'}
                   size={24}
-                  color={item.is_done ? palette.primary : palette.borderStrong}
+                  color={item.is_done ? palette.primary : km.tint}
                   weight={item.is_done ? 'fill' : 'regular'}
                 />
               </PressableScale>
@@ -131,14 +127,15 @@ export default function TasksScreen() {
                   }
                   compact
                 >
-                  <View style={{ backgroundColor: palette.primarySoft, borderRadius: radius.pill, padding: 8 }}>
-                    <Icon name={KIND_ICON[item.task_type ?? 'other'] ?? 'activity'} size={16} color={palette.primaryDeep} weight="fill" />
+                  <View style={{ backgroundColor: km.soft, borderRadius: radius.pill, padding: 8 }}>
+                    <Icon name={km.icon} size={16} color={km.tint} weight="fill" />
                   </View>
                 </PressableScale>
               )}
             </View>
           </PressableScale>
-        )}
+          );
+        }}
       />
     </View>
   );

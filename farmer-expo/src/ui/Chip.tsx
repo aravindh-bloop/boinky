@@ -39,25 +39,39 @@ interface SelectableProps {
   selected: boolean;
   onPress: () => void;
   style?: ViewStyle;
+  /** Colour for the selected state — defaults to the primary green. */
+  accent?: string;
+  /** Soft background for the selected state — pair with `accent`. */
+  accentSoft?: string;
+  icon?: React.ReactNode;
 }
 
-export function SelectChip({ label, selected, onPress, style }: SelectableProps) {
+export function SelectChip({
+  label,
+  selected,
+  onPress,
+  style,
+  accent = palette.primary,
+  accentSoft = palette.primarySoft,
+  icon,
+}: SelectableProps) {
   return (
     <PressableScale onPress={onPress} feedback="select" compact style={style}>
       <View
         style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
           borderRadius: radius.pill,
           paddingHorizontal: space.lg,
           paddingVertical: space.sm + 1,
           borderWidth: 1,
-          borderColor: selected ? palette.primary : palette.border,
-          backgroundColor: selected ? palette.primarySoft : palette.surface,
+          borderColor: selected ? accent : palette.border,
+          backgroundColor: selected ? accentSoft : palette.surface,
         }}
       >
-        <Text
-          variant="label"
-          color={selected ? palette.primaryDeep : palette.textMuted}
-        >
+        {icon}
+        <Text variant="label" color={selected ? accent : palette.textMuted}>
           {label}
         </Text>
       </View>

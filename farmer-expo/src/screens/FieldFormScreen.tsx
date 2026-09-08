@@ -68,7 +68,11 @@ export default function FieldFormScreen() {
   return (
     <Screen footer={<Button title="Save field" onPress={save} loading={busy} size="lg" />}>
       <Stagger>
-        <Card>
+        <Card accent={palette.primary}>
+          <Row gap={space.sm}>
+            <Icon name="fields" size={16} color={palette.primary} weight="fill" />
+            <Text variant="subhead">Crop details</Text>
+          </Row>
           <Field label="Field name (optional)" value={name} onChangeText={setName} placeholder="e.g. North plot" />
           <Field label="Crop" value={crop} onChangeText={setCrop} placeholder="cotton, soybean, tomato…" />
           <Field label="Variety (optional)" value={variety} onChangeText={setVariety} placeholder="e.g. Bt-II" />
@@ -81,8 +85,11 @@ export default function FieldFormScreen() {
           />
         </Card>
 
-        <Card>
-          <Text variant="subhead">Location</Text>
+        <Card accent={palette.sky}>
+          <Row gap={space.sm}>
+            <Icon name="hotspot" size={16} color={palette.sky} weight="fill" />
+            <Text variant="subhead">Location</Text>
+          </Row>
           <Text variant="caption" faint>
             Used for weather-risk alerts, the hotspot map and district-wise outbreak tracking.
           </Text>

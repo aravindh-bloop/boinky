@@ -29,6 +29,14 @@ import {
 
 const TYPES = ['seed', 'fertilizer', 'pesticide', 'equipment', 'other'];
 
+const TYPE_TINT: Record<string, { bg: string; fg: string }> = {
+  seed: { bg: palette.primarySoft, fg: palette.primaryDeep },
+  fertilizer: { bg: palette.goldSoft, fg: '#8A6A22' },
+  pesticide: { bg: palette.irisSoft, fg: palette.iris },
+  equipment: { bg: palette.skySoft, fg: palette.sky },
+  other: { bg: palette.surfaceSunken, fg: palette.textMuted },
+};
+
 export default function StockScreen() {
   const nav = useNavigation<any>();
   const inv = useApi<{ items: InventoryItem[] }>('/api/inventory');
@@ -155,12 +163,14 @@ export default function StockScreen() {
             <EmptyState icon="stock" title="No stock recorded" body="Track seed, fertiliser and pesticide so you know when to restock." />
           )
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index }) => {
+          const tt = TYPE_TINT[item.item_type ?? 'other'] ?? TYPE_TINT.other;
+          return (
           <Reveal index={Math.min(index, 8)}>
-            <Card elevation="flat">
+            <Card elevation="flat" accent={tt.fg}>
               <Row between>
                 <Text variant="subhead">{item.item_name}</Text>
-                {item.item_type ? <Chip label={item.item_type} size="sm" bg={palette.surfaceSunken} color={palette.textMuted} /> : null}
+                {item.item_type ? <Chip label={item.item_type} size="sm" bg={tt.bg} color={tt.fg} /> : null}
               </Row>
               <Row gap={space.md} style={{ marginTop: space.xs }}>
                 <Stepper onPress={() => adjust(item, -1)} name="left" />
@@ -192,7 +202,8 @@ export default function StockScreen() {
               ) : null}
             </Card>
           </Reveal>
-        )}
+          );
+        }}
       />
     </View>
   );

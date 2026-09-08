@@ -19,6 +19,7 @@ import {
   OrganicBackground,
   Reveal,
   Row,
+  ScreenHeader,
   SelectChip,
   Text,
   palette,
@@ -132,14 +133,13 @@ export default function ScanScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <OrganicBackground tint="green" height={190 + insets.top} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={{
-            paddingTop: insets.top + space.xl,
+            paddingTop: 0,
             paddingHorizontal: space.lg,
             gap: space.md,
             paddingBottom: space.xl,
@@ -147,14 +147,12 @@ export default function ScanScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View>
-          <Text variant="hero">
-            Scan a crop
-          </Text>
-          <Text variant="body" muted>
-            Photograph the affected leaf, stem or fruit
-          </Text>
-        </View>
+        <ScreenHeader
+          tone="scan"
+          title="Scan a crop"
+          subtitle="Photograph the affected leaf, stem or fruit — AI checks it for disease."
+          style={{ marginHorizontal: -space.lg, marginBottom: space.sm }}
+        />
 
         <Reveal>
           <Card>
@@ -195,15 +193,31 @@ export default function ScanScreen() {
 
         {fields.length > 0 && (
           <Reveal index={1}>
-            <Card elevation="flat">
-              <Text variant="subhead">Which field?</Text>
+            <Card elevation="flat" accent={palette.sky}>
+              <Row gap={space.sm}>
+                <Icon name="fields" size={16} color={palette.sky} weight="fill" />
+                <Text variant="subhead">Which field?</Text>
+              </Row>
               <Text variant="caption" faint>
                 Optional — improves the diagnosis and risk score
               </Text>
               <Row gap={space.sm} style={{ flexWrap: 'wrap', marginTop: space.xs }}>
-                <SelectChip label="None" selected={!fieldId} onPress={() => setFieldId(undefined)} />
+                <SelectChip
+                  label="None"
+                  selected={!fieldId}
+                  onPress={() => setFieldId(undefined)}
+                  accent={palette.sky}
+                  accentSoft={palette.skySoft}
+                />
                 {fields.map((f) => (
-                  <SelectChip key={f.id} label={f.name || f.crop} selected={fieldId === f.id} onPress={() => setFieldId(f.id)} />
+                  <SelectChip
+                    key={f.id}
+                    label={f.name || f.crop}
+                    selected={fieldId === f.id}
+                    onPress={() => setFieldId(f.id)}
+                    accent={palette.sky}
+                    accentSoft={palette.skySoft}
+                  />
                 ))}
               </Row>
             </Card>
@@ -211,7 +225,7 @@ export default function ScanScreen() {
         )}
 
           <Reveal index={2}>
-            <Card elevation="flat">
+            <Card elevation="flat" accent={palette.iris}>
               <VoiceNote
                 value={note}
                 onChange={setNote}

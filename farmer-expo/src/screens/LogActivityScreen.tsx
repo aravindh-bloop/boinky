@@ -14,6 +14,7 @@ import {
   Screen,
   SelectChip,
   Text,
+  kindMeta,
   palette,
   space,
 } from '../ui';
@@ -22,14 +23,14 @@ import type { FieldsStackParams } from '../navigation';
 type R = RouteProp<FieldsStackParams, 'LogActivity'>;
 
 const KINDS = [
-  { v: 'irrigation', label: 'Irrigation', icon: 'irrigate' },
-  { v: 'spraying', label: 'Spraying', icon: 'spray' },
-  { v: 'fertilizing', label: 'Fertilizing', icon: 'fertilize' },
-  { v: 'sowing', label: 'Sowing', icon: 'fields' },
-  { v: 'weeding', label: 'Weeding', icon: 'weeding' },
-  { v: 'scouting', label: 'Scouting', icon: 'scout' },
-  { v: 'harvest', label: 'Harvest', icon: 'harvest' },
-  { v: 'other', label: 'Other', icon: 'activity' },
+  { v: 'irrigation', label: 'Irrigation' },
+  { v: 'spraying', label: 'Spraying' },
+  { v: 'fertilizing', label: 'Fertilizing' },
+  { v: 'sowing', label: 'Sowing' },
+  { v: 'weeding', label: 'Weeding' },
+  { v: 'scouting', label: 'Scouting' },
+  { v: 'harvest', label: 'Harvest' },
+  { v: 'other', label: 'Other' },
 ] as const;
 
 export default function LogActivityScreen() {
@@ -80,14 +81,35 @@ export default function LogActivityScreen() {
 
   return (
     <Screen footer={<Button title="Save activity" onPress={save} loading={busy} size="lg" />}>
-      <Card>
-        <Text variant="label" muted>
-          WHAT DID YOU DO?
-        </Text>
+      <Card accent={kindMeta(kind).tint}>
+        <Row gap={space.sm}>
+          <Icon name={kindMeta(kind).icon} size={16} color={kindMeta(kind).tint} weight="fill" />
+          <Text variant="label" muted>
+            WHAT DID YOU DO?
+          </Text>
+        </Row>
         <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
-          {KINDS.map((k) => (
-            <SelectChip key={k.v} label={k.label} selected={kind === k.v} onPress={() => setKind(k.v)} />
-          ))}
+          {KINDS.map((k) => {
+            const km = kindMeta(k.v);
+            return (
+              <SelectChip
+                key={k.v}
+                label={k.label}
+                selected={kind === k.v}
+                onPress={() => setKind(k.v)}
+                accent={km.tint}
+                accentSoft={km.soft}
+                icon={
+                  <Icon
+                    name={km.icon}
+                    size={13}
+                    color={kind === k.v ? km.tint : palette.textFaint}
+                    weight="fill"
+                  />
+                }
+              />
+            );
+          })}
         </Row>
       </Card>
 
