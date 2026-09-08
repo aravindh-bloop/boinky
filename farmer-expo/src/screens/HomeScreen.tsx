@@ -11,6 +11,7 @@ import type { HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
+  Divider,
   Icon,
   Reveal,
   Row,
@@ -134,48 +135,7 @@ export default function HomeScreen() {
           </Row>
         </Row>
 
-        {/* weather — one calm card */}
-        {w && (
-          <Card onPress={() => nav.navigate('Weather')} elevation="raised">
-            <Row between>
-              <Row gap={space.md} style={{ alignItems: 'center' }}>
-                <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={36} color={palette.primary} weight="fill" />
-                <View>
-                  <Text variant="hero" raw color={palette.text} style={{ fontSize: 30, lineHeight: 34 }}>
-                    {Math.round(w.current.tempC ?? 0)}°
-                  </Text>
-                  <Text variant="caption" muted raw>
-                    {w.current.condition}
-                  </Text>
-                </View>
-              </Row>
-              <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                <Row gap={4}>
-                  <Icon name="hotspot" size={11} color={palette.textFaint} weight="fill" />
-                  <Text variant="caption" faint raw>
-                    {w.place ?? t('your field')}
-                  </Text>
-                </Row>
-                {w.today && (
-                  <Text variant="caption" faint raw>
-                    H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
-                  </Text>
-                )}
-              </View>
-            </Row>
-            {w.topAdvisory && (
-              <Row gap={space.sm} style={{ marginTop: space.xs }}>
-                <Icon name="warning" size={13} color={palette.honey} weight="fill" />
-                <Text variant="caption" color={palette.textMuted} style={{ flex: 1 }} numberOfLines={1}>
-                  {w.topAdvisory.title}
-                  {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
-                </Text>
-              </Row>
-            )}
-          </Card>
-        )}
-
-        {/* the brief */}
+        {/* the brief leads */}
         <AiBrief
           brief={briefApi.brief}
           loading={briefApi.loading}
@@ -184,23 +144,69 @@ export default function HomeScreen() {
           onAction={openInsight}
         />
 
-        {/* at a glance — three quiet numbers */}
+        {/* status — weather + the three counts, one card */}
         <Reveal>
-          <Row style={{ justifyContent: 'space-around' }}>
-            <Glance value={d.tasks.today.length} label={t('today')} onPress={() => nav.navigate('Tasks')} />
-            <Glance
-              value={d.tasks.overdueCount}
-              label={t('overdue')}
-              tint={d.tasks.overdueCount > 0 ? palette.honey : undefined}
-              onPress={() => nav.navigate('Tasks')}
-            />
-            <Glance
-              value={alerts}
-              label={t('alerts')}
-              tint={alerts > 0 ? palette.danger : undefined}
-              onPress={() => nav.navigate('Alerts')}
-            />
-          </Row>
+          <Card elevation="raised" padded={false}>
+            {w && (
+              <PressableScale onPress={() => nav.navigate('Weather')} feedback="tap">
+                <View style={{ padding: space.lg, gap: space.xs }}>
+                  <Row between>
+                    <Row gap={space.md} style={{ alignItems: 'center' }}>
+                      <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={32} color={palette.primary} weight="fill" />
+                      <View>
+                        <Text variant="title" raw color={palette.text}>
+                          {Math.round(w.current.tempC ?? 0)}°
+                        </Text>
+                        <Text variant="caption" muted raw>
+                          {w.current.condition}
+                        </Text>
+                      </View>
+                    </Row>
+                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                      <Row gap={4}>
+                        <Icon name="hotspot" size={10} color={palette.textFaint} weight="fill" />
+                        <Text variant="caption" faint raw numberOfLines={1}>
+                          {w.place ?? t('your field')}
+                        </Text>
+                      </Row>
+                      {w.today && (
+                        <Text variant="caption" faint raw>
+                          H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
+                        </Text>
+                      )}
+                    </View>
+                  </Row>
+                  {w.topAdvisory && (
+                    <Row gap={6}>
+                      <Icon name="warning" size={12} color={palette.honey} weight="fill" />
+                      <Text variant="caption" color={palette.textMuted} style={{ flex: 1 }} numberOfLines={1} raw>
+                        {w.topAdvisory.title}
+                        {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
+                      </Text>
+                    </Row>
+                  )}
+                </View>
+              </PressableScale>
+            )}
+            {w && <Divider />}
+            <Row style={{ paddingVertical: space.md }}>
+              <Glance value={d.tasks.today.length} label={t('today')} onPress={() => nav.navigate('Tasks')} />
+              <Divider style={{ width: 1, height: 30 }} />
+              <Glance
+                value={d.tasks.overdueCount}
+                label={t('overdue')}
+                tint={d.tasks.overdueCount > 0 ? palette.honey : undefined}
+                onPress={() => nav.navigate('Tasks')}
+              />
+              <Divider style={{ width: 1, height: 30 }} />
+              <Glance
+                value={alerts}
+                label={t('alerts')}
+                tint={alerts > 0 ? palette.danger : undefined}
+                onPress={() => nav.navigate('Alerts')}
+              />
+            </Row>
+          </Card>
         </Reveal>
 
         {/* recent scans */}
@@ -235,9 +241,10 @@ export default function HomeScreen() {
           </Reveal>
         )}
 
-        {/* quiet links */}
+        {/* shortcuts */}
         <Reveal index={2}>
           <Row gap={space.sm}>
+            <QuietLink icon="fields" label={t('Fields')} onPress={() => nav.getParent()?.navigate('Fields' as never)} />
             <QuietLink icon="calendar" label={t('Calendar')} onPress={() => nav.navigate('Tasks')} />
             <QuietLink icon="activity" label={t('Activity')} onPress={() => nav.navigate('Activity')} />
             <QuietLink icon="money" label={t('Money')} onPress={() => nav.getParent()?.navigate('Stock' as never)} />
@@ -286,14 +293,14 @@ function QuietLink({
         style={{
           alignItems: 'center',
           gap: 6,
-          paddingVertical: space.lg,
+          paddingVertical: space.md,
           borderRadius: radius.lg,
           borderWidth: 1,
           borderColor: palette.hairline,
           backgroundColor: palette.surface,
         }}
       >
-        <Icon name={icon} size={18} color={palette.primary} weight="regular" />
+        <Icon name={icon} size={17} color={palette.primary} weight="regular" />
         <Text variant="caption" muted>
           {label}
         </Text>
