@@ -1,7 +1,15 @@
 # AgriPod — Crop-Insurance **Tracker & Escalation** (pivot)
 
-> Companion to `TECHNICAL_APPROACH.md` §M4. Supersedes the "build a claims system" framing
+> Companion to `TECHNICAL_APPROACH.md` §10.5. Supersedes the "build a claims system" framing
 > of the Deep-AI M4 module. Last updated: 2026-09-08.
+
+> **Status — Phase 0 built & tested (2026-09-08).** Backend (`modules/insurance/`,
+> migration `1788030000000`, `seed-data/insurance-directory.ts`), farmer app (Insurance
+> tab: policy vault, 6-stage tracker with SLA clock, escalation router with per-district
+> contacts + bilingual grievance letter), and the officer dashboard (escalations inbox +
+> directory CMS) are all done and verified end-to-end (`scripts/try-insurance.ts`).
+> Not yet done: OCR of the acknowledgement slip, the NCIP status-check, SMS parsing, the
+> "how was my claim calculated" explainer screen, and the DA&FW / state MoUs (Phase 1/2).
 
 ---
 

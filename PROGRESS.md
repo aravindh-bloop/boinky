@@ -625,49 +625,55 @@ declared-angle mismatches. → submit the whole set in ONE call.
   (Brief-card-level 👎 deferred — cards aren't individually addressable; advisory +
   assistant feedback cover the signal.)
 
-### M4 — Crop insurance — ✅ backend + app + dashboard, tested
+### M4 — Crop insurance → **PIVOTED to a PMFBY claim TRACKER** — ✅ backend + app + dashboard, tested (2026-09-08)
 
-- Migration `1788020000000_crop-insurance.sql` — `schemes.kind`
-  (subsidy|insurance|credit); `insurance_policies`; `insurance_claims`
-  (`draft → submitted → under_review → surveyor_assigned → approved/rejected → paid`,
-  cause enum, farmer + officer loss %, `ai_assessment jsonb`, district);
-  `insurance_claim_media` (photo/video, per-file GPS); `insurance_claim_events`
-  (unified progress timeline **and** the farmer↔officer thread, `kind='message'`).
-- **`gemini.assessClaimDamage(images, ctx)`** — officer-facing draft:
-  `causePlausible` (consistent/…/inconsistent), rough loss %, `cropVisible`,
-  rationale, notes. **Verified it catches a mismatch**: a "hailstorm" claim whose
-  photos show disease lesions → `inconsistent`, 0%, "hail presents as shredding, not
-  observed here".
-- **`modules/insurance`** — farmer: `enrollPolicy` / `listPolicies` /
-  `listInsuranceSchemes` / `createClaim` (draft) / `addClaimMedia` (Cloudinary,
-  reuses the M1 `scanMediaUpload` + helpers) / `removeClaimMedia` / `submitClaim`
-  (media gate → status `submitted` → background AI assessment) / `getClaim`
-  (`ai_assessment` **striped for the farmer**) / `postClaimMessage`. officer:
-  `listClaimsForOfficer` (district-scoped, pending-first), `decideClaim` (state
-  machine, amount required to approve/pay, writes a `status_change` event),
-  `insuranceSummaryForOfficer`.
-- Routes: `/api/insurance/*` (farmer) + `/api/official/insurance-*` (officer).
-- **Seed:** PMFBY tagged `insurance` + 2 new insurance schemes (RWBCIS, TN State
-  Top-up); KCC / interest-subvention → `credit`. `demo-seed`: 2 active policies +
-  1 under-review claim with a seeded `ai_assessment`.
-- **`recordEvent` hook** — filing a claim feeds the farmer AI profile (M2).
-- **App:** new 6th bottom tab **Insurance** (umbrella icon; TabBar tightened for 6
-  tabs). `InsuranceScreen` (policies + claims list), `InsuranceEnrollScreen` (field →
-  scheme → season/sum/premium), `InsuranceClaimScreen` (2-phase: cause/date/
-  description/link-a-scan → evidence photos via `expo-image-picker` multi-select →
-  submit), `InsuranceClaimDetailScreen` (status stepper + payout card + evidence
-  strip + interleaved timeline/chat + message input).
-- **Dashboard:** new **Crop Insurance** page + nav item — summary cards
-  (paid / pending / approved-not-paid / active policies), status-filtered claims
-  table (✦ marks a claim with an AI assessment), detail panel with the evidence
-  gallery (thumbs + `<video>`), the **violet AI-draft-assessment card** ("an aid, not
-  a decision"), assessed-loss / payout / note inputs, the state-machine decision
-  buttons, and the timeline + officer↔farmer message thread.
-- **Tested end-to-end** (`scripts/try-insurance.ts`): enrol → claim → 2 evidence
-  photos → submit → AI assessment → officer under_review → approved (₹27k, 60%) →
-  paid → summary + full timeline all correct. `ai_assessment` never leaks to the
-  farmer. typecheck clean x3; `expo export` 4.6MB.
-- ⬜ Deploy backend (5 migrations pending) + dashboard.
+Full design + the "3 things per step" data/collaboration/upload analysis: `docs/INSURANCE_TRACKER.md`.
+AgriPod does **not** intake / assess / decide / pay claims (that is the government's
+DigiClaim+PFMS pipeline). It **tracks** a PMFBY claim, times each stage against the
+published SLA, and **routes a stuck/rejected claim to the right officer** with a
+pre-filled bilingual grievance. The old claim-intake / `assessClaimDamage` / payout code
+is **removed**.
+
+- Migration `1788030000000_insurance-tracker.sql` — drops `insurance_{policies,claims,
+  claim_media,claim_events}`; adds `insurance_policy_ref` (the PMFBY policy the farmer
+  holds), `claim_track` (6 stages `intimation→survey→assessment→approval→payout→closed`,
+  farmer-reported), `claim_track_event`, `escalation` (rung/channel/letter_en/ta/status),
+  `officer_directory` (per-district + national contacts, `verified` flag, unique on
+  `(district,rung,designation)`). `schemes.kind` kept.
+- **`modules/insurance/reference.ts`** — published PMFBY data: stage SLAs (72h intimate,
+  48h assessor, ~10d survey, 15d individual settle, 60d widespread, 12% penal interest),
+  the 5-rung escalation ladder (`block→district→dgrc→state`, + `ombudsman/krph/cpgrams`),
+  `recommendRungs(stage,outcome)`, the area-yield + individual claim formulas, `stageClock`.
+- **`insurance.service.ts` + `insurance.routes.ts`** — farmer: policy CRUD, claim_track
+  CRUD + `PATCH` stage advance, `/escalation` options (recommended rung + directory +
+  deterministic grievance letter, Tamil via Sarvam translate), `/escalate` (logs it),
+  `/directory`, `/reference`. officer routes → `insurance-escalations` inbox +
+  `insurance-directory` CMS + `insurance-summary` (by status/rung).
+- **Seed:** `seed-data/insurance-directory.ts` → 34 rows: 4 verified national/state
+  (KRPH 14447, CPGRAMS, Insurance Ombudsman Chennai, TN Directorate of Agriculture) +
+  10 TN districts × {block, district JDA, DGRC} scaffolds (`verified:false`, real portal
+  URLs, no invented phone numbers). `demo-seed`: 2 policy refs + 1 stuck claim + 1
+  escalation in the officer inbox.
+- **App** (Insurance tab kept): `InsuranceScreen` (policies + tracked claims w/ SLA
+  badges), `PolicyFormScreen` (record from the ack slip), `StartClaimScreen`
+  (report-to-govt-first reminder + cause/loss-type), `ClaimTrackScreen` (6-stage
+  timeline, SLA clock, "I have an update" stage updater, history, notes),
+  `EscalateScreen` (recommended rung, per-district contacts, tap call/SMS/email/portal,
+  Share the letter, logs every escalation). Old Enroll/Claim/ClaimDetail screens deleted.
+  `insuranceShared.ts` holds `slaBadge` / `stageLabel` / label maps.
+- **Dashboard** `pages/Insurance.tsx` → two tabs: **Escalations** (summary, status filter,
+  table, detail panel with the farmer's claim timeline + grievance letter + status
+  controls ack/working/resolved/close) and **Officer directory** (grouped by district,
+  inline editor, verified stamp).
+- **Tested end-to-end** (`scripts/try-insurance.ts`): reference → policy → claim → advance
+  to a breached stage → escalation options (rung + contacts + letter) → escalate → officer
+  inbox → status update → summary → directory lookup (district+national merge) → farmer
+  timeline. All green. Backend tsc clean; farmer tsc + `expo export` 4.6MB clean; dashboard
+  `npm run build` clean.
+- `gemini.assessClaimDamage` + `ClaimAssessment` removed. `assessClaimDamage` no longer
+  referenced anywhere.
+- ⬜ Deploy backend (`migrate:deploy` — now 6 migrations pending incl. `1788030000000`;
+  `npm run seed` to load the directory) + dashboard. `npm run seed:demo` for the demo.
 
 ### ★ Deep AI update COMPLETE — all 5 modules (M3 M1 M5 M2 M4) built + tested vs live services.
 Everything needs one Render deploy: `migrate:deploy` picks up migrations

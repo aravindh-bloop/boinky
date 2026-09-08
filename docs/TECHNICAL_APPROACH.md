@@ -224,15 +224,23 @@ Grouped by concern. (→ = FK.)
 - `scheme_threads` / `scheme_messages` — threaded farmer↔officer conversation, status
   `open|answered|closed`, *+ claim_id (this update, to reuse for insurance)*.
 
-**Crop insurance** *(this update)*
-- `insurance_policies` — → farmer, → field, → scheme?, crop, season, sum_insured,
-  premium_paid, area_acres, status, start/end date.
-- `insurance_claims` — → policy, cause enum, description, incident_date, → scan?,
-  estimated_loss_pct, status (`submitted|under_review|surveyor_assigned|approved|rejected|
-  paid`), officer_note, approved_amount, reviewed_by/at.
-- `insurance_claim_media` — photo/video, url, public_id, caption, per-file lat/lng.
-- `insurance_claim_events` — the farmer-visible progress timeline (status_change / note /
-  message / media_added).
+**Crop insurance — PMFBY claim TRACKER** *(pivoted; see `docs/INSURANCE_TRACKER.md`)*
+> Not a claims engine. AgriPod does not intake, assess, decide or pay claims — that is the
+> government's DigiClaim/PFMS pipeline. It tracks a PMFBY claim, times each stage against
+> the published SLA, and routes a stuck/rejected claim to the correct officer.
+- `insurance_policy_ref` — the PMFBY policy the farmer holds (from their acknowledgement
+  slip / SMS): application_no, season, crop, insurance_unit, insurer_name, sum_insured,
+  district, source (`manual|ocr|ncip`).
+- `claim_track` — one tracked claim: docket_id, cause, loss_type, incident_date, `stage`
+  (`intimation|survey|assessment|approval|payout|closed`, farmer-reported), stage_since,
+  outcome, amount_expected/paid.
+- `claim_track_event` — timeline entries (source `farmer|officer|sms|ncip|system`).
+- `escalation` — routed grievances: rung, channel, reason, letter_en/ta, external_ref,
+  status, officer_id/note. The one thing AgriPod writes on the farmer's behalf.
+- `officer_directory` — curated escalation contacts per district + statewide/national
+  (KRPH, CPGRAMS, Ombudsman, State Directorate), admin-maintained, `verified` + `last_verified`.
+- SLA maths + the escalation ladder + the PMFBY claim formula live in
+  `modules/insurance/reference.ts` (published figures, same class as `crop-profiles.ts`).
 
 **AI layer**
 - `ai_insights` — 1 row/farmer/kind/day: localised + English copies, `context_snapshot`
@@ -268,7 +276,6 @@ Grouped by concern. (→ = FK.)
 | Pesticide PHI (table miss) | Gemini `estimatePHI` | PHI days, dosage, precautions — cached as an `ai_estimate` row |
 | **Farmer profile / memory** *(this update)* | Gemini text | ≤200-word rolling profile + structured facts, distilled from `farmer_ai_events` |
 | **"Ask AgriPod" assistant** *(this update)* | Gemini chat, grounded in FarmContext + profile | conversational answer in the farmer's language, refuses to invent |
-| **Insurance draft assessment** *(this update)* | Gemini vision + text | officer-facing: cause plausibility, rough loss %, consistency with the linked scan |
 | **Voice (STT / TTS)** | Sarvam `saaras:v4` / `bulbul:v3` | transcribe the farmer's voice note; read tutorials + assistant replies aloud |
 
 ### 6.2 Grounding & anti-hallucination discipline
@@ -444,17 +451,21 @@ farmer: `GET /api/schemes?forMe=true` (eligibility matched on region + crops) �
 `POST /api/official/scheme-applications/:id/decision {status, note, amount}` — `disbursed`
 requires an `amount`. `GET /api/official/scheme-summary` aggregates disbursed totals.
 
-### 10.5 Crop insurance claim *(this update)*
+### 10.5 Crop insurance — PMFBY claim tracker *(pivoted; full design in `docs/INSURANCE_TRACKER.md`)*
 
-farmer: enroll a field → `insurance_policies` (`active`). Damage occurs →
-`POST /api/insurance/claims` draft (cause, incident_date, description, link a scan) →
-`POST /api/insurance/claims/:id/media` (evidence photos/video, per-file GPS, reuses the M1
-capture wizard) → `submit` → Gemini produces an **officer-facing draft assessment** (cause
-plausibility + rough loss % + consistency with the linked scan) → status `submitted`.
-farmer tracks the `insurance_claim_events` timeline + threaded queries. officer:
-`GET /api/official/insurance-claims` (district-scoped) →
-`POST /api/official/insurance-claims/:id/decision {status, note, approvedAmount, lossPct}`
-→ `paid`. `GET /api/official/insurance-summary` aggregates.
+farmer: record the PMFBY policy they hold → `POST /api/insurance/policies` (`insurance_policy_ref`).
+A loss occurs and is reported to the government (Crop Insurance App / 14447 — AgriPod
+hands off, does not submit) → `POST /api/insurance/claims` starts a `claim_track` at
+`stage = intimation`. The farmer moves the tracker forward as they hear from the office
+(`PATCH /api/insurance/claims/:id {stage, stageSince, outcome, amountPaid}`); each stage is
+timed against `reference.ts` SLAs → `clock.breached` / `penalInterestDue`.
+`GET /api/insurance/claims/:id/escalation` computes the right rung for `(district, stage,
+outcome)` + merges `officer_directory` contacts + a deterministic bilingual grievance
+letter. `POST /api/insurance/claims/:id/escalate {rung, channel, reason}` logs it.
+officer: `GET /api/official/insurance-escalations` (region-scoped inbox) →
+`POST /api/official/insurance-escalations/:id/status {status, note}`;
+`GET/POST /api/official/insurance-directory` is the directory CMS.
+`GET /api/official/insurance-summary` aggregates escalations by status/rung.
 
 ### 10.6 "Ask AgriPod" assistant *(this update)*
 
