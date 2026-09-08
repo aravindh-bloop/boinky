@@ -1,7 +1,6 @@
 import React from 'react';
 import { FlatList, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
@@ -9,15 +8,13 @@ import type { Scan } from '../api/types';
 import {
   Card,
   Chip,
-  Icon,
   EmptyState,
   ErrorState,
-  OrganicBackground,
   Reveal,
   Row,
+  ScreenHeader,
   SkeletonList,
   Text,
-  PressableScale,
   palette,
   radius,
   severity as sev,
@@ -29,33 +26,40 @@ type Nav = NativeStackNavigationProp<HomeStackParams, 'History'>;
 
 export default function HistoryScreen() {
   const nav = useNavigation<Nav>();
-  const insets = useSafeAreaInsets();
   const { data, loading, error, refreshing, reload } = useApi<{ scans: Scan[] }>('/api/scans', { limit: 60 });
+  const scans = data?.scans ?? [];
+  const flagged = scans.filter((s) => s.severity === 'high' || s.severity === 'medium').length;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <OrganicBackground tint="calm" height={150 + insets.top} />
       <FlatList
-        data={data?.scans ?? []}
+        data={scans}
         keyExtractor={(x) => x.id}
         refreshing={refreshing}
         onRefresh={reload}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: 0,
           paddingHorizontal: space.lg,
           paddingBottom: space.giant,
           gap: space.sm,
         }}
         ListHeaderComponent={
-          <Row between style={{ marginBottom: space.sm }}>
-            <Text variant="hero">
-              Scan history
-            </Text>
-            <PressableScale onPress={() => nav.goBack()} compact>
-              <Icon name="close" size={22} color={palette.textMuted} />
-            </PressableScale>
-          </Row>
+          <ScreenHeader
+            tone="scan"
+            title="Scan history"
+            subtitle="Every crop photo you've had diagnosed."
+            onClose={() => nav.goBack()}
+            style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+            stats={
+              scans.length
+                ? [
+                    { label: 'Scans', value: scans.length, icon: 'scan' },
+                    { label: 'Needs care', value: flagged, icon: 'disease' },
+                  ]
+                : undefined
+            }
+          />
         }
         ListEmptyComponent={
           loading ? (

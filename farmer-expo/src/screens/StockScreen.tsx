@@ -1,8 +1,7 @@
 import { alertT } from '../i18n/alert';
 import React, { useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api } from '../api/client';
@@ -14,9 +13,9 @@ import {
   Icon,
   EmptyState,
   ErrorState,
-  OrganicBackground,
   Reveal,
   Row,
+  ScreenHeader,
   SelectChip,
   SkeletonList,
   Field as Input,
@@ -32,7 +31,6 @@ const TYPES = ['seed', 'fertilizer', 'pesticide', 'equipment', 'other'];
 
 export default function StockScreen() {
   const nav = useNavigation<any>();
-  const insets = useSafeAreaInsets();
   const inv = useApi<{ items: InventoryItem[] }>('/api/inventory');
   const fin = useApi<FinanceSummary>('/api/expenses/summary', { days: 180 });
 
@@ -68,7 +66,6 @@ export default function StockScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <OrganicBackground tint="harvest" height={170 + insets.top} />
       <FlatList
         data={inv.data?.items ?? []}
         keyExtractor={(x) => x.id}
@@ -79,35 +76,28 @@ export default function StockScreen() {
         }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: 0,
           paddingHorizontal: space.lg,
           paddingBottom: space.giant,
           gap: space.md,
         }}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
-            <Text variant="hero">
-              Stock & money
-            </Text>
-
-            {/* season money */}
-            <Reveal>
-              <Card elevation="raised">
-                <Text variant="label" muted>
-                  LAST 6 MONTHS
-                </Text>
-                <Row between>
-                  <MoneyBlock label="Spent" value={f?.totalSpent ?? 0} tint={palette.clay} icon="expense" />
-                  <MoneyBlock label="Earned" value={f?.totalRevenue ?? 0} tint={palette.primary} icon="revenue" />
-                  <MoneyBlock
-                    label="Net"
-                    value={f?.net ?? 0}
-                    tint={(f?.net ?? 0) >= 0 ? palette.primaryDeep : palette.danger}
-                    icon={(f?.net ?? 0) >= 0 ? 'trendUp' : 'trendDown'}
-                  />
-                </Row>
-              </Card>
-            </Reveal>
+            <ScreenHeader
+              tone="money"
+              title="Stock & money"
+              subtitle="Spending, income and what's in the shed — last 6 months."
+              style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+              stats={[
+                { label: 'Spent', value: `₹${compact(f?.totalSpent ?? 0)}`, icon: 'expense' },
+                { label: 'Earned', value: `₹${compact(f?.totalRevenue ?? 0)}`, icon: 'revenue' },
+                {
+                  label: 'Net',
+                  value: `₹${compact(f?.net ?? 0)}`,
+                  icon: (f?.net ?? 0) >= 0 ? 'trendUp' : 'trendDown',
+                },
+              ]}
+            />
 
             <Row gap={space.sm}>
               <View style={{ flex: 1 }}>
@@ -204,20 +194,6 @@ export default function StockScreen() {
           </Reveal>
         )}
       />
-    </View>
-  );
-}
-
-function MoneyBlock({ label, value, tint, icon }: { label: string; value: number; tint: string; icon: any }) {
-  return (
-    <View style={{ flex: 1, gap: 2 }}>
-      <Icon name={icon} size={16} color={tint} weight="fill" />
-      <Text variant="subhead" color={tint}>
-        ₹{compact(value)}
-      </Text>
-      <Text variant="caption" faint>
-        {label}
-      </Text>
     </View>
   );
 }

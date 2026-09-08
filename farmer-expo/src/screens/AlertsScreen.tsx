@@ -1,6 +1,5 @@
 import React from 'react';
 import { FlatList, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import type { Alert as AlertT, AlertSource, ReasonKind } from '../api/types';
@@ -10,9 +9,9 @@ import {
   Icon,
   EmptyState,
   ErrorState,
-  OrganicBackground,
   Reveal,
   Row,
+  ScreenHeader,
   SkeletonList,
   Text,
   PressableScale,
@@ -22,11 +21,11 @@ import {
 } from '../ui';
 import type { IconName } from '../ui';
 
-const SOURCE_META: Record<AlertSource, { label: string; icon: IconName; tint: string }> = {
-  office: { label: 'Extension office', icon: 'scroll', tint: palette.info },
-  weather: { label: 'Weather', icon: 'weather', tint: palette.info },
-  forewarning: { label: 'Early warning', icon: 'shield', tint: palette.honey },
-  outbreak: { label: 'Outbreak nearby', icon: 'hotspot', tint: palette.danger },
+const SOURCE_META: Record<AlertSource, { label: string; icon: IconName; tint: string; soft: string }> = {
+  office: { label: 'Extension office', icon: 'scroll', tint: palette.info, soft: palette.skySoft },
+  weather: { label: 'Weather', icon: 'weather', tint: palette.info, soft: palette.skySoft },
+  forewarning: { label: 'Early warning', icon: 'shield', tint: palette.honey, soft: palette.warnSoft },
+  outbreak: { label: 'Outbreak nearby', icon: 'hotspot', tint: palette.danger, soft: palette.dangerSoft },
 };
 
 const REASON_ICON: Record<ReasonKind, IconName> = {
@@ -39,40 +38,41 @@ const REASON_ICON: Record<ReasonKind, IconName> = {
 };
 
 export default function AlertsScreen() {
-  const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const alerts = useApi<{ alerts: AlertT[] }>('/api/alerts');
+  const list = alerts.data?.alerts ?? [];
+  const highN = list.filter((a) => a.severity === 'high').length;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <OrganicBackground tint="harvest" height={150 + insets.top} />
       <FlatList
-        data={alerts.data?.alerts ?? []}
+        data={list}
         keyExtractor={(a) => a.id}
         refreshing={alerts.refreshing}
         onRefresh={() => alerts.reload()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: 0,
           paddingHorizontal: space.lg,
           paddingBottom: space.giant,
           gap: space.md,
         }}
         ListHeaderComponent={
-          <View style={{ gap: space.xs, marginBottom: space.xs }}>
-            <Row between>
-              <Text variant="hero">
-                Alerts
-              </Text>
-              <PressableScale onPress={() => nav.goBack()} compact>
-                <Icon name="close" size={22} color={palette.textMuted} />
-              </PressableScale>
-            </Row>
-            <Text variant="body" muted>
-              Weather, pest &amp; disease warnings for your fields, and notices from your
-              extension office.
-            </Text>
-          </View>
+          <ScreenHeader
+            tone="alert"
+            title="Alerts"
+            subtitle="Weather, pest & disease warnings for your fields, plus notices from your extension office."
+            onClose={() => nav.goBack()}
+            style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+            stats={
+              list.length
+                ? [
+                    { label: 'Active', value: list.length, icon: 'alerts' },
+                    { label: 'High', value: highN, icon: 'warning' },
+                  ]
+                : undefined
+            }
+          />
         }
         ListEmptyComponent={
           alerts.loading ? (
@@ -94,8 +94,17 @@ export default function AlertsScreen() {
             <Reveal index={Math.min(index, 6)}>
               <Card elevation="raised" accent={meta?.tint}>
                 {meta && (
-                  <Row gap={6}>
-                    <Icon name={meta.icon} size={15} color={meta.tint} weight="fill" />
+                  <Row
+                    gap={5}
+                    style={{
+                      alignSelf: 'flex-start',
+                      backgroundColor: meta.soft,
+                      borderRadius: 999,
+                      paddingHorizontal: 9,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Icon name={meta.icon} size={13} color={meta.tint} weight="fill" />
                     <Text variant="caption" color={meta.tint} style={{ fontWeight: '700' }}>
                       {meta.label}
                     </Text>

@@ -5,12 +5,12 @@ import { useApi } from '../api/useApi';
 import { api } from '../api/client';
 import type { AggTask, TasksResponse } from '../api/types';
 import {
-  Card,
   Icon,
   LoaderScreen,
   ErrorState,
   EmptyState,
   Row,
+  ScreenHeader,
   Text,
   PressableScale,
   haptic,
@@ -55,7 +55,26 @@ export default function TasksScreen() {
         refreshing={refreshing}
         onRefresh={reload}
         stickySectionHeadersEnabled={false}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.giant, gap: 6 }}
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingTop: 0,
+          paddingBottom: space.giant,
+          gap: 6,
+        }}
+        ListHeaderComponent={
+          <ScreenHeader
+            tone="task"
+            title="Tasks"
+            subtitle="What each field needs, and when."
+            onBack={() => nav.goBack()}
+            style={{ marginHorizontal: -space.lg, marginBottom: space.sm }}
+            stats={[
+              { label: 'Overdue', value: data.overdue.length, icon: 'warning' },
+              { label: 'Today', value: data.today.length, icon: 'tasks' },
+              { label: 'This week', value: data.upcoming.length, icon: 'calendar' },
+            ]}
+          />
+        }
         ListEmptyComponent={
           <EmptyState icon="taskDone" title="All caught up" body="No tasks due. Enjoy the calm." />
         }

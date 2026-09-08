@@ -11,6 +11,7 @@ import {
   ErrorState,
   Reveal,
   Row,
+  ScreenHeader,
   SkeletonList,
   Text,
   palette,
@@ -35,17 +36,32 @@ export default function ActivityScreen() {
     limit: 60,
   });
 
+  const acts = data?.activities ?? [];
+
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <FlatList
-        data={data?.activities ?? []}
+        data={acts}
         keyExtractor={(a) => a.id}
         refreshing={refreshing}
         onRefresh={reload}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.giant, gap: space.sm }}
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingTop: 0,
+          paddingBottom: space.giant,
+          gap: space.sm,
+        }}
         ListHeaderComponent={
           <View style={{ marginBottom: space.sm }}>
+            <ScreenHeader
+              tone="crop"
+              title="Activity log"
+              subtitle="Your running record of everything done on the farm."
+              onBack={() => nav.goBack()}
+              style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+              stats={acts.length ? [{ label: 'Logged', value: acts.length, icon: 'activity' }] : undefined}
+            />
             <Button title="Log an activity" variant="soft" onPress={() => nav.navigate('LogActivity')} />
           </View>
         }

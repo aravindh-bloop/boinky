@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { FlatList, Linking, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
@@ -13,9 +12,9 @@ import {
   Icon,
   ErrorState,
   EmptyState,
-  OrganicBackground,
   Reveal,
   Row,
+  ScreenHeader,
   SegmentedControl,
   SkeletonList,
   Text,
@@ -40,7 +39,6 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function SchemesScreen() {
-  const insets = useSafeAreaInsets();
   const nav = useNavigation<any>();
   const [forMe, setForMe] = useState<'me' | 'all'>('me');
   const [applying, setApplying] = useState<string | null>(null);
@@ -63,36 +61,45 @@ export default function SchemesScreen() {
     }
   }
 
+  const schemes = data?.schemes ?? [];
+  const appliedN = applied.data?.applications?.length ?? 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-      <OrganicBackground tint="calm" height={150 + insets.top} />
       <FlatList
-        data={data?.schemes ?? []}
+        data={schemes}
         keyExtractor={(x) => x.id}
         refreshing={refreshing}
         onRefresh={reload}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: 0,
           paddingHorizontal: space.lg,
           paddingBottom: space.giant,
           gap: space.md,
         }}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.xs }}>
-            <Row between>
-              <Text variant="hero">
-                Schemes & subsidies
-              </Text>
-              <PressableScale onPress={() => nav.navigate('MySchemes')} compact>
-                <Row gap={4}>
-                  <Icon name="scroll" size={16} color={palette.primary} weight="fill" />
-                  <Text variant="label" color={palette.primary}>
-                    My schemes
-                  </Text>
-                </Row>
-              </PressableScale>
-            </Row>
+            <ScreenHeader
+              tone="money"
+              title="Schemes & subsidies"
+              subtitle="Government support you may be eligible for."
+              style={{ marginHorizontal: -space.lg, marginBottom: space.md }}
+              right={
+                <PressableScale onPress={() => nav.navigate('MySchemes')} compact>
+                  <Row gap={5} style={styles.headerPill}>
+                    <Icon name="scroll" size={14} color="#fff" weight="fill" />
+                    <Text variant="label" color="#fff">
+                      My schemes
+                    </Text>
+                  </Row>
+                </PressableScale>
+              }
+              stats={[
+                { label: forMe === 'me' ? 'For you' : 'All', value: schemes.length, icon: 'schemes' },
+                { label: 'Applied', value: appliedN, icon: 'taskDone' },
+              ]}
+            />
             <SegmentedControl
               value={forMe}
               onChange={setForMe}
@@ -199,3 +206,12 @@ export default function SchemesScreen() {
     </View>
   );
 }
+
+const styles = {
+  headerPill: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+  },
+};

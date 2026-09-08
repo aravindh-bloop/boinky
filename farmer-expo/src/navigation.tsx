@@ -103,8 +103,8 @@ function HomeStack() {
     <HomeNav.Navigator screenOptions={screenOpts}>
       <HomeNav.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Weather" component={WeatherScreen} options={{ headerShown: false }} />
-      <HomeNav.Screen name="Tasks" component={TasksScreen} options={{ headerTitle: navTitle('Tasks') }} />
-      <HomeNav.Screen name="Activity" component={ActivityScreen} options={{ headerTitle: navTitle('Activity log') }} />
+      <HomeNav.Screen name="Tasks" component={TasksScreen} options={{ headerShown: false }} />
+      <HomeNav.Screen name="Activity" component={ActivityScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Alerts" component={AlertsScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="Profile" component={ProfileScreen} options={{ headerTitle: navTitle('Settings') }} />
