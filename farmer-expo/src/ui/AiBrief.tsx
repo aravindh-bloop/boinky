@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import type { DailyBrief, InsightCard, InsightUrgency } from '../api/types';
 import { useT, type TFunc } from '../i18n';
@@ -8,7 +9,10 @@ import { Text } from './Text';
 import { PressableScale } from './Pressable';
 import { Skeleton } from './Skeleton';
 import { Row } from './misc';
-import { palette, radius, space } from './tokens';
+import { gradients, palette, radius, shadow, space } from './tokens';
+
+const ON = 'rgba(255,255,255,0.92)';
+const ON_DIM = 'rgba(255,255,255,0.72)';
 
 interface Props {
   brief: DailyBrief | null;
@@ -54,7 +58,6 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
       <Shell>
         <Header t={t} working />
         <Skeleton width="80%" height={16} />
-        <Skeleton width="55%" height={12} />
       </Shell>
     );
   }
@@ -64,7 +67,7 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
     return (
       <Shell>
         <Header t={t} working />
-        <Text variant="bodyStrong" color={palette.primaryDeep}>
+        <Text variant="bodyStrong" color={ON}>
           {t('Reading your fields, weather and tasks…')}
         </Text>
       </Shell>
@@ -76,50 +79,44 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
   );
   if (cards.length === 0) return null;
 
-  const hasUrgent = cards.some((c) => c.urgency === 'critical');
-  const expanded = open || hasUrgent;
-
   return (
     <Shell>
+      {/* collapsed head — always the tap target */}
       <PressableScale onPress={() => setOpen((v) => !v)} feedback="tap">
-        <Header t={t} working={working} onRefresh={onRefresh} generatedAt={brief.generatedAt} />
+        <Header t={t} working={working} generatedAt={brief.generatedAt} />
         {brief.headline ? (
-          <Text variant="heading" color={palette.text} style={{ marginTop: space.xs }} raw>
+          <Text variant="subhead" color={ON} style={{ marginTop: space.xs }} raw>
             {brief.headline}
           </Text>
         ) : null}
-        {!expanded && (
-          <Row between style={{ marginTop: space.sm }}>
-            <Text variant="label" color={palette.primaryDeep}>
-              {t('{n} to check today', { n: cards.length })}
+        <Row between style={{ marginTop: space.sm }}>
+          <Text variant="label" color={ON_DIM}>
+            {t('{n} to check today', { n: cards.length })}
+          </Text>
+          <Row gap={4}>
+            <Text variant="label" color={ON}>
+              {open ? t('Close') : t('Open')}
             </Text>
-            <Row gap={4}>
-              <Text variant="label" color={palette.primaryDeep}>
-                {t('Open')}
-              </Text>
-              <Icon name="right" size={13} color={palette.primaryDeep} weight="bold" />
-            </Row>
+            <Icon name={open ? 'up' : 'right'} size={13} color={ON} weight="bold" />
           </Row>
-        )}
+        </Row>
       </PressableScale>
 
-      {expanded && (
-        <Animated.View entering={FadeIn.duration(180)} style={{ gap: space.sm, marginTop: space.sm }}>
+      {open && (
+        <Animated.View entering={FadeIn.duration(180)} style={{ gap: space.sm, marginTop: space.md }}>
           {cards.map((c, i) => (
             <Animated.View key={`${c.title}-${i}`} entering={FadeInDown.duration(200).delay(i * 50)}>
               <InsightRow card={c} onAction={onAction} t={t} />
             </Animated.View>
           ))}
-          {!hasUrgent && (
-            <PressableScale onPress={() => setOpen(false)} compact style={{ alignSelf: 'center', paddingTop: 2 }}>
-              <Row gap={4}>
-                <Text variant="label" color={palette.primaryDeep}>
-                  {t('Close')}
-                </Text>
-                <Icon name="up" size={12} color={palette.primaryDeep} weight="bold" />
-              </Row>
-            </PressableScale>
-          )}
+          <PressableScale onPress={onRefresh} compact style={{ alignSelf: 'center', paddingTop: 2 }}>
+            <Row gap={4}>
+              <Icon name={working ? 'clock' : 'ai'} size={12} color={ON_DIM} />
+              <Text variant="caption" color={ON_DIM}>
+                {working ? t('Updating…') : t('Refresh')}
+              </Text>
+            </Row>
+          </PressableScale>
         </Animated.View>
       )}
     </Shell>
@@ -128,29 +125,24 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <View
-      style={{
-        backgroundColor: palette.primarySoft,
-        borderRadius: radius.xl,
-        borderWidth: 1,
-        borderColor: palette.leafSoft,
-        padding: space.lg,
-      }}
+    <LinearGradient
+      colors={gradients.dawn}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{ borderRadius: radius.xl, padding: space.lg, ...shadow.e1 }}
     >
       {children}
-    </View>
+    </LinearGradient>
   );
 }
 
 function Header({
   t,
   working,
-  onRefresh,
   generatedAt,
 }: {
   t: TFunc;
   working?: boolean;
-  onRefresh?: () => void;
   generatedAt?: string;
 }) {
   return (
@@ -158,26 +150,22 @@ function Header({
       <Row gap={space.sm}>
         <View
           style={{
-            width: 26,
-            height: 26,
+            width: 24,
+            height: 24,
             borderRadius: radius.pill,
-            backgroundColor: palette.primary,
+            backgroundColor: 'rgba(255,255,255,0.22)',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name="ai" size={14} color="#fff" weight="fill" />
+          <Icon name="ai" size={13} color="#fff" weight="fill" />
         </View>
-        <Text variant="overline" color={palette.primaryDeep}>
+        <Text variant="overline" color={ON}>
           {working ? t('Thinking…') : t("Today's brief")}
         </Text>
       </Row>
-      {onRefresh ? (
-        <PressableScale onPress={onRefresh} compact hitSlop={10}>
-          <Icon name={working ? 'clock' : 'ai'} size={15} color={palette.primaryDeep} />
-        </PressableScale>
-      ) : generatedAt ? (
-        <Text variant="caption" color={palette.textFaint}>
+      {generatedAt ? (
+        <Text variant="caption" color={ON_DIM}>
           {timeAgo(generatedAt)}
         </Text>
       ) : null}
