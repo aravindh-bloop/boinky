@@ -6,7 +6,8 @@ import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
 import { alertT } from '../i18n/alert';
 import type { SchemeThreadDetail } from '../api/types';
-import { Icon, LoaderScreen, PressableScale, Row, Text, palette, radius, space } from '../ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Icon, LoaderScreen, PressableScale, Row, Text, palette, radius, space, tone } from '../ui';
 
 export default function SchemeThreadScreen() {
   const insets = useSafeAreaInsets();
@@ -72,24 +73,28 @@ export default function SchemeThreadScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={insets.top + 44}
     >
-      <View
+      <LinearGradient
+        colors={tone.money.grad}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.95, y: 1 }}
         style={{
           paddingTop: insets.top + space.sm,
           paddingHorizontal: space.lg,
-          paddingBottom: space.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: palette.hairline,
+          paddingBottom: space.md,
+          borderBottomLeftRadius: 22,
+          borderBottomRightRadius: 22,
         }}
       >
         <Row gap={space.sm}>
-          <PressableScale onPress={() => nav.goBack()} compact>
-            <Icon name="left" size={22} color={palette.text} />
+          <PressableScale onPress={() => nav.goBack()} compact hitSlop={8}>
+            <Icon name="left" size={22} color="#fff" />
           </PressableScale>
-          <Text variant="subhead" style={{ flex: 1 }} numberOfLines={1}>
+          <Icon name="scroll" size={17} color="#fff" weight="fill" />
+          <Text variant="subhead" color="#fff" style={{ flex: 1 }} numberOfLines={1}>
             {title}
           </Text>
         </Row>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         ref={scroller}
