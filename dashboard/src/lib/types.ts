@@ -188,89 +188,81 @@ export interface CalendarTemplateTask {
   description: string | null;
 }
 
-// ── crop insurance ──
-export type ClaimStatus =
-  | 'submitted'
-  | 'under_review'
-  | 'surveyor_assigned'
-  | 'approved'
-  | 'rejected'
-  | 'paid';
+// ── crop insurance: PMFBY claim-tracker escalations ──
+export type EscalationStatus =
+  | 'sent'
+  | 'acknowledged'
+  | 'in_progress'
+  | 'resolved'
+  | 'closed';
+export type Rung = 'block' | 'district' | 'dgrc' | 'state' | 'ombudsman' | 'krph' | 'cpgrams';
 
-export interface InsuranceClaimRow {
+export interface EscalationRow {
   id: string;
-  cause: string;
-  status: ClaimStatus;
-  incident_date: string | null;
-  estimated_loss_pct: number | null;
-  assessed_loss_pct: number | null;
-  approved_amount: number | null;
+  rung: Rung;
+  channel: string;
+  reason: string;
+  status: EscalationStatus;
+  external_ref: string | null;
+  officer_note: string | null;
   district: string | null;
-  has_assessment: boolean;
+  created_at: string;
+  sent_at: string | null;
+  claim_id: string;
+  cause: string;
+  stage: string;
+  stage_since: string;
+  outcome: string | null;
   crop: string;
   season: string;
-  sum_insured: number | null;
+  insurer_name: string | null;
+  application_no: string | null;
   farmer_id: string;
   farmer_name: string;
   farmer_phone: string | null;
-  region: string | null;
-  media_count: number;
-  submitted_at: string | null;
-  updated_at: string;
 }
 
-export interface ClaimAssessment {
-  causePlausible: 'consistent' | 'partly_consistent' | 'inconsistent' | 'unclear';
-  estimatedLossPct: number | null;
-  cropVisible: string | null;
-  rationale: string;
-  notes: string[];
-}
-
-export interface InsuranceClaimDetail {
-  claim: {
-    id: string;
-    cause: string;
-    status: ClaimStatus;
-    description: string | null;
+export interface EscalationDetail {
+  escalation: EscalationRow & {
+    letter_en: string | null;
+    letter_ta: string | null;
+    loss_type: string;
+    docket_id: string | null;
     incident_date: string | null;
-    estimated_loss_pct: number | null;
-    assessed_loss_pct: number | null;
-    approved_amount: number | null;
-    officer_note: string | null;
-    ai_assessment: ClaimAssessment | null;
-    crop: string;
-    season: string;
+    amount_expected: number | null;
+    amount_paid: number | null;
     sum_insured: number | null;
-    premium_paid: number | null;
-    field_name: string | null;
-    scheme_title: string | null;
-    scan_diagnosis: string | null;
-    farmer_name: string;
-    farmer_phone: string | null;
-    region: string | null;
-    district: string | null;
-    submitted_at: string | null;
-    created_at: string;
+    insurance_unit: string | null;
+    farmer_region: string | null;
   };
-  media: { id: string; kind: 'photo' | 'video'; url: string; caption: string | null; lat: number | null; lng: number | null }[];
   events: {
-    id: string;
-    actor_role: 'farmer' | 'official' | 'system';
+    source: string;
     kind: string;
-    from_status: string | null;
-    to_status: string | null;
+    from_stage: string | null;
+    to_stage: string | null;
     body: string | null;
-    created_at: string;
+    at: string;
   }[];
 }
 
-export interface InsuranceSummary {
+export interface EscalationSummary {
   byStatus: Record<string, number>;
-  byCause: { cause: string; n: number }[];
-  totalPaid: number;
-  activePolicies: number;
-  sumInsured: number;
-  pendingReview: number;
-  approvedNotPaid: number;
+  byRung: { rung: string; n: number }[];
+  open: number;
+  resolved: number;
+}
+
+export interface DirectoryRow {
+  id: string;
+  district: string | null;
+  rung: Rung;
+  designation: string;
+  name: string | null;
+  office: string | null;
+  phone: string | null;
+  email: string | null;
+  url: string | null;
+  note: string | null;
+  verified: boolean;
+  last_verified: string | null;
 }
