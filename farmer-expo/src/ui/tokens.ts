@@ -1,54 +1,64 @@
 /**
- * AgriPod design tokens — "nature / organic": warm paper canvas, forest + leaf greens,
- * clay / soil / honey earth accents, generous rounding, soft warm-tinted shadows.
+ * AgriPod design tokens — "sunrise": a warm off-white canvas, apricot-gold as the
+ * signature warmth (headers, highlights, the sun), a quiet sage-olive green for
+ * everything functional (actions, crop health, success). Elegant means restraint:
+ * few colours, wide whitespace, soft everything, one accent per surface.
  */
 import type { TextStyle, ViewStyle } from 'react-native';
 
 export const palette = {
-  // canvas & surfaces
-  canvas: '#FBF8F1',
-  canvasAlt: '#F3EEE1',
+  // canvas & surfaces — warm, barely-there peach
+  canvas: '#FCF8F2',
+  canvasAlt: '#F6EEE1',
   surface: '#FFFFFF',
-  surfaceAlt: '#FAF6EC',
-  surfaceSunken: '#F0EADB',
+  surfaceAlt: '#FBF4EA',
+  surfaceSunken: '#F3EBDD',
 
   // lines
-  border: '#EAE1CE',
-  borderStrong: '#D9CDB2',
-  hairline: '#F0E9DA',
+  border: '#EEE4D2',
+  borderStrong: '#E0D3BC',
+  hairline: '#F4ECDE',
 
-  // brand greens
-  primary: '#3B7A3F',
-  primaryDeep: '#2C5C30',
-  primaryPress: '#336B37',
-  primarySoft: '#E6EFDF',
-  leaf: '#5DA34E',
-  leafSoft: '#EAF3E2',
-  sage: '#8CA982',
+  // green — the functional colour: primary actions, crop health, success
+  primary: '#5E7F53',
+  primaryDeep: '#3F5A38',
+  primaryPress: '#54724A',
+  primarySoft: '#E8EFE2',
+  leaf: '#7BA366',
+  leafSoft: '#EEF4E8',
+  sage: '#9DB292',
 
-  // earth accents
-  clay: '#C57B54',
-  claySoft: '#F6E6DA',
-  soil: '#5C4632',
-  honey: '#DDA24C',
-  honeySoft: '#F8EACF',
-  cream: '#F1E7D0',
+  // gold — the warm sunrise accent: brand, headers, sun, gentle highlights
+  clay: '#D98F5C', // kept name; now a warm apricot (was terracotta)
+  claySoft: '#FBEAD6',
+  soil: '#5A4A38',
+  honey: '#E3A45C',
+  honeySoft: '#FBEAD3',
+  cream: '#F7ECD9',
 
-  // text
-  text: '#2A2420',
-  textMuted: '#6E6357',
-  textFaint: '#9C9184',
+  // text — warm charcoal
+  text: '#2B2620',
+  textMuted: '#6B6255',
+  textFaint: '#9C9284',
   onPrimary: '#FFFFFF',
-  onDark: '#F6F1E6',
+  onDark: '#FBF3E6',
 
   // semantic
-  success: '#3B7A3F',
-  successSoft: '#E6EFDF',
-  warn: '#C4892E',
-  warnSoft: '#F8EACF',
-  danger: '#B24A2C',
-  dangerSoft: '#F6E0D7',
-  info: '#3E6E7A',
+  success: '#5E7F53',
+  successSoft: '#E8EFE2',
+  warn: '#D69A3C',
+  warnSoft: '#FBEAD3',
+  danger: '#C15F42',
+  dangerSoft: '#F7E3D9',
+  info: '#5C7C84',
+
+  // sunrise scene (loading screen + hero glows)
+  sky1: '#FDEBD4',
+  sky2: '#F9D3A6',
+  sky3: '#EEB076',
+  sunGlow: '#FFD9A0',
+  horizonLine: '#C88A57',
+  fieldSilhouette: '#4C6440',
 } as const;
 
 export const severity = {
@@ -64,20 +74,20 @@ export const space = {
   xs: 4,
   sm: 8,
   md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
-  huge: 40,
-  giant: 56,
+  lg: 18,
+  xl: 24,
+  xxl: 30,
+  xxxl: 38,
+  huge: 48,
+  giant: 64,
 } as const;
 
 export const radius = {
-  sm: 10,
-  md: 14,
+  sm: 12,
+  md: 16,
   lg: 20,
-  xl: 26,
-  xxl: 34,
+  xl: 24,
+  xxl: 30,
   pill: 999,
 } as const;
 
@@ -113,18 +123,18 @@ export const type: Record<
   | 'mono',
   TypeToken
 > = {
-  hero: { fontFamily: fonts.display, fontSize: 31, lineHeight: 37, letterSpacing: -0.7 },
-  title: { fontFamily: fonts.display, fontSize: 23, lineHeight: 29, letterSpacing: -0.4 },
-  heading: { fontFamily: fonts.bodyBold, fontSize: 18, lineHeight: 24, letterSpacing: -0.2 },
-  subhead: { fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 21, letterSpacing: -0.1 },
+  hero: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, letterSpacing: -0.6 },
+  title: { fontFamily: fonts.display, fontSize: 21, lineHeight: 27, letterSpacing: -0.3 },
+  heading: { fontFamily: fonts.bodyBold, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 },
+  subhead: { fontFamily: fonts.bodyBold, fontSize: 14.5, lineHeight: 20, letterSpacing: -0.1 },
   body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 23 },
   bodyStrong: { fontFamily: fonts.bodyMedium, fontSize: 15, lineHeight: 23 },
-  label: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 17, letterSpacing: 0.2 },
+  label: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 17, letterSpacing: 0.1 },
   overline: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 0.9,
+    fontSize: 10.5,
+    lineHeight: 13,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   caption: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17 },
@@ -133,42 +143,47 @@ export const type: Record<
 
 /**
  * Warm, diffuse shadows — barely-there on light, present enough to lift a card.
- * One layer only (RN can't stack), tuned soft: low opacity, wide radius.
+ * One layer only (RN can't stack), tuned soft: low opacity, wide radius, warm hue.
  */
 export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
   e0: {
-    shadowColor: '#3D2E1E',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowColor: '#5A4223',
+    shadowOpacity: 0.04,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
   e1: {
-    shadowColor: '#3D2E1E',
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: '#5A4223',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   e2: {
-    shadowColor: '#3D2E1E',
-    shadowOpacity: 0.09,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 14 },
+    shadowColor: '#5A4223',
+    shadowOpacity: 0.08,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 12 },
     elevation: 7,
   },
   e3: {
-    shadowColor: '#3D2E1E',
-    shadowOpacity: 0.13,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 20 },
+    shadowColor: '#5A4223',
+    shadowOpacity: 0.12,
+    shadowRadius: 38,
+    shadowOffset: { width: 0, height: 18 },
     elevation: 13,
   },
 };
 
 export const gradients = {
-  canopy: ['#3B7A3F', '#5DA34E'] as const,
-  dusk: ['#2C5C30', '#3B7A3F'] as const,
-  harvest: ['#DDA24C', '#C57B54'] as const,
-  paper: ['#FBF8F1', '#F1E7D0'] as const,
+  // the signature header wash — apricot dawn
+  canopy: ['#F7CFA0', '#EDAF77', '#DE9560'] as const,
+  sunrise: ['#FDEBD4', '#F9D3A6', '#EEB076'] as const,
+  sunriseSoft: ['#FDEEDC', '#F8E0C4'] as const,
+  // green washes — for the scan FAB and health surfaces
+  dawn: ['#6C8C60', '#5E7F53'] as const,
+  dusk: ['#3F5A38', '#5E7F53'] as const,
+  gold: ['#E9B36F', '#D98F5C'] as const,
+  paper: ['#FCF8F2', '#F7ECD9'] as const,
 };

@@ -48,14 +48,14 @@ export function SelectChip({ label, selected, onPress, style }: SelectableProps)
         style={{
           borderRadius: radius.pill,
           paddingHorizontal: space.lg,
-          paddingVertical: space.sm,
-          borderWidth: 1.5,
+          paddingVertical: space.sm + 1,
+          borderWidth: 1,
           borderColor: selected ? palette.primary : palette.border,
           backgroundColor: selected ? palette.primarySoft : palette.surface,
         }}
       >
         <Text
-          variant="bodyStrong"
+          variant="label"
           color={selected ? palette.primaryDeep : palette.textMuted}
         >
           {label}

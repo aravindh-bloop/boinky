@@ -92,7 +92,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
         paddingBottom: Math.max(insets.bottom, space.sm),
         paddingTop: space.sm,
         // shadow points up, toward the content it sits under
-        shadowColor: '#3D2E1E',
+        shadowColor: '#5A4223',
         shadowOpacity: 0.07,
         shadowRadius: 20,
         shadowOffset: { width: 0, height: -6 },
@@ -130,7 +130,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             ]}
           >
             <LinearGradient
-              colors={gradients.canopy}
+              colors={gradients.dawn}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{

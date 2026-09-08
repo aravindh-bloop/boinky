@@ -1,39 +1,44 @@
 import React from 'react';
-import { StyleSheet, type ViewStyle } from 'react-native';
+import { StyleSheet, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Canvas, Circle, Group, BlurMask, LinearGradient, vec, Rect } from '@shopify/react-native-skia';
-import { useWindowDimensions } from 'react-native';
+import { palette } from './tokens';
 
 interface Props {
-  tint?: 'green' | 'harvest' | 'calm';
+  tint?: 'green' | 'harvest' | 'calm' | 'sunrise';
   height?: number;
   style?: ViewStyle;
 }
 
+/** Each tint fades from a soft wash at the top into the page canvas. */
 const TINTS = {
-  green: { a: '#3B7A3F', b: '#5DA34E', base0: '#EAF3E2', base1: '#FBF8F1' },
-  harvest: { a: '#DDA24C', b: '#C57B54', base0: '#F8EACF', base1: '#FBF8F1' },
-  calm: { a: '#6FA3A9', b: '#8CA982', base0: '#E6EFEA', base1: '#FBF8F1' },
+  sunrise: { wash: palette.claySoft, glow: palette.sky2 },
+  harvest: { wash: palette.honeySoft, glow: palette.honey },
+  green: { wash: palette.primarySoft, glow: palette.leaf },
+  calm: { wash: '#E7EEEF', glow: palette.info },
 };
 
 /**
- * Soft blurred organic blobs behind a header. Purely decorative and fully static,
- * so it is memoised — a 40px Skia blur mask is not something to re-record every
- * time the screen above it re-renders with new data.
+ * A soft coloured wash behind a screen header — a top-down gradient into the
+ * canvas with one diffuse glow. Static and memoised: a Skia blur is not
+ * something to re-record when the screen above re-renders with new data.
  */
-function OrganicBackgroundBase({ tint = 'green', height = 260, style }: Props) {
+function OrganicBackgroundBase({ tint = 'sunrise', height = 240, style }: Props) {
   const { width } = useWindowDimensions();
-  const t = TINTS[tint];
+  const t = TINTS[tint] ?? TINTS.sunrise;
 
   return (
     <Canvas style={[StyleSheet.absoluteFill, { height }, style]} pointerEvents="none">
       <Rect x={0} y={0} width={width} height={height}>
-        <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[t.base0, t.base1]} />
+        <LinearGradient
+          start={vec(0, 0)}
+          end={vec(0, height)}
+          colors={[t.wash, palette.canvas]}
+          positions={[0, 0.9]}
+        />
       </Rect>
-      <Group opacity={0.42}>
-        <BlurMask blur={48} style="normal" />
-        <Circle cx={width * 0.12} cy={height * 0.22} r={height * 0.44} color={t.a} opacity={0.3} />
-        <Circle cx={width * 0.94} cy={height * 0.06} r={height * 0.38} color={t.b} opacity={0.26} />
-        <Circle cx={width * 0.72} cy={height * 0.6} r={height * 0.26} color={t.a} opacity={0.16} />
+      <Group opacity={0.5}>
+        <BlurMask blur={64} style="normal" />
+        <Circle cx={width * 0.82} cy={height * 0.1} r={height * 0.42} color={t.glow} opacity={0.22} />
       </Group>
     </Canvas>
   );

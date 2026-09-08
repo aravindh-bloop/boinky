@@ -24,12 +24,13 @@ export function Card({
   const base: ViewStyle = {
     backgroundColor: elevation === 'sunken' ? palette.surfaceSunken : palette.surface,
     borderRadius: radius.xl,
-    // a crisp hairline edge under a soft shadow — the "premium card" look
-    borderWidth: 1,
-    borderColor: elevation === 'raised' ? palette.hairline : palette.border,
     padding: padded ? space.lg : 0,
     gap: space.sm,
-    ...(elevation === 'raised' ? shadow.e1 : null),
+    // raised: pure surface lifted by a soft shadow, no border (cleaner).
+    // flat / sunken: a hairline instead of a shadow.
+    ...(elevation === 'raised'
+      ? shadow.e1
+      : { borderWidth: 1, borderColor: elevation === 'sunken' ? palette.border : palette.hairline }),
     ...(accent ? { borderLeftWidth: 3, borderLeftColor: accent } : null),
   };
 

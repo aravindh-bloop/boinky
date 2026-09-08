@@ -51,7 +51,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
               left: 4,
               backgroundColor: palette.surface,
               borderRadius: radius.pill,
-              shadowColor: '#3D2E1E',
+              shadowColor: '#5A4223',
               shadowOpacity: 0.08,
               shadowRadius: 6,
               shadowOffset: { width: 0, height: 2 },

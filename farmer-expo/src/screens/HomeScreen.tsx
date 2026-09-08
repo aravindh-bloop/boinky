@@ -2,30 +2,25 @@ import React from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApi } from '../api/useApi';
 import { useDailyBrief } from '../api/useDailyBrief';
-import { api } from '../api/client';
 import { useT } from '../i18n';
 import type { HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
+  Divider,
   Icon,
   Reveal,
   Row,
   SkeletonList,
   Text,
   ErrorState,
-  PodCard,
   PressableScale,
-  RiskGauge,
   gradients,
-  shadow,
-  haptic,
   palette,
   radius,
   severity as sev,
@@ -41,19 +36,12 @@ export default function HomeScreen() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refreshing, reload } = useApi<HomeData>('/api/home');
-  // `/api/home` carries weather whenever the server-side forecast cache is warm.
-  // Only reach for the live endpoint when it isn't — this used to be an extra
-  // request on every single visit to the dashboard.
   const weatherApi = useApi<Weather>(data && !data.weather ? '/api/weather' : null);
-  // generated in the background and polled — never blocks the dashboard either
   const briefApi = useDailyBrief();
 
-  /** Route an insight card to the screen it is about. */
   const openInsight = React.useCallback(
     (c: InsightCard) => {
-      const field = c.fieldName
-        ? data?.fieldRisk.find((f) => f.name === c.fieldName)
-        : undefined;
+      const field = c.fieldName ? data?.fieldRisk.find((f) => f.name === c.fieldName) : undefined;
       switch (c.action) {
         case 'open_field':
           if (field) nav.navigate('FieldDetail', { fieldId: field.id });
@@ -71,14 +59,12 @@ export default function HomeScreen() {
         case 'open_alerts':
           nav.navigate('Alerts');
           break;
-        // Stock and Schemes are sibling tabs, so they go through the tab navigator.
         case 'open_stock':
-          nav.getParent()?.navigate('Stock');
+          nav.getParent()?.navigate('Stock' as never);
           break;
         case 'open_schemes':
-          nav.getParent()?.navigate('Schemes');
+          nav.getParent()?.navigate('Schemes' as never);
           break;
-        case 'none':
         default:
           break;
       }
@@ -88,7 +74,7 @@ export default function HomeScreen() {
 
   if (loading)
     return (
-      <View style={{ flex: 1, backgroundColor: palette.canvas, paddingTop: insets.top + 80, paddingHorizontal: space.lg }}>
+      <View style={{ flex: 1, backgroundColor: palette.canvas, paddingTop: insets.top + 96, paddingHorizontal: space.lg }}>
         <SkeletonList count={4} />
       </View>
     );
@@ -109,6 +95,7 @@ export default function HomeScreen() {
         }
       : null);
   const hi = d.highestRisk;
+  const riskShown = hi && hi.riskScore != null && (hi.riskLevel === 'high' || hi.riskLevel === 'medium');
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
@@ -117,60 +104,39 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={palette.primary} />}
       >
-        {/* ── Weather hero ── */}
+        {/* ── Sunrise hero ── */}
         <LinearGradient
           colors={w?.current.isDay === false ? gradients.dusk : gradients.canopy}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1.1 }}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
           style={{
             paddingTop: insets.top + space.md,
             paddingHorizontal: space.lg,
-            paddingBottom: space.xxl + space.lg,
+            paddingBottom: space.xxl + space.xl,
             borderBottomLeftRadius: radius.xxl,
             borderBottomRightRadius: radius.xxl,
           }}
         >
           <Row between>
             <View>
-              <Text variant="label" color="rgba(255,255,255,0.75)">
+              <Text variant="label" color="rgba(255,255,255,0.8)">
                 {greeting()}
               </Text>
               <Text variant="title" color="#fff" raw style={{ marginTop: 1 }}>
-                {d.user.name?.split(' ')[0] ?? t('farmer')}
+                {d.user.name?.split(' ')[0] ?? t('there')}
               </Text>
             </View>
             <Row gap={space.sm}>
               <PressableScale onPress={() => nav.navigate('Ask')} compact>
-                <View
-                  style={{
-                    height: 42,
-                    borderRadius: radius.pill,
-                    paddingHorizontal: space.md,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    backgroundColor: 'rgba(255,255,255,0.18)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.25)',
-                  }}
-                >
-                  <Icon name="ai" size={16} color="#fff" weight="fill" />
-                  <Text variant="label" color="#fff">{t('Ask')}</Text>
+                <View style={hs.chip}>
+                  <Icon name="ai" size={15} color="#fff" weight="fill" />
+                  <Text variant="label" color="#fff">
+                    {t('Ask')}
+                  </Text>
                 </View>
               </PressableScale>
               <PressableScale onPress={() => nav.navigate('Profile')} compact>
-                <View
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: radius.pill,
-                    backgroundColor: 'rgba(255,255,255,0.18)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.25)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                <View style={hs.avatar}>
                   <Text variant="subhead" color="#fff" raw>
                     {(d.user.name?.[0] ?? 'F').toUpperCase()}
                   </Text>
@@ -181,73 +147,52 @@ export default function HomeScreen() {
 
           {w ? (
             <PressableScale onPress={() => nav.navigate('Weather')} feedback="tap">
-              <Row between style={{ marginTop: space.xl, alignItems: 'flex-end' }}>
+              <Row between style={{ marginTop: space.xl, alignItems: 'center' }}>
                 <Row gap={space.md} style={{ alignItems: 'center' }}>
-                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={46} color="#fff" weight="fill" />
+                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={42} color="#fff" weight="fill" />
                   <View>
-                    <Text variant="hero" color="#fff" raw style={{ fontSize: 44, lineHeight: 46, letterSpacing: -1 }}>
+                    <Text variant="hero" color="#fff" raw style={{ fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>
                       {Math.round(w.current.tempC ?? 0)}°
                     </Text>
-                    <Text variant="bodyStrong" color="rgba(255,255,255,0.92)" style={{ marginTop: 2 }}>
+                    <Text variant="label" color="rgba(255,255,255,0.9)" style={{ marginTop: 2 }}>
                       {w.current.condition}
                     </Text>
                   </View>
                 </Row>
-                <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      backgroundColor: 'rgba(255,255,255,0.16)',
-                      borderRadius: radius.pill,
-                      paddingHorizontal: space.sm,
-                      paddingVertical: 3,
-                    }}
-                  >
-                    <Icon name="hotspot" size={11} color="rgba(255,255,255,0.9)" weight="fill" />
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <View style={hs.place}>
+                    <Icon name="hotspot" size={10} color="rgba(255,255,255,0.9)" weight="fill" />
                     <Text variant="caption" color="#fff" raw>
                       {w.place ?? t('your field')}
                     </Text>
                   </View>
                   {w.today && (
-                    <Text variant="caption" color="rgba(255,255,255,0.8)" raw>
-                      H {Math.round(w.today.tempMaxC ?? 0)}°  ·  L {Math.round(w.today.tempMinC ?? 0)}°
+                    <Text variant="caption" color="rgba(255,255,255,0.82)" raw>
+                      H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
                     </Text>
                   )}
                 </View>
               </Row>
               {w.topAdvisory && (
-                <View
-                  style={{
-                    marginTop: space.md,
-                    backgroundColor: 'rgba(255,255,255,0.15)',
-                    borderRadius: radius.md,
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
-                    flexDirection: 'row',
-                    gap: space.sm,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icon name="warning" size={15} color="#fff" weight="fill" />
-                  <Text variant="caption" color="#fff" style={{ flex: 1 }}>
+                <View style={hs.advisory}>
+                  <Icon name="warning" size={14} color="#fff" weight="fill" />
+                  <Text variant="caption" color="#fff" style={{ flex: 1 }} numberOfLines={1}>
                     {w.topAdvisory.title}
                     {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
                   </Text>
-                  <Icon name="right" size={13} color="rgba(255,255,255,0.8)" />
+                  <Icon name="right" size={12} color="rgba(255,255,255,0.8)" />
                 </View>
               )}
             </PressableScale>
           ) : (
-            <Text variant="body" color="rgba(255,255,255,0.85)" style={{ marginTop: space.lg }}>
-              Add a location to a field to see local weather.
+            <Text variant="body" color="rgba(255,255,255,0.9)" style={{ marginTop: space.lg }}>
+              {t('Add a location to a field to see local weather.')}
             </Text>
           )}
         </LinearGradient>
 
-        <View style={{ padding: space.lg, gap: space.lg, marginTop: -space.md }}>
-          {/* ── AI daily brief — leads the dashboard when there is something to say ── */}
+        <View style={{ paddingHorizontal: space.lg, gap: space.lg, marginTop: -space.xl }}>
+          {/* ── the brief leads ── */}
           <AiBrief
             brief={briefApi.brief}
             loading={briefApi.loading}
@@ -256,215 +201,166 @@ export default function HomeScreen() {
             onAction={openInsight}
           />
 
-          {/* ── quick stat row ── */}
+          {/* ── at a glance ── */}
           <Reveal>
-            <Row gap={space.sm}>
-              <StatPill
-                icon="tasks"
-                value={d.tasks.today.length}
-                label="today"
-                tint={palette.primary}
-                onPress={() => nav.navigate('Tasks')}
-              />
-              <StatPill
-                icon="clock"
-                value={d.tasks.overdueCount}
-                label="overdue"
-                tint={d.tasks.overdueCount > 0 ? palette.warn : palette.textFaint}
-                onPress={() => nav.navigate('Tasks')}
-              />
-              <StatPill
-                icon="alerts"
-                value={d.alerts.count}
-                label="alerts"
-                tint={d.alerts.count > 0 ? palette.danger : palette.textFaint}
-                onPress={() => nav.navigate('Alerts')}
-              />
-            </Row>
-          </Reveal>
-
-          {/* ── highest risk field ── */}
-          {hi && hi.riskScore != null ? (
-            <Reveal index={1}>
-              <Card
-                onPress={() => nav.navigate('FieldDetail', { fieldId: hi.id })}
-                accent={sev[hi.riskLevel ?? 'low'].fg}
-              >
-                <Row between>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="label" color={sev[hi.riskLevel ?? 'low'].fg}>
-                      HIGHEST RISK FIELD
+            <Card elevation="raised" padded={false}>
+              {riskShown && (
+                <PressableScale
+                  onPress={() => nav.navigate('FieldDetail', { fieldId: hi!.id })}
+                  feedback="tap"
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: space.sm,
+                      paddingHorizontal: space.lg,
+                      paddingVertical: space.md,
+                      backgroundColor: sev[hi!.riskLevel ?? 'low'].bg,
+                      borderTopLeftRadius: radius.xl,
+                      borderTopRightRadius: radius.xl,
+                    }}
+                  >
+                    <Icon name="shield" size={16} color={sev[hi!.riskLevel ?? 'low'].fg} weight="fill" />
+                    <Text variant="label" color={sev[hi!.riskLevel ?? 'low'].fg} style={{ flex: 1 }}>
+                      {t('{level} risk on {field}', {
+                        level: sev[hi!.riskLevel ?? 'low'].label,
+                        field: hi!.name,
+                      })}
                     </Text>
-                    <Text variant="heading">{hi.name}</Text>
-                    <Text variant="caption" muted>
-                      {hi.crop}
-                      {hi.daysSinceSown != null ? ` · day ${hi.daysSinceSown}` : ''}
-                    </Text>
+                    <Icon name="right" size={14} color={sev[hi!.riskLevel ?? 'low'].fg} />
                   </View>
-                  <RiskGauge score={hi.riskScore} level={hi.riskLevel ?? 'low'} size={104} label="" />
-                </Row>
-              </Card>
-            </Reveal>
-          ) : (
-            <Reveal index={1}>
-              <Card elevation="flat">
-                <Row gap={space.sm}>
-                  <Icon name="shield" size={22} color={palette.primary} weight="fill" />
-                  <Text variant="bodyStrong">All fields look calm right now</Text>
-                </Row>
-              </Card>
-            </Reveal>
-          )}
-
-          {/* ── AgriPod sensor ── */}
-          {d.fieldRisk.length > 0 && (
-            <Reveal index={2}>
-              <PodCard
-                fieldId={(d.highestRisk ?? d.fieldRisk[0]).id}
-                hideIfNoDevice
-              />
-            </Reveal>
-          )}
-
-          {/* ── nearby outbreaks ── */}
-          {d.nearbyOutbreaks && d.nearbyOutbreaks.count > 0 && (
-            <Reveal index={2}>
-              <Card onPress={() => nav.navigate('Alerts')} accent={palette.warn} elevation="flat">
-                <Row gap={space.sm}>
-                  <Icon name="hotspot" size={20} color={palette.warn} weight="fill" />
-                  <Text variant="bodyStrong" style={{ flex: 1 }}>
-                    {d.nearbyOutbreaks.count} outbreak{d.nearbyOutbreaks.count > 1 ? 's' : ''} near you
-                    {d.nearbyOutbreaks.nearestKm != null ? ` · ${d.nearbyOutbreaks.nearestKm} km` : ''}
-                  </Text>
-                  <Icon name="right" size={16} color={palette.textFaint} />
-                </Row>
-              </Card>
-            </Reveal>
-          )}
-
-          {/* ── today's tasks ── */}
-          <Reveal index={3}>
-            <Card elevation="flat">
-              <Row between>
-                <Text variant="subhead">Today's tasks</Text>
-                <PressableScale onPress={() => nav.navigate('Tasks')}>
-                  <Text variant="label" color={palette.primary}>
-                    All tasks
-                  </Text>
                 </PressableScale>
-              </Row>
-              {d.tasks.today.length === 0 ? (
-                <Text variant="body" muted>
-                  Nothing scheduled for today. {d.tasks.upcomingCount} coming up this week.
-                </Text>
-              ) : (
-                d.tasks.today.slice(0, 4).map((t) => (
-                  <TaskRow key={t.id} id={t.id} title={t.title} field={t.field_name} done={t.is_done} onDone={reload} />
-                ))
               )}
+              <Row style={{ paddingVertical: space.md }}>
+                <Glance
+                  value={d.tasks.today.length}
+                  label={t('today')}
+                  onPress={() => nav.navigate('Tasks')}
+                />
+                <Divider style={{ width: 1, height: 34 }} />
+                <Glance
+                  value={d.tasks.overdueCount}
+                  label={t('overdue')}
+                  tint={d.tasks.overdueCount > 0 ? palette.warn : undefined}
+                  onPress={() => nav.navigate('Tasks')}
+                />
+                <Divider style={{ width: 1, height: 34 }} />
+                <Glance
+                  value={d.alerts.count + (d.nearbyOutbreaks?.count ?? 0)}
+                  label={t('alerts')}
+                  tint={d.alerts.count + (d.nearbyOutbreaks?.count ?? 0) > 0 ? palette.danger : undefined}
+                  onPress={() => nav.navigate('Alerts')}
+                />
+              </Row>
             </Card>
           </Reveal>
 
-          {/* ── alerts ── */}
-          {d.alerts.latest.length > 0 && (
-            <Reveal index={4}>
-              <Card onPress={() => nav.navigate('Alerts')} elevation="flat">
-                <Text variant="subhead">Advisory</Text>
-                {d.alerts.latest.map((a) => (
-                  <View key={a.id}>
-                    <Text variant="bodyStrong">{a.title}</Text>
-                    <Text variant="caption" muted numberOfLines={2}>
-                      {a.message}
-                    </Text>
-                  </View>
-                ))}
-              </Card>
-            </Reveal>
-          )}
-
           {/* ── recent scans ── */}
           {d.recentScans.length > 0 && (
-            <Reveal index={5}>
-              <Card elevation="flat">
+            <Reveal index={1}>
+              <View style={{ gap: space.sm }}>
                 <Row between>
-                  <Text variant="subhead">Recent scans</Text>
-                  <PressableScale onPress={() => nav.navigate('History')}>
+                  <Text variant="overline">{t('Recent scans')}</Text>
+                  <PressableScale onPress={() => nav.navigate('History')} compact>
                     <Text variant="label" color={palette.primary}>
-                      History
+                      {t('History')}
                     </Text>
                   </PressableScale>
                 </Row>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: space.sm }}
+                >
                   {d.recentScans.map((s) => (
-                    <PressableScale key={s.id} onPress={() => nav.navigate('ScanResult', { scanId: s.id })} compact>
-                      <View style={{ width: 96, gap: 4 }}>
+                    <PressableScale
+                      key={s.id}
+                      onPress={() => nav.navigate('ScanResult', { scanId: s.id })}
+                      compact
+                    >
+                      <View style={{ width: 100, gap: 5 }}>
                         <Image
                           source={{ uri: s.image_url }}
-                          style={{ width: 96, height: 96, borderRadius: radius.md }}
+                          style={{ width: 100, height: 100, borderRadius: radius.lg }}
                           contentFit="cover"
                         />
-                        <Text variant="caption" numberOfLines={1}>
+                        <Text variant="caption" numberOfLines={1} raw>
                           {s.diagnosis_label ?? '—'}
                         </Text>
                       </View>
                     </PressableScale>
                   ))}
                 </ScrollView>
-              </Card>
+              </View>
             </Reveal>
           )}
 
-          {/* ── season money ── */}
-          {d.finance && (
-            <Reveal index={6}>
-              <Card onPress={() => nav.getParent()?.navigate('Stock' as never)} elevation="flat">
-                <Text variant="subhead">This season</Text>
-                <Row gap={space.md}>
-                  <Money label="Spent" value={d.finance.spent} tint={palette.clay} />
-                  <Money label="Earned" value={d.finance.revenue} tint={palette.primary} />
-                  <Money label="Net" value={d.finance.net} tint={d.finance.net >= 0 ? palette.primaryDeep : palette.danger} />
-                </Row>
-              </Card>
-            </Reveal>
-          )}
+          {/* ── quiet links to the rest ── */}
+          <Reveal index={2}>
+            <Row gap={space.sm}>
+              <QuietLink icon="calendar" label={t('Calendar')} onPress={() => nav.navigate('Tasks')} />
+              <QuietLink icon="activity" label={t('Activity')} onPress={() => nav.navigate('Activity')} />
+              <QuietLink
+                icon="money"
+                label={t('Money')}
+                onPress={() => nav.getParent()?.navigate('Stock' as never)}
+              />
+            </Row>
+          </Reveal>
         </View>
       </ScrollView>
     </View>
   );
 }
 
-function StatPill({
-  icon,
+function Glance({
   value,
   label,
   tint,
   onPress,
 }: {
-  icon: any;
   value: number;
   label: string;
-  tint: string;
+  tint?: string;
   onPress: () => void;
 }) {
   return (
-    <PressableScale onPress={onPress} style={{ flex: 1 }} compact>
-      <View
-        style={{
-          backgroundColor: palette.surface,
-          borderRadius: radius.lg,
-          paddingHorizontal: space.md,
-          paddingVertical: space.md,
-          gap: space.xs,
-          borderWidth: 1,
-          borderColor: palette.hairline,
-          ...shadow.e0,
-        }}
-      >
-        <Icon name={icon} size={16} color={tint} weight="fill" />
-        <Text variant="hero" raw style={{ fontSize: 26, lineHeight: 30 }} color={tint}>
+    <PressableScale onPress={onPress} compact style={{ flex: 1 }}>
+      <View style={{ alignItems: 'center', gap: 2 }}>
+        <Text variant="title" raw color={tint ?? palette.text}>
           {String(value)}
         </Text>
-        <Text variant="overline" style={{ letterSpacing: 0.6 }}>
+        <Text variant="overline">{label}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+function QuietLink({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Icon>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale onPress={onPress} compact style={{ flex: 1 }}>
+      <View
+        style={{
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: space.md,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: palette.hairline,
+          backgroundColor: palette.surface,
+        }}
+      >
+        <Icon name={icon} size={18} color={palette.primary} weight="regular" />
+        <Text variant="caption" muted>
           {label}
         </Text>
       </View>
@@ -472,68 +368,43 @@ function StatPill({
   );
 }
 
-function TaskRow({
-  id,
-  title,
-  field,
-  done,
-  onDone,
-}: {
-  id: string;
-  title: string;
-  field: string | null;
-  done: boolean;
-  onDone: () => void;
-}) {
-  const [busy, setBusy] = React.useState(false);
-  const toggle = async () => {
-    setBusy(true);
-    haptic.tap();
-    try {
-      await api.request(`/api/calendar/tasks/${id}`, { method: 'PATCH', body: { isDone: !done } });
-      onDone();
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <PressableScale onPress={toggle} feedback={false} disabled={busy} style={{ opacity: done ? 0.5 : 1 }}>
-      <Row gap={space.sm} style={{ paddingVertical: 4 }}>
-        <Icon name={done ? 'check' : 'circle'} size={20} color={done ? palette.primary : palette.borderStrong} weight={done ? 'fill' : 'regular'} />
-        <View style={{ flex: 1 }}>
-          <Text variant="body" style={done ? { textDecorationLine: 'line-through' } : undefined}>
-            {title}
-          </Text>
-          {field ? (
-            <Text variant="caption" faint>
-              {field}
-            </Text>
-          ) : null}
-        </View>
-      </Row>
-    </PressableScale>
-  );
-}
-
-function Money({ label, value, tint }: { label: string; value: number; tint: string }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Text variant="subhead" color={tint}>
-        ₹{compact(value)}
-      </Text>
-      <Text variant="caption" faint>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-const compact = (n: number) => {
-  const a = Math.abs(n);
-  if (a >= 1e7) return `${(n / 1e7).toFixed(1)}Cr`;
-  if (a >= 1e5) return `${(n / 1e5).toFixed(1)}L`;
-  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
-  return `${Math.round(n)}`;
+const hs = {
+  chip: {
+    height: 38,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  place: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+  },
+  advisory: {
+    marginTop: space.md,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    flexDirection: 'row' as const,
+    gap: space.sm,
+    alignItems: 'center' as const,
+  },
 };
 
 function greeting() {

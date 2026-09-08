@@ -6,7 +6,7 @@ import { Text } from './Text';
 import { PressableScale } from './Pressable';
 import { haptic } from './haptics';
 
-type Variant = 'primary' | 'soft' | 'ghost' | 'danger';
+type Variant = 'primary' | 'sunrise' | 'soft' | 'ghost' | 'danger';
 type Size = 'md' | 'lg' | 'sm';
 
 interface Props {
@@ -21,7 +21,7 @@ interface Props {
   style?: ViewStyle;
 }
 
-const heights: Record<Size, number> = { sm: 40, md: 48, lg: 56 };
+const heights: Record<Size, number> = { sm: 40, md: 50, lg: 56 };
 
 export function Button({
   title,
@@ -47,7 +47,7 @@ export function Button({
   };
 
   const fg =
-    variant === 'primary' || variant === 'danger'
+    variant === 'primary' || variant === 'sunrise' || variant === 'danger'
       ? palette.onPrimary
       : variant === 'soft'
         ? palette.primaryDeep
@@ -73,16 +73,20 @@ export function Button({
     onPress();
   };
 
-  if (variant === 'primary') {
+  if (variant === 'primary' || variant === 'sunrise') {
     return (
       <PressableScale
         onPress={handlePress}
         disabled={disabled || loading}
         feedback="press"
-        style={[{ borderRadius: radius.lg }, shadow.e2, style as ViewStyle]}
+        style={[
+          { borderRadius: size === 'lg' ? radius.xl : radius.lg, opacity: disabled ? 0.5 : 1 },
+          shadow.e1,
+          style as ViewStyle,
+        ]}
       >
         <LinearGradient
-          colors={gradients.canopy}
+          colors={variant === 'sunrise' ? gradients.gold : gradients.dawn}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={shape}
@@ -99,14 +103,14 @@ export function Button({
       : variant === 'danger'
         ? palette.danger
         : 'transparent';
-  const border = variant === 'ghost' ? { borderWidth: 1.5, borderColor: palette.primary } : null;
+  const border = variant === 'ghost' ? { borderWidth: 1, borderColor: palette.borderStrong } : null;
 
   return (
     <PressableScale
       onPress={handlePress}
       disabled={disabled || loading}
       feedback="press"
-      style={[shape, { backgroundColor: bg }, border, style as ViewStyle]}
+      style={[shape, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }, border, style as ViewStyle]}
     >
       {inner}
     </PressableScale>
