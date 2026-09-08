@@ -10,6 +10,7 @@ import { parse } from 'csv-parse/sync';
 import { pool } from './pool.js';
 import { logger } from '../lib/logger.js';
 import { SCHEMES } from './seed-data/schemes.js';
+import { INSURANCE_DIRECTORY } from './seed-data/insurance-directory.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const seedsDir = resolve(here, '../../seeds');
@@ -87,9 +88,41 @@ async function seedSchemes() {
   logger.info({ upserts }, 'seeded schemes');
 }
 
+async function seedInsuranceDirectory() {
+  let upserts = 0;
+  for (const r of INSURANCE_DIRECTORY) {
+    await pool.query(
+      `INSERT INTO officer_directory
+         (district, rung, designation, name, office, phone, email, url, note, verified, last_verified)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (COALESCE(district, ''), rung, designation) DO UPDATE SET
+         name = EXCLUDED.name, office = EXCLUDED.office, phone = EXCLUDED.phone,
+         email = EXCLUDED.email, url = EXCLUDED.url, note = EXCLUDED.note,
+         verified = EXCLUDED.verified, last_verified = EXCLUDED.last_verified,
+         updated_at = now()`,
+      [
+        r.district,
+        r.rung,
+        r.designation,
+        r.name ?? null,
+        r.office ?? null,
+        r.phone ?? null,
+        r.email ?? null,
+        r.url ?? null,
+        r.note ?? null,
+        r.verified,
+        r.last_verified ?? null,
+      ],
+    );
+    upserts++;
+  }
+  logger.info({ upserts }, 'seeded officer_directory');
+}
+
 async function main() {
   await seedPesticides();
   await seedSchemes();
+  await seedInsuranceDirectory();
   await pool.end();
   logger.info('seed complete');
 }

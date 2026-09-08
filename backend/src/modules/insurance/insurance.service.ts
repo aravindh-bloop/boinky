@@ -2,83 +2,72 @@ import { query, queryMaybe, queryOne, withTransaction } from '../../db/query.js'
 import { AppError } from '../../http/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getOwnedField } from '../fields/fields.service.js';
-import { resolveAdmin } from '../../integrations/geocode.js';
-import {
-  uploadImage,
-  uploadVideo,
-  deleteImage,
-  deleteVideo,
-  imageDerivedUrl,
-  videoFrameUrls,
-  fetchImageAsBase64,
-} from '../../integrations/cloudinary.js';
-import { assessClaimDamage, type ScanImageInput } from '../../integrations/gemini.js';
+import { translate } from '../../integrations/sarvam.js';
 import { recordEvent } from '../insights/profile.service.js';
+import {
+  CLAIM_CAUSES,
+  LOSS_TYPES,
+  STAGE_INFO,
+  RUNG_INFO,
+  recommendRungs,
+  stageClock,
+  PENAL_INTEREST_PCT,
+  type ClaimCause,
+  type ClaimStage,
+  type LossType,
+  type Rung,
+} from './reference.js';
 
-export type ClaimStatus =
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'surveyor_assigned'
-  | 'approved'
-  | 'rejected'
-  | 'paid';
+export { CLAIM_CAUSES, LOSS_TYPES } from './reference.js';
 
-export const CLAIM_CAUSES = [
-  'flood',
-  'drought',
-  'pest_disease',
-  'hailstorm',
-  'cyclone',
-  'fire',
-  'unseasonal_rain',
-  'frost',
-  'other',
-] as const;
-export type ClaimCause = (typeof CLAIM_CAUSES)[number];
+// ── policy refs ─────────────────────────────────────────────────────────────
 
-// ── policies ──────────────────────────────────────────────────────────────
-
-export interface EnrollInput {
+export interface PolicyRefInput {
   fieldId?: string;
-  schemeId?: string;
-  crop: string;
+  applicationNo?: string;
   season: string;
+  crop: string;
+  insuranceUnit?: string;
+  insurerName?: string;
   sumInsured?: number;
   premiumPaid?: number;
   areaAcres?: number;
-  startDate?: string;
-  endDate?: string;
+  district?: string;
 }
 
-export async function enrollPolicy(farmerId: string, input: EnrollInput) {
-  if (input.fieldId) await getOwnedField(input.fieldId, farmerId); // ownership
+export async function addPolicyRef(farmerId: string, input: PolicyRefInput) {
+  let district = input.district?.trim() || null;
+  if (input.fieldId) {
+    const field = await getOwnedField(input.fieldId, farmerId);
+    district ||= (field as { district?: string | null }).district ?? null;
+  }
   return queryOne(
-    `INSERT INTO insurance_policies
-       (farmer_id, field_id, scheme_id, crop, season, sum_insured, premium_paid, area_acres, start_date, end_date)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `INSERT INTO insurance_policy_ref
+       (farmer_id, field_id, application_no, season, crop, insurance_unit,
+        insurer_name, sum_insured, premium_paid, area_acres, district)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      RETURNING *`,
     [
       farmerId,
       input.fieldId ?? null,
-      input.schemeId ?? null,
-      input.crop.trim(),
+      input.applicationNo?.trim() ?? null,
       input.season.trim(),
+      input.crop.trim(),
+      input.insuranceUnit?.trim() ?? null,
+      input.insurerName?.trim() ?? null,
       input.sumInsured ?? null,
       input.premiumPaid ?? null,
       input.areaAcres ?? null,
-      input.startDate ?? null,
-      input.endDate ?? null,
+      district,
     ],
   );
 }
 
-export async function listPolicies(farmerId: string) {
+export async function listPolicyRefs(farmerId: string) {
   return query(
-    `SELECT p.*, s.title AS scheme_title, coalesce(f.name, f.crop) AS field_name,
-            (SELECT count(*)::int FROM insurance_claims c WHERE c.policy_id = p.id) AS claim_count
-       FROM insurance_policies p
-       LEFT JOIN schemes s ON s.id = p.scheme_id
+    `SELECT p.*, coalesce(f.name, f.crop) AS field_name,
+            (SELECT count(*)::int FROM claim_track c WHERE c.policy_ref_id = p.id) AS claim_count
+       FROM insurance_policy_ref p
        LEFT JOIN fields f ON f.id = p.field_id
       WHERE p.farmer_id = $1
       ORDER BY p.created_at DESC`,
@@ -86,454 +75,636 @@ export async function listPolicies(farmerId: string) {
   );
 }
 
-/** Insurance-type schemes for the "enrol" picker. */
-export async function listInsuranceSchemes() {
-  return query(
-    `SELECT id, title, description, benefit_amount, apply_link FROM schemes
-      WHERE kind = 'insurance' ORDER BY title`,
+export async function updatePolicyRef(id: string, farmerId: string, input: Partial<PolicyRefInput>) {
+  await assertOwnedPolicy(id, farmerId);
+  const sets: string[] = [];
+  const vals: unknown[] = [id];
+  const put = (col: string, v: unknown) => {
+    vals.push(v);
+    sets.push(`${col} = $${vals.length}`);
+  };
+  if (input.applicationNo !== undefined) put('application_no', input.applicationNo?.trim() || null);
+  if (input.season !== undefined) put('season', input.season.trim());
+  if (input.crop !== undefined) put('crop', input.crop.trim());
+  if (input.insuranceUnit !== undefined) put('insurance_unit', input.insuranceUnit?.trim() || null);
+  if (input.insurerName !== undefined) put('insurer_name', input.insurerName?.trim() || null);
+  if (input.sumInsured !== undefined) put('sum_insured', input.sumInsured ?? null);
+  if (input.premiumPaid !== undefined) put('premium_paid', input.premiumPaid ?? null);
+  if (input.areaAcres !== undefined) put('area_acres', input.areaAcres ?? null);
+  if (input.district !== undefined) put('district', input.district?.trim() || null);
+  if (sets.length === 0) return;
+  put('updated_at', new Date());
+  await query(`UPDATE insurance_policy_ref SET ${sets.join(', ')} WHERE id = $1`, vals);
+}
+
+export async function removePolicyRef(id: string, farmerId: string) {
+  await assertOwnedPolicy(id, farmerId);
+  await query(`DELETE FROM insurance_policy_ref WHERE id = $1`, [id]);
+}
+
+async function assertOwnedPolicy(id: string, farmerId: string) {
+  const row = await queryMaybe<{ farmer_id: string }>(
+    `SELECT farmer_id FROM insurance_policy_ref WHERE id = $1`,
+    [id],
   );
+  if (!row) throw AppError.notFound('Policy not found');
+  if (row.farmer_id !== farmerId) throw AppError.forbidden('Not your policy');
 }
 
-// ── claims: farmer side ───────────────────────────────────────────────────
+// ── claim tracking ──────────────────────────────────────────────────────────
 
-export interface CreateClaimInput {
-  policyId: string;
+export interface CreateClaimTrackInput {
+  policyRefId: string;
   cause: ClaimCause;
-  description?: string;
+  lossType?: LossType;
   incidentDate?: string;
-  scanId?: string;
-  estimatedLossPct?: number;
-  lat?: number;
-  lng?: number;
+  docketId?: string;
+  farmerEstimatedLossPct?: number;
+  note?: string;
 }
 
-export async function createClaim(farmerId: string, input: CreateClaimInput) {
-  const policy = await queryMaybe<{ id: string; field_id: string | null; farmer_id: string }>(
-    `SELECT id, field_id, farmer_id FROM insurance_policies WHERE id = $1`,
-    [input.policyId],
+export async function createClaimTrack(farmerId: string, input: CreateClaimTrackInput) {
+  const policy = await queryMaybe<{ id: string; farmer_id: string }>(
+    `SELECT id, farmer_id FROM insurance_policy_ref WHERE id = $1`,
+    [input.policyRefId],
   );
   if (!policy) throw AppError.notFound('Policy not found');
   if (policy.farmer_id !== farmerId) throw AppError.forbidden('Not your policy');
 
-  if (input.scanId) {
-    const scan = await queryMaybe<{ farmer_id: string }>(`SELECT farmer_id FROM scans WHERE id = $1`, [
-      input.scanId,
-    ]);
-    if (!scan || scan.farmer_id !== farmerId) throw AppError.badRequest('That scan is not yours');
-  }
-
-  const claim = await withTransaction(async (c) => {
+  const id = await withTransaction(async (c) => {
     const { rows } = await c.query<{ id: string }>(
-      `INSERT INTO insurance_claims
-         (policy_id, farmer_id, field_id, scan_id, cause, description, incident_date, estimated_loss_pct)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      `INSERT INTO claim_track
+         (policy_ref_id, farmer_id, docket_id, cause, loss_type, incident_date,
+          farmer_estimated_loss_pct, note, stage, stage_since)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'intimation',CURRENT_DATE)
+       RETURNING id`,
       [
-        input.policyId,
+        input.policyRefId,
         farmerId,
-        policy.field_id,
-        input.scanId ?? null,
+        input.docketId?.trim() ?? null,
         input.cause,
-        input.description?.trim() ?? null,
+        input.lossType ?? 'localised',
         input.incidentDate ?? null,
-        input.estimatedLossPct ?? null,
+        input.farmerEstimatedLossPct ?? null,
+        input.note?.trim() ?? null,
       ],
     );
-    const id = rows[0]!.id;
+    const claimId = rows[0]!.id;
     await c.query(
-      `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, body)
-       VALUES ($1, $2, 'farmer', 'created', $3)`,
-      [id, farmerId, `Started a claim for ${input.cause.replace('_', ' / ')}.`],
+      `INSERT INTO claim_track_event (claim_id, source, kind, to_stage, body)
+       VALUES ($1, 'farmer', 'stage_change', 'intimation', $2)`,
+      [claimId, `Loss reported — ${input.cause.replace('_', ' / ')}.`],
     );
-    return id;
-  });
-
-  if (input.lat != null && input.lng != null) {
-    void resolveAdmin(input.lat, input.lng)
-      .then((a) => query(`UPDATE insurance_claims SET district = $2 WHERE id = $1`, [claim, a.district]))
-      .catch(() => {});
-  }
-  return getClaim(claim, { id: farmerId, role: 'farmer' });
-}
-
-export async function listMyClaims(farmerId: string) {
-  return query(
-    `SELECT c.id, c.cause, c.status, c.incident_date, c.estimated_loss_pct, c.approved_amount,
-            c.created_at, c.updated_at, c.submitted_at,
-            p.crop, p.season, coalesce(f.name, f.crop) AS field_name,
-            (SELECT count(*)::int FROM insurance_claim_media m WHERE m.claim_id = c.id) AS media_count
-       FROM insurance_claims c
-       JOIN insurance_policies p ON p.id = c.policy_id
-       LEFT JOIN fields f ON f.id = c.field_id
-      WHERE c.farmer_id = $1
-      ORDER BY c.updated_at DESC`,
-    [farmerId],
-  );
-}
-
-interface Actor {
-  id: string;
-  role: 'farmer' | 'official';
-}
-
-export async function getClaim(claimId: string, actor: Actor) {
-  const claim = await queryMaybe<Record<string, unknown> & { farmer_id: string }>(
-    `SELECT c.*, p.crop, p.season, p.sum_insured, p.premium_paid, s.title AS scheme_title,
-            coalesce(f.name, f.crop) AS field_name,
-            u.name AS farmer_name, u.phone AS farmer_phone, u.region,
-            sc.diagnosis_label AS scan_diagnosis
-       FROM insurance_claims c
-       JOIN insurance_policies p ON p.id = c.policy_id
-       LEFT JOIN schemes s ON s.id = p.scheme_id
-       LEFT JOIN fields f ON f.id = c.field_id
-       LEFT JOIN users u ON u.id = c.farmer_id
-       LEFT JOIN scans sc ON sc.id = c.scan_id
-      WHERE c.id = $1`,
-    [claimId],
-  );
-  if (!claim) throw AppError.notFound('Claim not found');
-  if (actor.role === 'farmer' && claim.farmer_id !== actor.id) {
-    throw AppError.forbidden('Not your claim');
-  }
-
-  const [media, events] = await Promise.all([
-    query(
-      `SELECT id, kind, url, caption, lat, lng, position FROM insurance_claim_media
-        WHERE claim_id = $1 ORDER BY position, created_at`,
-      [claimId],
-    ),
-    query(
-      `SELECT e.id, e.actor_role, e.kind, e.from_status, e.to_status, e.body, e.created_at
-         FROM insurance_claim_events e
-        WHERE e.claim_id = $1 ORDER BY e.created_at`,
-      [claimId],
-    ),
-  ]);
-
-  // The AI draft assessment is officer-only.
-  if (actor.role === 'farmer') delete (claim as Record<string, unknown>).ai_assessment;
-
-  return { claim, media, events };
-}
-
-export async function addClaimMedia(
-  claimId: string,
-  farmerId: string,
-  input: {
-    kind: 'photo' | 'video';
-    file: { buffer: Buffer; mimetype: string; originalname: string };
-    caption?: string;
-    lat?: number;
-    lng?: number;
-  },
-) {
-  const claim = await assertDraft(claimId, farmerId);
-  const count = await queryOne<{ n: number }>(
-    `SELECT count(*)::int AS n FROM insurance_claim_media WHERE claim_id = $1`,
-    [claimId],
-  );
-  if (count.n >= 10) throw AppError.badRequest('A claim can hold at most 10 photos and one video');
-
-  let url: string;
-  let publicId: string;
-  if (input.kind === 'video') {
-    const has = await queryMaybe(`SELECT 1 FROM insurance_claim_media WHERE claim_id = $1 AND kind = 'video'`, [
-      claimId,
-    ]);
-    if (has) throw AppError.badRequest('Only one video per claim');
-    const up = await uploadVideo(input.file.buffer, { folder: 'agripod/claims' });
-    url = up.url;
-    publicId = up.publicId;
-  } else {
-    const up = await uploadImage(input.file.buffer, { folder: 'agripod/claims' });
-    url = up.url;
-    publicId = up.publicId;
-  }
-
-  const [row] = await query(
-    `INSERT INTO insurance_claim_media (claim_id, kind, url, public_id, caption, lat, lng, position)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     RETURNING id, kind, url, caption, lat, lng, position`,
-    [claimId, input.kind, url, publicId, input.caption?.trim() ?? null, input.lat ?? null, input.lng ?? null, count.n],
-  );
-  void claim;
-  return row;
-}
-
-export async function removeClaimMedia(claimId: string, mediaId: string, farmerId: string) {
-  await assertDraft(claimId, farmerId);
-  const m = await queryMaybe<{ public_id: string | null; kind: string }>(
-    `SELECT public_id, kind FROM insurance_claim_media WHERE id = $1 AND claim_id = $2`,
-    [mediaId, claimId],
-  );
-  if (!m) throw AppError.notFound('Media not found');
-  if (m.public_id) {
-    if (m.kind === 'video') await deleteVideo(m.public_id);
-    else await deleteImage(m.public_id);
-  }
-  await query(`DELETE FROM insurance_claim_media WHERE id = $1`, [mediaId]);
-}
-
-export async function submitClaim(claimId: string, farmerId: string) {
-  const claim = await assertDraft(claimId, farmerId);
-  const media = await query<{ id: string; kind: string; public_id: string | null }>(
-    `SELECT id, kind, public_id FROM insurance_claim_media WHERE claim_id = $1`,
-    [claimId],
-  );
-  if (media.length === 0) {
-    throw AppError.unprocessable('Add at least one photo of the damage before submitting');
-  }
-
-  await withTransaction(async (c) => {
-    await c.query(
-      `UPDATE insurance_claims SET status = 'submitted', submitted_at = now(), updated_at = now()
-        WHERE id = $1`,
-      [claimId],
-    );
-    await c.query(
-      `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, from_status, to_status, body)
-       VALUES ($1, $2, 'farmer', 'submitted', 'draft', 'submitted', $3)`,
-      [claimId, farmerId, `Submitted with ${media.length} photo${media.length > 1 ? 's' : ''}.`],
-    );
+    return claimId;
   });
 
   void recordEvent(
     farmerId,
     'insurance_claim',
-    `Filed a crop-insurance claim for ${String(claim.cause).replace('_', ' / ')} damage.`,
-    claimId,
+    `Started tracking a crop-insurance claim for ${input.cause.replace('_', ' / ')} damage.`,
+    id,
   );
-
-  // Officer-facing AI draft assessment — background, best-effort.
-  void draftAssessment(claimId).catch((err) =>
-    logger.warn({ err, claimId }, 'claim assessment failed'),
-  );
-
-  return getClaim(claimId, { id: farmerId, role: 'farmer' });
+  return getClaimTrack(id, farmerId);
 }
 
-async function draftAssessment(claimId: string): Promise<void> {
-  const claim = await queryMaybe<{
-    cause: string;
-    description: string | null;
-    incident_date: string | null;
-    crop: string | null;
-    scan_diagnosis: string | null;
-  }>(
-    `SELECT c.cause, c.description, to_char(c.incident_date,'YYYY-MM-DD') AS incident_date,
-            p.crop, sc.diagnosis_label AS scan_diagnosis
-       FROM insurance_claims c
-       JOIN insurance_policies p ON p.id = c.policy_id
-       LEFT JOIN scans sc ON sc.id = c.scan_id
+export async function listClaimTracks(farmerId: string) {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT c.*, p.crop, p.season, p.insurer_name, p.district, p.sum_insured,
+            coalesce(f.name, f.crop) AS field_name
+       FROM claim_track c
+       JOIN insurance_policy_ref p ON p.id = c.policy_ref_id
+       LEFT JOIN fields f ON f.id = p.field_id
+      WHERE c.farmer_id = $1
+      ORDER BY c.updated_at DESC`,
+    [farmerId],
+  );
+  return rows.map((r) => ({
+    ...r,
+    clock: stageClock(
+      r.stage as ClaimStage,
+      r.stage_since as string | Date,
+      r.loss_type as LossType,
+      (r.outcome as string) ?? null,
+    ),
+  }));
+}
+
+export async function getClaimTrack(id: string, farmerId: string) {
+  const claim = await queryMaybe<Record<string, unknown> & { farmer_id: string }>(
+    `SELECT c.*, p.crop, p.season, p.insurer_name, p.district, p.sum_insured,
+            p.application_no, p.insurance_unit, coalesce(f.name, f.crop) AS field_name
+       FROM claim_track c
+       JOIN insurance_policy_ref p ON p.id = c.policy_ref_id
+       LEFT JOIN fields f ON f.id = p.field_id
       WHERE c.id = $1`,
-    [claimId],
-  );
-  if (!claim) return;
-
-  const media = await query<{ kind: string; public_id: string | null }>(
-    `SELECT kind, public_id FROM insurance_claim_media WHERE claim_id = $1 ORDER BY position LIMIT 6`,
-    [claimId],
-  );
-  const fetches: Promise<ScanImageInput | null>[] = [];
-  for (const m of media) {
-    if (!m.public_id) continue;
-    if (m.kind === 'video') {
-      for (const f of videoFrameUrls(m.public_id).slice(0, 2)) {
-        fetches.push(
-          fetchImageAsBase64(f).then((g) => (g ? { kind: 'video', base64: g.data, mimeType: g.mimeType } : null)),
-        );
-      }
-    } else {
-      fetches.push(
-        fetchImageAsBase64(imageDerivedUrl(m.public_id)).then((g) =>
-          g ? { kind: 'field_wide', base64: g.data, mimeType: g.mimeType } : null,
-        ),
-      );
-    }
-  }
-  const images = (await Promise.all(fetches)).filter((x): x is ScanImageInput => x !== null);
-  if (images.length === 0) return;
-
-  const assessment = await assessClaimDamage(images, {
-    cause: claim.cause,
-    crop: claim.crop,
-    description: claim.description,
-    incidentDate: claim.incident_date,
-    scanDiagnosis: claim.scan_diagnosis,
-  });
-  await query(`UPDATE insurance_claims SET ai_assessment = $2 WHERE id = $1`, [
-    claimId,
-    JSON.stringify(assessment),
-  ]);
-  logger.info({ claimId, plausible: assessment.causePlausible }, 'claim assessment attached');
-}
-
-export async function postClaimMessage(claimId: string, actor: Actor, body: string) {
-  const claim = await queryMaybe<{ farmer_id: string }>(
-    `SELECT farmer_id FROM insurance_claims WHERE id = $1`,
-    [claimId],
-  );
-  if (!claim) throw AppError.notFound('Claim not found');
-  if (actor.role === 'farmer' && claim.farmer_id !== actor.id) throw AppError.forbidden('Not your claim');
-  await withTransaction(async (c) => {
-    await c.query(
-      `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, body)
-       VALUES ($1, $2, $3, 'message', $4)`,
-      [claimId, actor.id, actor.role, body.trim()],
-    );
-    await c.query(`UPDATE insurance_claims SET updated_at = now() WHERE id = $1`, [claimId]);
-  });
-}
-
-async function assertDraft(claimId: string, farmerId: string): Promise<Record<string, unknown>> {
-  const claim = await queryMaybe<Record<string, unknown> & { farmer_id: string; status: string }>(
-    `SELECT * FROM insurance_claims WHERE id = $1`,
-    [claimId],
+    [id],
   );
   if (!claim) throw AppError.notFound('Claim not found');
   if (claim.farmer_id !== farmerId) throw AppError.forbidden('Not your claim');
-  if (claim.status !== 'draft') throw AppError.badRequest('This claim has already been submitted');
-  return claim;
+
+  const [events, escalations] = await Promise.all([
+    query(
+      `SELECT id, source, kind, from_stage, to_stage, body, at
+         FROM claim_track_event WHERE claim_id = $1 ORDER BY at`,
+      [id],
+    ),
+    query(
+      `SELECT id, rung, channel, reason, status, external_ref, officer_note, created_at, sent_at
+         FROM escalation WHERE claim_id = $1 ORDER BY created_at DESC`,
+      [id],
+    ),
+  ]);
+
+  const stage = claim.stage as ClaimStage;
+  const clock = stageClock(
+    stage,
+    claim.stage_since as string | Date,
+    claim.loss_type as LossType,
+    (claim.outcome as string) ?? null,
+  );
+
+  return {
+    claim,
+    stageInfo: STAGE_INFO[stage],
+    clock,
+    timeline: buildTimeline(stage),
+    events,
+    escalations,
+    canEscalate: clock.breached || claim.outcome === 'rejected' || claim.outcome === 'partial',
+  };
 }
 
-// ── claims: officer side ──────────────────────────────────────────────────
+/** The six stages with the current one flagged, for the app's stepper. */
+function buildTimeline(current: ClaimStage) {
+  const order: ClaimStage[] = ['intimation', 'survey', 'assessment', 'approval', 'payout'];
+  const idx = order.indexOf(current === 'closed' ? 'payout' : current);
+  return order.map((s, i) => ({
+    ...STAGE_INFO[s],
+    state: i < idx ? 'done' : i === idx ? 'current' : 'upcoming',
+  }));
+}
 
-export interface OfficerClaimFilter {
+export async function advanceClaimStage(
+  id: string,
+  farmerId: string,
+  input: {
+    stage: ClaimStage;
+    stageSince?: string;
+    outcome?: 'approved' | 'rejected' | 'partial' | 'pending' | null;
+    amountExpected?: number | null;
+    amountPaid?: number | null;
+    paidOn?: string | null;
+    docketId?: string | null;
+    note?: string | null;
+  },
+) {
+  const claim = await queryMaybe<{ farmer_id: string; stage: ClaimStage }>(
+    `SELECT farmer_id, stage FROM claim_track WHERE id = $1`,
+    [id],
+  );
+  if (!claim) throw AppError.notFound('Claim not found');
+  if (claim.farmer_id !== farmerId) throw AppError.forbidden('Not your claim');
+
+  await withTransaction(async (c) => {
+    await c.query(
+      `UPDATE claim_track SET
+         stage = $2,
+         stage_since = COALESCE($3, CURRENT_DATE),
+         outcome = COALESCE($4, outcome),
+         amount_expected = COALESCE($5, amount_expected),
+         amount_paid = COALESCE($6, amount_paid),
+         paid_on = COALESCE($7, paid_on),
+         docket_id = COALESCE($8, docket_id),
+         note = COALESCE($9, note),
+         updated_at = now()
+       WHERE id = $1`,
+      [
+        id,
+        input.stage,
+        input.stageSince ?? null,
+        input.outcome ?? null,
+        input.amountExpected ?? null,
+        input.amountPaid ?? null,
+        input.paidOn ?? null,
+        input.docketId ?? null,
+        input.note ?? null,
+      ],
+    );
+    if (input.stage !== claim.stage) {
+      await c.query(
+        `INSERT INTO claim_track_event (claim_id, source, kind, from_stage, to_stage, body)
+         VALUES ($1, 'farmer', 'stage_change', $2, $3, $4)`,
+        [id, claim.stage, input.stage, input.note?.trim() ?? null],
+      );
+    }
+    if (input.amountPaid != null) {
+      await c.query(
+        `INSERT INTO claim_track_event (claim_id, source, kind, body)
+         VALUES ($1, 'farmer', 'payment', $2)`,
+        [id, `Payment recorded: ₹${Math.round(input.amountPaid).toLocaleString('en-IN')}.`],
+      );
+    }
+  });
+  return getClaimTrack(id, farmerId);
+}
+
+export async function addClaimNote(id: string, farmerId: string, body: string) {
+  const claim = await queryMaybe<{ farmer_id: string }>(
+    `SELECT farmer_id FROM claim_track WHERE id = $1`,
+    [id],
+  );
+  if (!claim) throw AppError.notFound('Claim not found');
+  if (claim.farmer_id !== farmerId) throw AppError.forbidden('Not your claim');
+  await withTransaction(async (c) => {
+    await c.query(
+      `INSERT INTO claim_track_event (claim_id, source, kind, body) VALUES ($1, 'farmer', 'note', $2)`,
+      [id, body.trim()],
+    );
+    await c.query(`UPDATE claim_track SET updated_at = now() WHERE id = $1`, [id]);
+  });
+}
+
+// ── escalation ──────────────────────────────────────────────────────────────
+
+/** What the app shows on the "escalate" screen — recommended rung + contacts + draft letter. */
+export async function escalationOptions(claimId: string, farmerId: string) {
+  const { claim, clock } = await getClaimTrack(claimId, farmerId);
+  const district = (claim.district as string) ?? null;
+  const rec = recommendRungs(claim.stage as ClaimStage, (claim.outcome as string) ?? null);
+  const rungs = [rec.primary, ...rec.also];
+
+  const contacts = await lookupDirectory(district, rungs);
+  const farmer = await queryOne<{ name: string; phone: string | null }>(
+    `SELECT name, phone FROM users WHERE id = $1`,
+    [farmerId],
+  );
+  const letterEn = grievanceLetterEn({
+    farmerName: farmer.name,
+    farmerPhone: farmer.phone,
+    applicationNo: (claim.application_no as string) ?? null,
+    crop: claim.crop as string,
+    season: claim.season as string,
+    district,
+    cause: claim.cause as string,
+    incidentDate: (claim.incident_date as string) ?? null,
+    docketId: (claim.docket_id as string) ?? null,
+    stageLabel: STAGE_INFO[claim.stage as ClaimStage].label,
+    overdueBy: clock.overdueBy,
+    slaDays: clock.slaDays,
+    outcome: (claim.outcome as string) ?? null,
+    penalInterest: clock.penalInterestDue,
+  });
+
+  return {
+    district,
+    recommended: rec.primary,
+    rungs: rungs.map((r) => ({ rung: r, ...RUNG_INFO[r], contacts: contacts.filter((c) => c.rung === r) })),
+    letterEn,
+  };
+}
+
+export interface CreateEscalationInput {
+  rung: Rung;
+  channel: 'call' | 'sms' | 'email' | 'krph' | 'cpgrams' | 'in_person';
+  reason: string;
+  directoryId?: string;
+  externalRef?: string;
+}
+
+export async function createEscalation(claimId: string, farmerId: string, input: CreateEscalationInput) {
+  const { claim, clock } = await getClaimTrack(claimId, farmerId);
+  const district = (claim.district as string) ?? null;
+  const farmer = await queryOne<{ name: string; phone: string | null }>(
+    `SELECT name, phone FROM users WHERE id = $1`,
+    [farmerId],
+  );
+  const letterEn = grievanceLetterEn({
+    farmerName: farmer.name,
+    farmerPhone: farmer.phone,
+    applicationNo: (claim.application_no as string) ?? null,
+    crop: claim.crop as string,
+    season: claim.season as string,
+    district,
+    cause: claim.cause as string,
+    incidentDate: (claim.incident_date as string) ?? null,
+    docketId: (claim.docket_id as string) ?? null,
+    stageLabel: STAGE_INFO[claim.stage as ClaimStage].label,
+    overdueBy: clock.overdueBy,
+    slaDays: clock.slaDays,
+    outcome: (claim.outcome as string) ?? null,
+    penalInterest: clock.penalInterestDue,
+  });
+  let letterTa = letterEn;
+  try {
+    letterTa = await translate(letterEn, 'ta-IN');
+  } catch (err) {
+    logger.warn({ err, claimId }, 'grievance letter translate failed — using English');
+  }
+
+  const row = await withTransaction(async (c) => {
+    const { rows } = await c.query(
+      `INSERT INTO escalation
+         (claim_id, farmer_id, district, rung, directory_id, channel, reason,
+          letter_en, letter_ta, external_ref, status, sent_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'sent',now())
+       RETURNING *`,
+      [
+        claimId,
+        farmerId,
+        district,
+        input.rung,
+        input.directoryId ?? null,
+        input.channel,
+        input.reason.trim(),
+        letterEn,
+        letterTa,
+        input.externalRef?.trim() ?? null,
+      ],
+    );
+    await c.query(
+      `INSERT INTO claim_track_event (claim_id, source, kind, body)
+       VALUES ($1, 'farmer', 'escalation', $2)`,
+      [claimId, `Escalated to ${RUNG_INFO[input.rung].label} via ${input.channel}.`],
+    );
+    await c.query(`UPDATE claim_track SET updated_at = now() WHERE id = $1`, [claimId]);
+    return rows[0]!;
+  });
+
+  void recordEvent(
+    farmerId,
+    'insurance_escalation',
+    `Escalated a stuck insurance claim to ${RUNG_INFO[input.rung].label}.`,
+    claimId,
+  );
+  return row;
+}
+
+export async function listMyEscalations(farmerId: string) {
+  return query(
+    `SELECT e.*, c.cause, p.crop, p.season
+       FROM escalation e
+       JOIN claim_track c ON c.id = e.claim_id
+       JOIN insurance_policy_ref p ON p.id = c.policy_ref_id
+      WHERE e.farmer_id = $1
+      ORDER BY e.created_at DESC`,
+    [farmerId],
+  );
+}
+
+// ── officer directory ───────────────────────────────────────────────────────
+
+/** District rows first, then statewide / national channels, in ladder order. */
+export async function lookupDirectory(district: string | null, rungs?: Rung[]) {
+  const order = `array_position(ARRAY['block','district','dgrc','state','ombudsman','krph','cpgrams']::text[], rung)`;
+  const rows = await query<Record<string, unknown>>(
+    `SELECT * FROM officer_directory
+      WHERE (district = $1 OR district IS NULL)
+      ORDER BY (district IS NULL), ${order}`,
+    [district],
+  );
+  return (rungs ? rows.filter((r) => rungs.includes(r.rung as Rung)) : rows) as (Record<
+    string,
+    unknown
+  > & { rung: Rung })[];
+}
+
+export async function listDirectory(district?: string) {
+  if (district) return lookupDirectory(district);
+  return query(
+    `SELECT * FROM officer_directory
+      ORDER BY (district IS NULL), district,
+        array_position(ARRAY['block','district','dgrc','state','ombudsman','krph','cpgrams']::text[], rung)`,
+  );
+}
+
+export async function upsertDirectoryRow(
+  officerId: string,
+  input: {
+    id?: string;
+    district?: string | null;
+    rung: Rung;
+    designation: string;
+    name?: string | null;
+    office?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    url?: string | null;
+    note?: string | null;
+    verified?: boolean;
+  },
+) {
+  if (input.id) {
+    return queryOne(
+      `UPDATE officer_directory SET
+         district = $2, rung = $3, designation = $4, name = $5, office = $6,
+         phone = $7, email = $8, url = $9, note = $10, verified = $11,
+         last_verified = CASE WHEN $11 THEN CURRENT_DATE ELSE last_verified END,
+         updated_by = $12, updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [
+        input.id,
+        input.district?.trim() || null,
+        input.rung,
+        input.designation.trim(),
+        input.name?.trim() ?? null,
+        input.office?.trim() ?? null,
+        input.phone?.trim() ?? null,
+        input.email?.trim() ?? null,
+        input.url?.trim() ?? null,
+        input.note?.trim() ?? null,
+        input.verified ?? false,
+        officerId,
+      ],
+    );
+  }
+  return queryOne(
+    `INSERT INTO officer_directory
+       (district, rung, designation, name, office, phone, email, url, note, verified, last_verified, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, CASE WHEN $10 THEN CURRENT_DATE END, $11)
+     RETURNING *`,
+    [
+      input.district?.trim() || null,
+      input.rung,
+      input.designation.trim(),
+      input.name?.trim() ?? null,
+      input.office?.trim() ?? null,
+      input.phone?.trim() ?? null,
+      input.email?.trim() ?? null,
+      input.url?.trim() ?? null,
+      input.note?.trim() ?? null,
+      input.verified ?? false,
+      officerId,
+    ],
+  );
+}
+
+// ── officer side: escalations inbox ─────────────────────────────────────────
+
+export async function listEscalationsForOfficer(f: {
   region: string | null;
-  district?: string;
-  status?: ClaimStatus;
-  cause?: ClaimCause;
+  status?: string;
   limit: number;
   offset: number;
-}
-
-export async function listClaimsForOfficer(f: OfficerClaimFilter) {
+}) {
   const params: unknown[] = [];
-  const where: string[] = [`c.status <> 'draft'`];
+  const where: string[] = [`1 = 1`];
   if (f.region) {
     params.push(f.region);
-    where.push(`u.region = $${params.length}`);
-  }
-  if (f.district) {
-    params.push(f.district);
-    where.push(`c.district = $${params.length}`);
+    where.push(`(e.district = $${params.length} OR u.region = $${params.length})`);
   }
   if (f.status) {
     params.push(f.status);
-    where.push(`c.status = $${params.length}`);
-  }
-  if (f.cause) {
-    params.push(f.cause);
-    where.push(`c.cause = $${params.length}`);
+    where.push(`e.status = $${params.length}`);
   }
   params.push(f.limit, f.offset);
   return query(
-    `SELECT c.id, c.cause, c.status, c.incident_date, c.estimated_loss_pct,
-            c.assessed_loss_pct, c.approved_amount, c.district,
-            c.created_at, c.updated_at, c.submitted_at,
-            (c.ai_assessment IS NOT NULL) AS has_assessment,
-            p.crop, p.season, p.sum_insured,
-            u.id AS farmer_id, u.name AS farmer_name, u.phone AS farmer_phone, u.region,
-            (SELECT count(*)::int FROM insurance_claim_media m WHERE m.claim_id = c.id) AS media_count
-       FROM insurance_claims c
-       JOIN insurance_policies p ON p.id = c.policy_id
-       JOIN users u ON u.id = c.farmer_id
+    `SELECT e.id, e.rung, e.channel, e.reason, e.status, e.external_ref, e.created_at, e.sent_at,
+            e.officer_note, e.district,
+            c.id AS claim_id, c.cause, c.stage, c.stage_since, c.outcome,
+            p.crop, p.season, p.insurer_name, p.application_no,
+            u.id AS farmer_id, u.name AS farmer_name, u.phone AS farmer_phone
+       FROM escalation e
+       JOIN claim_track c ON c.id = e.claim_id
+       JOIN insurance_policy_ref p ON p.id = c.policy_ref_id
+       JOIN users u ON u.id = e.farmer_id
       WHERE ${where.join(' AND ')}
-      ORDER BY (c.status IN ('submitted','under_review')) DESC, c.updated_at DESC
+      ORDER BY (e.status IN ('sent','acknowledged')) DESC, e.created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
 }
 
-const CLAIM_FLOW: Record<ClaimStatus, ClaimStatus[]> = {
-  draft: [],
-  submitted: ['under_review', 'surveyor_assigned', 'approved', 'rejected'],
-  under_review: ['surveyor_assigned', 'approved', 'rejected'],
-  surveyor_assigned: ['approved', 'rejected', 'under_review'],
-  approved: ['paid', 'rejected'],
-  rejected: [],
-  paid: [],
-};
-
-export async function decideClaim(
-  id: string,
-  officerId: string,
-  input: {
-    status: ClaimStatus;
-    note?: string | null;
-    approvedAmount?: number | null;
-    assessedLossPct?: number | null;
-  },
-) {
-  const claim = await queryMaybe<{ status: ClaimStatus; farmer_id: string }>(
-    `SELECT status, farmer_id FROM insurance_claims WHERE id = $1`,
+export async function getEscalationForOfficer(id: string) {
+  const esc = await queryMaybe<Record<string, unknown>>(
+    `SELECT e.*, c.cause, c.stage, c.stage_since, c.loss_type, c.outcome, c.docket_id,
+            c.incident_date, c.amount_expected, c.amount_paid,
+            p.crop, p.season, p.insurer_name, p.application_no, p.sum_insured, p.insurance_unit,
+            u.name AS farmer_name, u.phone AS farmer_phone, u.region AS farmer_region
+       FROM escalation e
+       JOIN claim_track c ON c.id = e.claim_id
+       JOIN insurance_policy_ref p ON p.id = c.policy_ref_id
+       JOIN users u ON u.id = e.farmer_id
+      WHERE e.id = $1`,
     [id],
   );
-  if (!claim) throw AppError.notFound('Claim not found');
-  if (!CLAIM_FLOW[claim.status]?.includes(input.status)) {
-    throw AppError.badRequest(`Cannot move a claim from ${claim.status} to ${input.status}`);
-  }
-  if ((input.status === 'approved' || input.status === 'paid') && (input.approvedAmount == null || input.approvedAmount < 0)) {
-    throw AppError.badRequest('An approved amount is required');
-  }
-
-  const updated = await withTransaction(async (c) => {
-    const { rows } = await c.query(
-      `UPDATE insurance_claims SET
-         status = $2,
-         officer_note = COALESCE($3, officer_note),
-         approved_amount = CASE WHEN $2 IN ('approved','paid') THEN $4 ELSE approved_amount END,
-         assessed_loss_pct = COALESCE($5, assessed_loss_pct),
-         reviewed_by = $6, reviewed_at = now(), updated_at = now()
-       WHERE id = $1
-       RETURNING *`,
-      [id, input.status, input.note ?? null, input.approvedAmount ?? null, input.assessedLossPct ?? null, officerId],
-    );
-    await c.query(
-      `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, from_status, to_status, body)
-       VALUES ($1, $2, 'official', 'status_change', $3, $4, $5)`,
-      [id, officerId, claim.status, input.status, input.note?.trim() ?? null],
-    );
-    return rows[0]!;
-  });
-
-  return updated;
+  if (!esc) throw AppError.notFound('Escalation not found');
+  const events = await query(
+    `SELECT source, kind, from_stage, to_stage, body, at
+       FROM claim_track_event WHERE claim_id = $1 ORDER BY at`,
+    [esc.claim_id],
+  );
+  return { escalation: esc, events };
 }
 
-export async function insuranceSummaryForOfficer(region: string | null) {
+export async function updateEscalationStatus(
+  id: string,
+  officerId: string,
+  input: { status: string; note?: string | null },
+) {
+  const valid = ['acknowledged', 'in_progress', 'resolved', 'closed'];
+  if (!valid.includes(input.status)) throw AppError.badRequest('Invalid status');
+  return queryOne(
+    `UPDATE escalation SET
+       status = $2, officer_id = $3,
+       officer_note = COALESCE($4, officer_note), updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [id, input.status, officerId, input.note?.trim() ?? null],
+  );
+}
+
+export async function escalationSummaryForOfficer(region: string | null) {
   const params: unknown[] = [];
-  const rf = region ? (params.push(region), `AND u.region = $1`) : '';
-  const byStatus = await query<{ status: ClaimStatus; n: number }>(
-    `SELECT c.status, count(*)::int AS n
-       FROM insurance_claims c JOIN users u ON u.id = c.farmer_id
-      WHERE c.status <> 'draft' ${rf}
-      GROUP BY c.status`,
+  const rf = region ? (params.push(region), `WHERE (e.district = $1 OR u.region = $1)`) : '';
+  const byStatus = await query<{ status: string; n: number }>(
+    `SELECT e.status, count(*)::int AS n
+       FROM escalation e JOIN users u ON u.id = e.farmer_id ${rf}
+      GROUP BY e.status`,
     params,
   );
-  const byCause = await query<{ cause: string; n: number }>(
-    `SELECT c.cause, count(*)::int AS n
-       FROM insurance_claims c JOIN users u ON u.id = c.farmer_id
-      WHERE c.status <> 'draft' ${rf}
-      GROUP BY c.cause ORDER BY n DESC`,
-    params,
-  );
-  const paid = await queryOne<{ total: number; policies: number; insured: number }>(
-    `SELECT
-       (SELECT coalesce(sum(c.approved_amount),0)::float FROM insurance_claims c
-          JOIN users u ON u.id = c.farmer_id WHERE c.status = 'paid' ${rf}) AS total,
-       (SELECT count(*)::int FROM insurance_policies p
-          JOIN users u ON u.id = p.farmer_id WHERE p.status = 'active' ${rf}) AS policies,
-       (SELECT coalesce(sum(p.sum_insured),0)::float FROM insurance_policies p
-          JOIN users u ON u.id = p.farmer_id WHERE p.status = 'active' ${rf}) AS insured`,
+  const byRung = await query<{ rung: string; n: number }>(
+    `SELECT e.rung, count(*)::int AS n
+       FROM escalation e JOIN users u ON u.id = e.farmer_id ${rf}
+      GROUP BY e.rung ORDER BY n DESC`,
     params,
   );
   const map = Object.fromEntries(byStatus.map((r) => [r.status, r.n]));
   return {
     byStatus: map,
-    byCause,
-    totalPaid: paid.total,
-    activePolicies: paid.policies,
-    sumInsured: paid.insured,
-    pendingReview: (map['submitted'] ?? 0) + (map['under_review'] ?? 0) + (map['surveyor_assigned'] ?? 0),
-    approvedNotPaid: map['approved'] ?? 0,
+    byRung,
+    open: (map['sent'] ?? 0) + (map['acknowledged'] ?? 0) + (map['in_progress'] ?? 0),
+    resolved: map['resolved'] ?? 0,
   };
 }
+
+// ── grievance letter (deterministic mail-merge, not AI) ──────────────────────
+
+function grievanceLetterEn(d: {
+  farmerName: string;
+  farmerPhone: string | null;
+  applicationNo: string | null;
+  crop: string;
+  season: string;
+  district: string | null;
+  cause: string;
+  incidentDate: string | null;
+  docketId: string | null;
+  stageLabel: string;
+  overdueBy: number;
+  slaDays: number | null;
+  outcome: string | null;
+  penalInterest: boolean;
+}): string {
+  const lines: string[] = [];
+  lines.push('Subject: Grievance regarding a pending crop-insurance claim under PMFBY');
+  lines.push('');
+  lines.push('Respected Sir / Madam,');
+  lines.push('');
+  lines.push(
+    `I, ${d.farmerName}${d.farmerPhone ? ` (mobile ${d.farmerPhone})` : ''}, am a PMFBY-insured ` +
+      `farmer${d.district ? ` in ${d.district} district` : ''}. I am writing about a crop-insurance ` +
+      `claim that has not progressed within the time limits laid down in the PMFBY Operational Guidelines.`,
+  );
+  lines.push('');
+  lines.push('Claim details:');
+  if (d.applicationNo) lines.push(`  • PMFBY application / policy no.: ${d.applicationNo}`);
+  if (d.docketId) lines.push(`  • Loss intimation / docket no.: ${d.docketId}`);
+  lines.push(`  • Crop and season: ${d.crop}, ${d.season}`);
+  lines.push(`  • Cause of loss: ${d.cause.replace('_', ' / ')}`);
+  if (d.incidentDate) lines.push(`  • Date of loss: ${d.incidentDate}`);
+  lines.push(`  • Current stage: ${d.stageLabel}`);
+  lines.push('');
+  if (d.outcome === 'rejected') {
+    lines.push(
+      'The claim has been rejected. I request that the rejection be reviewed by the District ' +
+        'Grievance Redressal Committee, and that the survey report / yield data on which the ' +
+        'decision was based be shared with me.',
+    );
+  } else if (d.outcome === 'partial') {
+    lines.push(
+      'The claim has been settled for less than the assessed loss. I request a review of the ' +
+        'assessment and the calculation.',
+    );
+  } else if (d.slaDays != null && d.overdueBy > 0) {
+    lines.push(
+      `This stage has now overrun its published time limit of ${d.slaDays} days by ` +
+        `${d.overdueBy} days. I request that it be moved forward without further delay.`,
+    );
+  } else {
+    lines.push('I request an update on the current status of this claim and the expected next step.');
+  }
+  if (d.penalInterest) {
+    lines.push('');
+    lines.push(
+      'As the claim was approved but not paid within the prescribed window, I also request the ' +
+        `12% per annum penal interest payable to the farmer for delayed settlement.`,
+    );
+  }
+  lines.push('');
+  lines.push('I request your kind intervention. I am available for any verification required.');
+  lines.push('');
+  lines.push('Yours faithfully,');
+  lines.push(d.farmerName);
+  return lines.join('\n');
+}
+
+export { PENAL_INTEREST_PCT };

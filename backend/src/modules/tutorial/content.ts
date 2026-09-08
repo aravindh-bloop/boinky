@@ -61,7 +61,7 @@ const APP: TutorialStep[] = [
   {
     id: 'benefits',
     title: 'Schemes and insurance',
-    body: 'AgriPod lists the government schemes you are eligible for and lets you apply from your phone. If a storm or pest damages your crop, you can file a crop-insurance claim here with photos, and track it until the money comes.',
+    body: 'AgriPod lists the government schemes you are eligible for and lets you apply from your phone. If you have a PMFBY crop-insurance policy, you can track your claim through every stage here, see if it is running late, and escalate it to the right officer if it gets stuck.',
     icon: 'schemes',
   },
   {

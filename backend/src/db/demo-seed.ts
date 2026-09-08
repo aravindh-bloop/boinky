@@ -69,7 +69,7 @@ async function wipe(farmerId: string, officerId: string) {
     [farmerId],
   );
   await pool.query(`DELETE FROM pod_devices WHERE farmer_id = $1`, [farmerId]);
-  await pool.query(`DELETE FROM insurance_policies WHERE farmer_id = $1`, [farmerId]);
+  await pool.query(`DELETE FROM insurance_policy_ref WHERE farmer_id = $1`, [farmerId]);
   // neighbour + their scans
   const { rows } = await pool.query<{ id: string }>(`SELECT id FROM users WHERE phone = $1`, [
     NEIGHBOUR_PHONE,
@@ -505,80 +505,74 @@ async function seedSchemes(c: Ctx) {
   logger.info({ applications: appIds.length }, 'demo schemes seeded');
 }
 
-// ── crop-insurance policies + claims ────────────────────────────────────
+// ── PMFBY policy refs + a tracked claim + an escalation ─────────────────
 async function seedInsurance(c: Ctx) {
-  const { rows: sch } = await pool.query<{ id: string; title: string }>(
-    `SELECT id, title FROM schemes WHERE kind = 'insurance' ORDER BY title`,
-  );
-  const pmfby = sch.find((s) => s.title.includes('PMFBY')) ?? sch[0];
-  if (!pmfby) return;
-
-  // Two policies: one on the rice plot (has a claim), one on the groundnut plot.
   const north = F(c, 'North Plot');
   const back = F(c, 'Back Acre');
+
+  // The farmer records the two PMFBY policies they already hold.
   const { rows: p1 } = await pool.query<{ id: string }>(
-    `INSERT INTO insurance_policies
-       (farmer_id, field_id, scheme_id, crop, season, sum_insured, premium_paid, area_acres,
-        status, start_date, end_date, created_at)
-     VALUES ($1,$2,$3,'rice','Kharif 2026',52000,780,2,'active',
-             CURRENT_DATE - 70, CURRENT_DATE + 50, now() - interval '70 days')
+    `INSERT INTO insurance_policy_ref
+       (farmer_id, field_id, application_no, season, crop, insurance_unit, insurer_name,
+        sum_insured, premium_paid, area_acres, district, source, created_at)
+     VALUES ($1,$2,'TN2026K-0489217','Kharif 2026','rice','Madhavaram (Tiruvallur)',
+             'Agriculture Insurance Company of India', 52000, 780, 2, 'Tiruvallur', 'manual',
+             now() - interval '70 days')
      RETURNING id`,
-    [c.farmerId, north, pmfby.id],
+    [c.farmerId, north],
   );
   await pool.query(
-    `INSERT INTO insurance_policies
-       (farmer_id, field_id, scheme_id, crop, season, sum_insured, premium_paid, area_acres,
-        status, start_date, end_date, created_at)
-     VALUES ($1,$2,$3,'groundnut','Kharif 2026',30000,900,1,'active',
-             CURRENT_DATE - 45, CURRENT_DATE + 65, now() - interval '45 days')`,
-    [c.farmerId, back, pmfby.id],
+    `INSERT INTO insurance_policy_ref
+       (farmer_id, field_id, application_no, season, crop, insurance_unit, insurer_name,
+        sum_insured, premium_paid, area_acres, district, source, created_at)
+     VALUES ($1,$2,'TN2026K-0489233','Kharif 2026','groundnut','Madhavaram (Tiruvallur)',
+             'Agriculture Insurance Company of India', 30000, 900, 1, 'Tiruvallur', 'manual',
+             now() - interval '45 days')`,
+    [c.farmerId, back],
   );
 
-  // One claim on the rice policy — under review, with an evidence photo (reuse a
-  // seeded scan image so no upload is needed) and a short officer conversation.
-  const { rows: img } = await pool.query<{ image_url: string; id: string }>(
-    `SELECT id, image_url FROM scans WHERE farmer_id = $1 AND image_url <> '' ORDER BY created_at DESC LIMIT 1`,
-    [c.farmerId],
-  );
-  const aiAssessment = {
-    causePlausible: 'consistent',
-    estimatedLossPct: 40,
-    cropVisible: 'rice',
-    rationale:
-      'The photo shows rice plants bent flat in one direction with standing water and silt on the leaves, which is typical of lodging from heavy rain and waterlogging. The panicles are not yet shattered, so grain loss may be limited if the water drains quickly.',
-    notes: [
-      'Only the low end of the plot is visible — the officer should check how much of the 2 acres is affected.',
-      'Assess again in 3-4 days: lodged rice can partially recover if it re-erects before flowering.',
-    ],
-  };
+  // A claim on the rice policy: reported 22 days ago, still stuck at "loss
+  // assessed" with no survey report — well past the 15-day SLA, so the tracker
+  // flags it and offers escalation.
   const { rows: cl } = await pool.query<{ id: string }>(
-    `INSERT INTO insurance_claims
-       (policy_id, farmer_id, field_id, scan_id, cause, description, incident_date,
-        estimated_loss_pct, status, district, ai_assessment, submitted_at, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,'unseasonal_rain',
-             'Three days of heavy rain last week waterlogged the low end of the plot and lodged the crop.',
-             CURRENT_DATE - 8, 45, 'under_review', 'Chennai', $5,
-             now() - interval '6 days', now() - interval '6 days', now() - interval '2 days')
+    `INSERT INTO claim_track
+       (policy_ref_id, farmer_id, docket_id, cause, loss_type, incident_date,
+        stage, stage_since, farmer_estimated_loss_pct, note, created_at, updated_at)
+     VALUES ($1,$2,'KRPH/2026/TN/114829','unseasonal_rain','localised', CURRENT_DATE - 24,
+             'assessment', CURRENT_DATE - 16, 45,
+             'Three days of heavy rain waterlogged the low end of the plot and lodged the crop.',
+             now() - interval '22 days', now() - interval '3 days')
      RETURNING id`,
-    [p1[0]!.id, c.farmerId, north, img[0]?.id ?? null, JSON.stringify(aiAssessment)],
+    [p1[0]!.id, c.farmerId],
   );
   const claimId = cl[0]!.id;
-  if (img[0]) {
-    await pool.query(
-      `INSERT INTO insurance_claim_media (claim_id, kind, url, caption, lat, lng, position)
-       VALUES ($1,'photo',$2,'Lodged crop at the low end',13.0827,80.2707,0)`,
-      [claimId, img[0].image_url],
-    );
-  }
   await pool.query(
-    `INSERT INTO insurance_claim_events (claim_id, actor_id, actor_role, kind, from_status, to_status, body, created_at) VALUES
-       ($1,$2,'farmer','created',NULL,NULL,'Started a claim for unseasonal rain.', now() - interval '6 days'),
-       ($1,$2,'farmer','submitted','draft','submitted','Submitted with 1 photo.', now() - interval '6 days'),
-       ($1,$3,'official','status_change','submitted','under_review','A surveyor will visit within 5 working days.', now() - interval '2 days'),
-       ($1,$2,'farmer','message',NULL,NULL,'The water has drained now but the crop is still bent over.', now() - interval '1 day')`,
-    [claimId, c.farmerId, c.officerId],
+    `INSERT INTO claim_track_event (claim_id, source, kind, from_stage, to_stage, body, at) VALUES
+       ($1,'farmer','stage_change',NULL,'intimation','Reported the loss on the Crop Insurance App — got docket KRPH/2026/TN/114829.', now() - interval '22 days'),
+       ($1,'farmer','stage_change','intimation','survey','Surveyor visited the field on the 5th day.', now() - interval '17 days'),
+       ($1,'farmer','stage_change','survey','assessment','Surveyor said the report would be filed in a week.', now() - interval '16 days'),
+       ($1,'farmer','note',NULL,NULL,'Still no update on the survey report. Called the insurer twice.', now() - interval '3 days')`,
+    [claimId],
   );
-  logger.info({ policies: 2, claims: 1 }, 'demo insurance seeded');
+
+  // The farmer has already escalated once — sits in the officer's inbox.
+  const { rows: dir } = await pool.query<{ id: string }>(
+    `SELECT id FROM officer_directory WHERE rung = 'district' AND district = 'Tiruvallur' LIMIT 1`,
+  );
+  await pool.query(
+    `INSERT INTO escalation
+       (claim_id, farmer_id, district, rung, directory_id, channel, reason, status, sent_at, created_at)
+     VALUES ($1,$2,'Tiruvallur','district',$3,'krph',
+             'Survey report not filed 16 days after the survey — 15-day limit crossed.',
+             'sent', now() - interval '2 days', now() - interval '2 days')`,
+    [claimId, c.farmerId, dir[0]?.id ?? null],
+  );
+  await pool.query(
+    `INSERT INTO claim_track_event (claim_id, source, kind, body, at)
+     VALUES ($1,'farmer','escalation','Escalated to District Joint Director of Agriculture via KRPH.', now() - interval '2 days')`,
+    [claimId],
+  );
+  logger.info({ policies: 2, claims: 1, escalations: 1 }, 'demo insurance seeded');
 }
 
 async function main() {

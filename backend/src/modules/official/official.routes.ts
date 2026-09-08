@@ -8,7 +8,7 @@ import { query } from '../../db/query.js';
 import * as official from './official.service.js';
 import * as apps from '../schemes/applications.service.js';
 import * as ins from '../insurance/insurance.service.js';
-import { CLAIM_CAUSES } from '../insurance/insurance.service.js';
+import { RUNGS } from '../insurance/reference.js';
 
 export const officialRouter = Router();
 
@@ -233,41 +233,30 @@ officialRouter.post(
   }),
 );
 
-// ── crop insurance ──────────────────────────────────────────────────────
-
-const CLAIM_STATUSES = [
-  'submitted',
-  'under_review',
-  'surveyor_assigned',
-  'approved',
-  'rejected',
-  'paid',
-] as const;
+// ── crop-insurance escalations + officer directory ──────────────────────
 
 officialRouter.get(
   '/insurance-summary',
   asyncHandler(async (req, res) => {
-    res.json(await ins.insuranceSummaryForOfficer(await scopeRegion(req)));
+    res.json(await ins.escalationSummaryForOfficer(await scopeRegion(req)));
   }),
 );
 
 officialRouter.get(
-  '/insurance-claims',
+  '/insurance-escalations',
   asyncHandler(async (req, res) => {
     const q = z
       .object({
-        status: z.enum(CLAIM_STATUSES).optional(),
-        cause: z.enum(CLAIM_CAUSES).optional(),
-        district: z.string().trim().min(1).max(120).optional(),
+        status: z
+          .enum(['sent', 'acknowledged', 'in_progress', 'resolved', 'closed'])
+          .optional(),
         limit: z.coerce.number().int().min(1).max(200).default(100),
         offset: z.coerce.number().int().min(0).default(0),
       })
       .parse(req.query);
-    const items = await ins.listClaimsForOfficer({
+    const items = await ins.listEscalationsForOfficer({
       region: await scopeRegion(req),
       status: q.status,
-      cause: q.cause,
-      district: q.district,
       limit: q.limit,
       offset: q.offset,
     });
@@ -276,37 +265,56 @@ officialRouter.get(
 );
 
 officialRouter.get(
-  '/insurance-claims/:id',
+  '/insurance-escalations/:id',
   asyncHandler(async (req, res) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
-    res.json(await ins.getClaim(id, { id: req.user!.sub, role: 'official' }));
+    res.json(await ins.getEscalationForOfficer(id));
   }),
 );
 
 officialRouter.post(
-  '/insurance-claims/:id/decision',
+  '/insurance-escalations/:id/status',
   asyncHandler(async (req, res) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const body = z
       .object({
-        status: z.enum(['under_review', 'surveyor_assigned', 'approved', 'rejected', 'paid']),
+        status: z.enum(['acknowledged', 'in_progress', 'resolved', 'closed']),
         note: z.string().trim().max(2000).optional(),
-        approvedAmount: z.coerce.number().min(0).max(100_000_000).optional(),
-        assessedLossPct: z.coerce.number().int().min(0).max(100).optional(),
       })
       .parse(req.body);
-    const claim = await ins.decideClaim(id, req.user!.sub, body);
-    res.json({ claim });
+    res.json({ escalation: await ins.updateEscalationStatus(id, req.user!.sub, body) });
+  }),
+);
+
+officialRouter.get(
+  '/insurance-directory',
+  asyncHandler(async (req, res) => {
+    const { district } = z
+      .object({ district: z.string().trim().max(120).optional() })
+      .parse(req.query);
+    res.json({ contacts: await ins.listDirectory(district) });
   }),
 );
 
 officialRouter.post(
-  '/insurance-claims/:id/messages',
+  '/insurance-directory',
   asyncHandler(async (req, res) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
-    const { body } = z.object({ body: z.string().trim().min(1).max(2000) }).parse(req.body);
-    await ins.postClaimMessage(id, { id: req.user!.sub, role: 'official' }, body);
-    res.status(201).json({ ok: true });
+    const body = z
+      .object({
+        id: z.string().uuid().optional(),
+        district: z.string().trim().max(120).nullable().optional(),
+        rung: z.enum(RUNGS),
+        designation: z.string().trim().min(1).max(160),
+        name: z.string().trim().max(160).nullable().optional(),
+        office: z.string().trim().max(400).nullable().optional(),
+        phone: z.string().trim().max(60).nullable().optional(),
+        email: z.string().trim().max(160).nullable().optional(),
+        url: z.string().trim().max(400).nullable().optional(),
+        note: z.string().trim().max(600).nullable().optional(),
+        verified: z.boolean().optional(),
+      })
+      .parse(req.body);
+    res.json({ row: await ins.upsertDirectoryRow(req.user!.sub, body) });
   }),
 );
 
