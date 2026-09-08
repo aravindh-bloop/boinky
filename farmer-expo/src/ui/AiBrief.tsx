@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import type { DailyBrief, InsightCard, InsightUrgency } from '../api/types';
 import { useT, type TFunc } from '../i18n';
@@ -9,10 +8,10 @@ import { Text } from './Text';
 import { PressableScale } from './Pressable';
 import { Skeleton } from './Skeleton';
 import { Row } from './misc';
-import { gradients, palette, radius, shadow, space } from './tokens';
+import { palette, radius, space } from './tokens';
 
-const ON = 'rgba(255,255,255,0.92)';
-const ON_DIM = 'rgba(255,255,255,0.72)';
+const ON = palette.text;
+const ON_DIM = palette.textMuted;
 
 interface Props {
   brief: DailyBrief | null;
@@ -90,14 +89,14 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
           </Text>
         ) : null}
         <Row between style={{ marginTop: space.sm }}>
-          <Text variant="label" color={ON_DIM}>
+          <Text variant="label" color={palette.primaryDeep}>
             {t('{n} to check today', { n: cards.length })}
           </Text>
           <Row gap={4}>
-            <Text variant="label" color={ON}>
+            <Text variant="label" color={palette.primaryDeep}>
               {open ? t('Close') : t('Open')}
             </Text>
-            <Icon name={open ? 'up' : 'right'} size={13} color={ON} weight="bold" />
+            <Icon name={open ? 'up' : 'right'} size={13} color={palette.primaryDeep} weight="bold" />
           </Row>
         </Row>
       </PressableScale>
@@ -125,14 +124,17 @@ export function AiBrief({ brief, loading, working, onRefresh, onAction }: Props)
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <LinearGradient
-      colors={gradients.dawn}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ borderRadius: radius.xl, padding: space.lg, ...shadow.e1 }}
+    <View
+      style={{
+        backgroundColor: palette.primarySoft,
+        borderRadius: radius.xl,
+        borderWidth: 1,
+        borderColor: '#CFDEB8',
+        padding: space.lg,
+      }}
     >
       {children}
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -153,19 +155,19 @@ function Header({
             width: 24,
             height: 24,
             borderRadius: radius.pill,
-            backgroundColor: 'rgba(255,255,255,0.22)',
+            backgroundColor: palette.primary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
           <Icon name="ai" size={13} color="#fff" weight="fill" />
         </View>
-        <Text variant="overline" color={ON}>
+        <Text variant="overline" color={palette.primaryDeep}>
           {working ? t('Thinking…') : t("Today's brief")}
         </Text>
       </Row>
       {generatedAt ? (
-        <Text variant="caption" color={ON_DIM}>
+        <Text variant="caption" color={palette.textFaint}>
           {timeAgo(generatedAt)}
         </Text>
       ) : null}

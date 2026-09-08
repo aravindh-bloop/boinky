@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,10 +20,12 @@ import {
   Text,
   ErrorState,
   PressableScale,
+  gradients,
   haptic,
   palette,
   radius,
   severity as sev,
+  shadow,
   space,
   weatherIcon,
 } from '../ui';
@@ -73,7 +76,7 @@ export default function HomeScreen() {
 
   if (loading)
     return (
-      <View style={{ flex: 1, backgroundColor: palette.canvas, paddingTop: insets.top + 72, paddingHorizontal: space.lg }}>
+      <View style={{ flex: 1, backgroundColor: palette.canvas, paddingTop: insets.top + 100, paddingHorizontal: space.lg }}>
         <SkeletonList count={4} />
       </View>
     );
@@ -95,302 +98,290 @@ export default function HomeScreen() {
       : null);
 
   const outbreaks = d.nearbyOutbreaks?.count ?? 0;
+  const alertsN = d.alerts.count + outbreaks;
   const todo = d.tasks.today.filter((x) => !x.is_done);
   const fields = d.fieldRisk;
   const hi = d.highestRisk;
+  const hiLvl = hi?.riskLevel ?? 'low';
+  const attention = (hi && (hiLvl === 'medium' || hiLvl === 'high')) || alertsN > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + space.md,
-          paddingHorizontal: space.lg,
-          paddingBottom: space.xxxl,
-          gap: space.md,
-        }}
+        contentContainerStyle={{ paddingBottom: space.xxxl }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={palette.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor="#fff" />}
       >
-        {/* header */}
-        <Row between style={{ alignItems: 'flex-start', marginBottom: space.xs }}>
-          <View>
-            <Text variant="label" faint>
-              {greeting()}
-            </Text>
-            <Text variant="hero" raw color={palette.text} style={{ marginTop: 2 }}>
-              {d.user.name?.split(' ')[0] ?? t('there')}
-            </Text>
-          </View>
-          <Row gap={space.sm}>
-            <PressableScale onPress={() => nav.navigate('Ask')} compact>
-              <View style={[hs.chip, { backgroundColor: palette.irisSoft }]}>
-                <Icon name="ai" size={15} color={palette.iris} weight="fill" />
-                <Text variant="label" color={palette.iris}>
-                  {t('Ask AI')}
-                </Text>
-              </View>
-            </PressableScale>
-            <PressableScale onPress={() => nav.navigate('Profile')} compact>
-              <View style={hs.avatar}>
-                <Text variant="subhead" color="#fff" raw>
-                  {(d.user.name?.[0] ?? 'F').toUpperCase()}
-                </Text>
-              </View>
-            </PressableScale>
+        {/* ── hero ── */}
+        <LinearGradient
+          colors={gradients.hero}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={{
+            paddingTop: insets.top + space.md,
+            paddingHorizontal: space.lg,
+            paddingBottom: space.xxxl + 26,
+            borderBottomLeftRadius: 32,
+            borderBottomRightRadius: 32,
+          }}
+        >
+          <Row between style={{ alignItems: 'flex-start' }}>
+            <View>
+              <Text variant="label" color="rgba(255,255,255,0.8)">
+                {greeting()}
+              </Text>
+              <Text variant="hero" raw color="#fff" style={{ marginTop: 2 }}>
+                {d.user.name?.split(' ')[0] ?? t('there')}
+              </Text>
+            </View>
+            <Row gap={space.sm}>
+              <PressableScale onPress={() => nav.navigate('Ask')} compact>
+                <View style={hs.glassChip}>
+                  <Icon name="ai" size={15} color="#fff" weight="fill" />
+                  <Text variant="label" color="#fff">
+                    {t('Ask AI')}
+                  </Text>
+                </View>
+              </PressableScale>
+              <PressableScale onPress={() => nav.navigate('Profile')} compact>
+                <View style={hs.glassAvatar}>
+                  <Text variant="subhead" color="#fff" raw>
+                    {(d.user.name?.[0] ?? 'F').toUpperCase()}
+                  </Text>
+                </View>
+              </PressableScale>
+            </Row>
           </Row>
-        </Row>
 
-        {/* the brief */}
-        <AiBrief
-          brief={briefApi.brief}
-          loading={briefApi.loading}
-          working={briefApi.working}
-          onRefresh={briefApi.refresh}
-          onAction={openInsight}
-        />
-
-        {/* weather */}
-        {w && (
-          <Reveal>
-            <Card elevation="raised" tint="sky" onPress={() => nav.navigate('Weather')}>
-              <Row between style={{ alignItems: 'center' }}>
+          {/* weather */}
+          {w && (
+            <PressableScale onPress={() => nav.navigate('Weather')} feedback="tap">
+              <Row between style={{ marginTop: space.xl, alignItems: 'center' }}>
                 <Row gap={space.md} style={{ alignItems: 'center' }}>
-                  <View style={[hs.iconWrap, { backgroundColor: '#FFFFFF' }]}>
-                    <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={24} color={palette.sky} weight="fill" />
-                  </View>
+                  <Icon name={weatherIcon(w.current.code, w.current.isDay)} size={44} color="#fff" weight="fill" />
                   <View>
-                    <Text variant="title" raw color={palette.text}>
+                    <Text variant="hero" raw color="#fff" style={{ fontSize: 40, lineHeight: 44 }}>
                       {Math.round(w.current.tempC ?? 0)}°
                     </Text>
-                    <Text variant="caption" muted raw>
+                    <Text variant="label" color="rgba(255,255,255,0.9)" raw>
                       {w.current.condition}
                     </Text>
                   </View>
                 </Row>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  <Text variant="caption" faint raw numberOfLines={1}>
-                    {w.place ?? t('your field')}
-                  </Text>
+                <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                  <View style={hs.placePill}>
+                    <Icon name="hotspot" size={10} color="rgba(255,255,255,0.9)" weight="fill" />
+                    <Text variant="caption" color="#fff" raw numberOfLines={1}>
+                      {w.place ?? t('your field')}
+                    </Text>
+                  </View>
                   {w.today && (
-                    <Text variant="caption" faint raw>
+                    <Text variant="caption" color="rgba(255,255,255,0.8)" raw>
                       H {Math.round(w.today.tempMaxC ?? 0)}°  L {Math.round(w.today.tempMinC ?? 0)}°
                     </Text>
                   )}
+                  {w.sprayWindow ? (
+                    <Text variant="caption" color="rgba(255,255,255,0.9)" raw>
+                      {t('Spray')} {fmtHr(w.sprayWindow.start)}–{fmtHr(w.sprayWindow.end)}
+                    </Text>
+                  ) : null}
                 </View>
               </Row>
-              {w.sprayWindow ? (
-                <View style={hs.weatherNote}>
-                  <Icon name="spray" size={13} color={palette.primary} weight="fill" />
-                  <Text variant="caption" color={palette.primaryDeep} raw style={{ flex: 1 }}>
-                    {t('Good to spray')} {fmtHr(w.sprayWindow.start)}–{fmtHr(w.sprayWindow.end)}
-                  </Text>
-                </View>
-              ) : w.topAdvisory ? (
-                <View style={hs.weatherNote}>
-                  <Icon name="warning" size={13} color={palette.warn} weight="fill" />
-                  <Text variant="caption" color={palette.textMuted} raw numberOfLines={1} style={{ flex: 1 }}>
-                    {w.topAdvisory.title}
-                    {w.advisoryCount > 1 ? `  +${w.advisoryCount - 1}` : ''}
-                  </Text>
-                </View>
-              ) : null}
-            </Card>
-          </Reveal>
-        )}
+            </PressableScale>
+          )}
+        </LinearGradient>
 
-        {/* crops + risk */}
-        {fields.length > 0 && (
+        {/* ── floating stat chips ── */}
+        <Row gap={space.sm} style={{ paddingHorizontal: space.lg, marginTop: -26 }}>
+          <StatChip
+            label={t('Fields')}
+            value={d.fieldCount}
+            icon="fields"
+            onPress={() => nav.getParent()?.navigate('Fields' as never)}
+          />
+          <StatChip
+            label={t('To do')}
+            value={todo.length}
+            icon="tasks"
+            tint={todo.length > 0 ? palette.primary : undefined}
+            onPress={() => nav.navigate('Tasks')}
+          />
+          <StatChip
+            label={t('Risk')}
+            value={t(sev[hiLvl].label)}
+            icon="shield"
+            tint={sev[hiLvl].fg}
+            onPress={() => hi && nav.navigate('FieldDetail', { fieldId: hi.id })}
+          />
+        </Row>
+
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md }}>
+          {/* the brief */}
+          <AiBrief
+            brief={briefApi.brief}
+            loading={briefApi.loading}
+            working={briefApi.working}
+            onRefresh={briefApi.refresh}
+            onAction={openInsight}
+          />
+
+          {/* needs attention — merged, only when there is something */}
+          {attention && (
+            <Reveal>
+              <Card elevation="raised">
+                <Text variant="overline">{t('Needs attention')}</Text>
+                {hi && (hiLvl === 'medium' || hiLvl === 'high') && (
+                  <PressableScale onPress={() => nav.navigate('FieldDetail', { fieldId: hi.id })} feedback="tap">
+                    <Row gap={space.sm} style={{ paddingVertical: 6 }}>
+                      <Icon name="shield" size={18} color={sev[hiLvl].fg} weight="fill" />
+                      <Text variant="body" style={{ flex: 1 }} raw numberOfLines={2}>
+                        {t('{field} — {level} disease risk this week', {
+                          field: hi.name,
+                          level: t(sev[hiLvl].label).toLowerCase(),
+                        })}
+                      </Text>
+                      <Icon name="right" size={15} color={palette.textFaint} />
+                    </Row>
+                  </PressableScale>
+                )}
+                {alertsN > 0 && (
+                  <PressableScale onPress={() => nav.navigate('Alerts')} feedback="tap">
+                    <Row gap={space.sm} style={{ paddingVertical: 6 }}>
+                      <Icon name="alerts" size={18} color={palette.coral} weight="fill" />
+                      <Text variant="body" style={{ flex: 1 }} raw numberOfLines={2}>
+                        {outbreaks > 0
+                          ? t('{n} outbreak(s) reported near you', { n: outbreaks })
+                          : t('{n} advisory from your area', { n: d.alerts.count })}
+                      </Text>
+                      <Icon name="right" size={15} color={palette.textFaint} />
+                    </Row>
+                  </PressableScale>
+                )}
+              </Card>
+            </Reveal>
+          )}
+
+          {/* today's tasks */}
           <Reveal index={1}>
-            <Card elevation="raised" tint="green">
+            <Card elevation="raised">
               <Row between>
-                <Text variant="overline">{t('Your crops')}</Text>
-                <PressableScale onPress={() => nav.getParent()?.navigate('Fields' as never)} compact>
+                <Text variant="overline">{t('To do today')}</Text>
+                <PressableScale onPress={() => nav.navigate('Tasks')} compact>
                   <Text variant="label" color={palette.primary}>
-                    {t('All fields')}
+                    {t('All tasks')}
                   </Text>
                 </PressableScale>
               </Row>
-              <View style={{ gap: 2, marginTop: 2 }}>
-                {fields.slice(0, 3).map((f) => {
-                  const lvl = f.riskLevel ?? 'low';
-                  return (
-                    <PressableScale
-                      key={f.id}
-                      onPress={() => nav.navigate('FieldDetail', { fieldId: f.id })}
-                      feedback="tap"
-                    >
-                      <Row gap={space.sm} style={{ paddingVertical: 7 }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sev[lvl].fg }} />
-                        <Text variant="body" raw style={{ flex: 1 }} numberOfLines={1}>
-                          {f.name || cap(f.crop)}
-                        </Text>
-                        <Text variant="caption" faint raw>
-                          {cap(f.crop)}
-                          {f.daysSinceSown != null ? ` · ${t('day')} ${f.daysSinceSown}` : ''}
-                        </Text>
-                        {(lvl === 'medium' || lvl === 'high') && (
-                          <Text variant="caption" color={sev[lvl].fg}>
-                            {t(sev[lvl].label)}
-                          </Text>
-                        )}
-                      </Row>
+              {todo.length === 0 ? (
+                <Text variant="caption" muted>
+                  {d.tasks.upcomingCount > 0
+                    ? t('Nothing due today. {n} coming up this week.', { n: d.tasks.upcomingCount })
+                    : t('Nothing due today.')}
+                </Text>
+              ) : (
+                <View style={{ gap: 2, marginTop: 2 }}>
+                  {todo.slice(0, 4).map((task) => (
+                    <TaskRow key={task.id} task={task} onDone={reload} />
+                  ))}
+                  {todo.length > 4 && (
+                    <PressableScale onPress={() => nav.navigate('Tasks')} compact style={{ paddingVertical: 4 }}>
+                      <Text variant="caption" color={palette.primary}>
+                        + {todo.length - 4} {t('more')}
+                      </Text>
                     </PressableScale>
-                  );
-                })}
-                {fields.length > 3 && (
-                  <PressableScale
-                    onPress={() => nav.getParent()?.navigate('Fields' as never)}
-                    compact
-                    style={{ paddingVertical: 4 }}
-                  >
-                    <Text variant="caption" color={palette.primary}>
-                      + {fields.length - 3} {t('more')}
-                    </Text>
-                  </PressableScale>
-                )}
-              </View>
-              {hi && (hi.riskLevel === 'medium' || hi.riskLevel === 'high') && hi.riskScore != null && (
-                <View
-                  style={{
-                    marginTop: space.sm,
-                    backgroundColor: sev[hi.riskLevel].bg,
-                    borderRadius: radius.md,
-                    padding: space.sm,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: space.sm,
-                  }}
-                >
-                  <Icon name="shield" size={15} color={sev[hi.riskLevel].fg} weight="fill" />
-                  <Text variant="caption" color={sev[hi.riskLevel].fg} style={{ flex: 1 }} raw>
-                    {t('{field} needs watching — {level} disease risk this week', {
-                      field: hi.name,
-                      level: t(sev[hi.riskLevel].label).toLowerCase(),
-                    })}
-                  </Text>
+                  )}
                 </View>
               )}
             </Card>
           </Reveal>
-        )}
 
-        {/* today's tasks */}
-        <Reveal index={2}>
-          <Card elevation="raised">
-            <Row between>
-              <Text variant="overline">{t('To do today')}</Text>
-              <PressableScale onPress={() => nav.navigate('Tasks')} compact>
-                <Text variant="label" color={palette.primary}>
-                  {t('All tasks')}
-                </Text>
-              </PressableScale>
-            </Row>
-            {todo.length === 0 ? (
-              <Text variant="caption" muted>
-                {d.tasks.upcomingCount > 0
-                  ? t('Nothing due today. {n} coming up this week.', { n: d.tasks.upcomingCount })
-                  : t('Nothing due today.')}
-              </Text>
-            ) : (
-              <View style={{ gap: 2, marginTop: 2 }}>
-                {todo.slice(0, 3).map((task) => (
-                  <TaskRow key={task.id} task={task} onDone={reload} />
-                ))}
-                {todo.length > 3 && (
-                  <PressableScale onPress={() => nav.navigate('Tasks')} compact style={{ paddingVertical: 4 }}>
-                    <Text variant="caption" color={palette.primary}>
-                      + {todo.length - 3} {t('more')}
+          {/* recent scans */}
+          {d.recentScans.length > 0 && (
+            <Reveal index={2}>
+              <View style={{ gap: space.sm }}>
+                <Row between>
+                  <Text variant="overline">{t('Recent scans')}</Text>
+                  <PressableScale onPress={() => nav.navigate('History')} compact>
+                    <Text variant="label" color={palette.primary}>
+                      {t('History')}
                     </Text>
                   </PressableScale>
-                )}
+                </Row>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                  {d.recentScans.map((s) => (
+                    <PressableScale key={s.id} onPress={() => nav.navigate('ScanResult', { scanId: s.id })} compact>
+                      <View style={{ width: 96, gap: 4 }}>
+                        <Image
+                          source={{ uri: s.image_url }}
+                          style={{ width: 96, height: 96, borderRadius: radius.lg }}
+                          contentFit="cover"
+                        />
+                        <Text variant="caption" numberOfLines={1} raw>
+                          {s.diagnosis_label ?? '—'}
+                        </Text>
+                      </View>
+                    </PressableScale>
+                  ))}
+                </ScrollView>
               </View>
-            )}
-          </Card>
-        </Reveal>
+            </Reveal>
+          )}
 
-        {/* alerts / outbreaks */}
-        {(d.alerts.count > 0 || outbreaks > 0) && (
+          {/* scan CTA */}
           <Reveal index={3}>
-            <Card onPress={() => nav.navigate('Alerts')} tint="coral" elevation="raised">
-              <Row gap={space.sm}>
-                <View style={[hs.iconWrap, { backgroundColor: '#FFFFFF' }]}>
-                  <Icon name="alerts" size={18} color={palette.coral} weight="fill" />
+            <PressableScale onPress={() => nav.getParent()?.navigate('Scan' as never)} feedback="press">
+              <LinearGradient
+                colors={gradients.dawn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={hs.cta}
+              >
+                <View style={hs.ctaIcon}>
+                  <Icon name="scan" size={20} color="#fff" weight="fill" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="bodyStrong" raw>
-                    {outbreaks > 0
-                      ? t('{n} outbreak(s) reported near you', { n: outbreaks })
-                      : t('{n} advisory from your area', { n: d.alerts.count })}
+                  <Text variant="bodyStrong" color="#fff">
+                    {t('See a problem on your crop?')}
                   </Text>
-                  {outbreaks > 0 && d.nearbyOutbreaks?.nearestKm != null ? (
-                    <Text variant="caption" muted raw>
-                      {t('Nearest about {km} km away', { km: d.nearbyOutbreaks.nearestKm })}
-                    </Text>
-                  ) : d.alerts.latest[0] ? (
-                    <Text variant="caption" muted numberOfLines={1} raw>
-                      {d.alerts.latest[0].title}
-                    </Text>
-                  ) : null}
+                  <Text variant="caption" color="rgba(255,255,255,0.85)">
+                    {t('Scan it for a diagnosis in seconds')}
+                  </Text>
                 </View>
-                <Icon name="right" size={16} color={palette.textFaint} />
-              </Row>
-            </Card>
+                <Icon name="right" size={18} color="#fff" />
+              </LinearGradient>
+            </PressableScale>
           </Reveal>
-        )}
-
-        {/* recent scans */}
-        {d.recentScans.length > 0 && (
-          <Reveal index={4}>
-            <View style={{ gap: space.sm }}>
-              <Row between>
-                <Text variant="overline">{t('Recent scans')}</Text>
-                <PressableScale onPress={() => nav.navigate('History')} compact>
-                  <Text variant="label" color={palette.primary}>
-                    {t('History')}
-                  </Text>
-                </PressableScale>
-              </Row>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-                {d.recentScans.map((s) => (
-                  <PressableScale key={s.id} onPress={() => nav.navigate('ScanResult', { scanId: s.id })} compact>
-                    <View style={{ width: 96, gap: 4 }}>
-                      <Image
-                        source={{ uri: s.image_url }}
-                        style={{ width: 96, height: 96, borderRadius: radius.lg }}
-                        contentFit="cover"
-                      />
-                      <Text variant="caption" numberOfLines={1} raw>
-                        {s.diagnosis_label ?? '—'}
-                      </Text>
-                    </View>
-                  </PressableScale>
-                ))}
-              </ScrollView>
-            </View>
-          </Reveal>
-        )}
-
-        {/* scan CTA */}
-        <Reveal index={5}>
-          <PressableScale onPress={() => nav.getParent()?.navigate('Scan' as never)} feedback="press">
-            <View style={hs.cta}>
-              <View style={[hs.iconWrap, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
-                <Icon name="scan" size={20} color="#fff" weight="fill" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong" color="#fff">
-                  {t('See a problem on your crop?')}
-                </Text>
-                <Text variant="caption" color="rgba(255,255,255,0.85)">
-                  {t('Scan it for a diagnosis in seconds')}
-                </Text>
-              </View>
-              <Icon name="right" size={18} color="#fff" />
-            </View>
-          </PressableScale>
-        </Reveal>
+        </View>
       </ScrollView>
     </View>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  icon,
+  tint,
+  onPress,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ComponentProps<typeof Icon>['name'];
+  tint?: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale onPress={onPress} compact style={{ flex: 1 }}>
+      <View style={[hs.stat, shadow.e1]}>
+        <Icon name={icon} size={15} color={tint ?? palette.textFaint} weight="fill" />
+        <Text variant="title" raw color={tint ?? palette.text} style={{ marginTop: 4 }}>
+          {String(value)}
+        </Text>
+        <Text variant="overline" style={{ marginTop: 1 }}>
+          {label}
+        </Text>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -424,50 +415,56 @@ function TaskRow({ task, onDone }: { task: AggTask; onDone: () => void }) {
 }
 
 const hs = {
-  chip: {
+  glassChip: {
     height: 34,
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 5,
-    backgroundColor: palette.primarySoft,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  avatar: {
+  glassAvatar: {
     width: 34,
     height: 34,
     borderRadius: radius.pill,
-    backgroundColor: palette.primary,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  weatherNote: {
-    marginTop: space.xs,
-    paddingTop: space.xs,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(65,131,180,0.18)',
+  placePill: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 6,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+  },
+  stat: {
+    backgroundColor: palette.surface,
+    borderRadius: radius.lg,
+    paddingVertical: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: 'center' as const,
   },
   cta: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: space.md,
-    backgroundColor: palette.primary,
     borderRadius: radius.xl,
     padding: space.lg,
   },
+  ctaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
 };
 
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const fmtHr = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', hour12: true }).replace(' ', '');
 

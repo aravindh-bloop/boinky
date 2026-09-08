@@ -190,13 +190,15 @@ export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
 };
 
 export const gradients = {
-  // used rarely now — the scan FAB, an occasional CTA
-  canopy: ['#7DA05C', '#6E9150'] as const,
-  dawn: ['#7DA05C', '#6E9150'] as const,
-  dusk: ['#4C6B38', '#6E9150'] as const,
-  gold: ['#D3AE68', '#C79A4E'] as const,
+  // the dashboard hero — a deep, confident green
+  hero: ['#5F8544', '#496A34'] as const,
+  canopy: ['#5F8544', '#496A34'] as const,
+  // lighter green — the scan FAB, CTAs
+  dawn: ['#7EA35D', '#6A8E4C'] as const,
+  dusk: ['#425F32', '#5E7F45'] as const,
+  gold: ['#DDB35F', '#D19E3B'] as const,
   // the loading-screen sunrise
   sunrise: ['#FDEBD4', '#F9D3A6', '#EEB076'] as const,
   sunriseSoft: ['#FDEEDC', '#F8E0C4'] as const,
-  paper: ['#F4F6F2', '#ECEFE8'] as const,
+  paper: ['#F2F4EC', '#EDF0E8'] as const,
 };
