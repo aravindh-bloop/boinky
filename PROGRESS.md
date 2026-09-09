@@ -565,6 +565,16 @@ declared-angle mismatches. → submit the whole set in ONE call.
   Backend + app + dashboard typecheck clean; `expo export` 4.5MB.
 - ⬜ Deploy: Render backend (`migrate:deploy` + code) + dashboard.
 
+**M1 follow-up (2026-09-09) — real per-photo angle check.** No more pre-ticked angles.
+Migration `1788040000000` adds `scan_media.check_status` (`unchecked|ok|weak|rejected`) +
+`check_note`. `gemini.checkScanAngle(image, expectedKind, cropHint)` judges one photo
+(isPlant / matchesAngle / quality → issue + fix), fails open.
+`POST /api/scans/:id/media/:mediaId/check` runs and stores it; `submitScanDraft` drops
+`rejected` media from coverage + diagnosis. Capture wizard is now one-photo-at-a-time: it
+holds on the current angle until the check returns, shows the reason + retake on rejection,
+auto-advances on ok/weak, gates Done/Diagnose on the required angles passing. Frame overlay
+sized per angle. Tested `scripts/try-anglecheck.ts`.
+
 ### M5 — Tutorial + voice assistant onboarding — ✅ backend + app, tested
 
 - Migration `1788000000000_tutorial-tts.sql` — `users.onboarded_at` +
