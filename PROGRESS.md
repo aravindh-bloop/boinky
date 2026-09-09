@@ -161,7 +161,15 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done & tested · ⏸️ block
      only), `?q=` search, `GET /api/schemes/:id`.
    - Tested: farmer1 (Pune, cotton/wheat) → 18/20 relevant with reasons; search.
    - ⚠️ benefit amounts / links are indicative — verify before real use.
-10. ✅ **inventory** — **DONE & tested vs Neon.**
+10. ❌ **inventory** — **REMOVED 2026-09-09.** The whole Stock tab (inventory + expenses +
+   harvest records + season money summary) was deleted at the user's request. Migration
+   `1788050000000_drop-stock.sql` drops `inventory_items`, `expenses`, `harvests`;
+   `modules/inventory` + `modules/farm/finance.service.ts` + `Stock/Expenses/Harvest`
+   screens deleted; bottom nav is now 5 tabs (Home/Fields/Scan/Schemes/Insurance);
+   `/api/home` + the daily-brief context no longer carry finance/stock. Activities stay.
+   Original notes below are historical.
+
+   ✅ **inventory** *(historical)* — DONE & tested vs Neon.
    - `POST/GET/GET :id/PATCH/DELETE /api/inventory`. Computed flags `low_stock`,
      `expired`, `expiring_soon` (≤30d). `PATCH` supports `quantityDelta` for consume/restock.
    - Tested: add, list+flags, quantityDelta (5→1 triggers low_stock), lowStock filter,
