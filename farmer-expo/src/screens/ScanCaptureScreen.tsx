@@ -18,7 +18,7 @@ import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
 import { getFix } from '../location';
 import { useT } from '../i18n';
-import type { Field, Scan, ScanAngle, ScanDraft } from '../api/types';
+import type { AngleCheckResult, Field, Scan, ScanAngle, ScanDraft } from '../api/types';
 import {
   Button,
   Card,
@@ -38,21 +38,31 @@ import type { ScanStackParams } from '../navigation';
 
 type Nav = NativeStackNavigationProp<ScanStackParams, 'ScanCapture'>;
 
-/** The guided angles, with the farmer-facing name and one-line framing hint. */
-const GUIDE: { kind: ScanAngle; title: string; hint: string; required?: boolean }[] = [
-  { kind: 'whole_plant', title: 'The whole plant', hint: 'Stand back so the full plant fits in the frame', required: true },
-  { kind: 'affected_closeup', title: 'Close-up of the problem', hint: 'Fill the frame with the spots, holes or discolouring', required: true },
-  { kind: 'leaf_underside', title: 'Underside of a leaf', hint: 'Turn a leaf over — pests and mould hide here' },
-  { kind: 'stem_base', title: 'Stem and base', hint: 'The lower stem where it meets the soil' },
-  { kind: 'fruit_panicle', title: 'Fruit / grain head', hint: 'Any pods, fruit or panicles — skip if none yet' },
-  { kind: 'field_wide', title: 'The wider field', hint: 'How much of the crop around it looks the same' },
+/** The guided angles, with the farmer-facing name, framing hint and frame shape. */
+const GUIDE: {
+  kind: ScanAngle;
+  title: string;
+  hint: string;
+  required?: boolean;
+  frame: 'wide' | 'normal' | 'tight';
+}[] = [
+  { kind: 'whole_plant', title: 'The whole plant', hint: 'Stand back so the full plant fits inside the frame', required: true, frame: 'wide' },
+  { kind: 'affected_closeup', title: 'Close-up of the problem', hint: 'Fill the frame with the spots, holes or discolouring', required: true, frame: 'tight' },
+  { kind: 'leaf_underside', title: 'Underside of a leaf', hint: 'Turn a leaf over — pests and mould hide here', frame: 'tight' },
+  { kind: 'stem_base', title: 'Stem and base', hint: 'The lower stem where it meets the soil', frame: 'normal' },
+  { kind: 'fruit_panicle', title: 'Fruit / grain head', hint: 'Any pods, fruit or panicles — skip if none yet', frame: 'normal' },
+  { kind: 'field_wide', title: 'The wider field', hint: 'Show how much of the crop around it looks the same', frame: 'wide' },
 ];
+
+type CheckState = 'pending' | 'ok' | 'weak' | 'rejected';
 
 interface Shot {
   localUri: string;
   mediaId: string | null;
   uploading: boolean;
   failed: boolean;
+  check?: CheckState;
+  checkNote?: string | null;
 }
 
 type Phase = 'setup' | 'capture' | 'video' | 'review';
@@ -84,7 +94,13 @@ export default function ScanCaptureScreen() {
   const [busyShot, setBusyShot] = useState(false);
   const [recording, setRecording] = useState(false);
 
-  const capturedCount = Object.values(shots).filter((s) => !s.failed).length;
+  const capturedCount = Object.values(shots).filter(
+    (s) => !s.failed && s.check !== 'rejected',
+  ).length;
+  const checking = Object.values(shots).some((s) => s.check === 'pending');
+  const requiredLeft = GUIDE.filter(
+    (g) => g.required && (!shots[g.kind] || shots[g.kind]!.check === 'rejected'),
+  );
 
   // ── start a draft ──────────────────────────────────────────────────────────
   async function begin() {
@@ -126,17 +142,19 @@ export default function ScanCaptureScreen() {
   const angle = GUIDE[step]!;
 
   async function capture() {
-    if (!camRef.current || !camReady || busyShot || !draft) return;
+    if (!camRef.current || !camReady || busyShot || checking || !draft) return;
     setBusyShot(true);
     haptic.select();
     try {
       const pic = await camRef.current.takePictureAsync({ quality: 0.7, skipProcessing: false });
       if (!pic?.uri) throw new Error('no image');
       const kind = angle.kind;
-      setShots((s) => ({ ...s, [kind]: { localUri: pic.uri, mediaId: null, uploading: true, failed: false } }));
-      // advance immediately; the upload finishes in the background
-      if (step < GUIDE.length - 1) setStep((n) => n + 1);
-      void uploadShot(kind, pic.uri, step);
+      // Hold on this angle until the check comes back.
+      setShots((s) => ({
+        ...s,
+        [kind]: { localUri: pic.uri, mediaId: null, uploading: true, failed: false, check: 'pending' },
+      }));
+      void uploadAndCheck(kind, pic.uri, step);
     } catch (e) {
       haptic.error();
       alertT('Could not take the photo', e instanceof Error ? e.message : '');
@@ -145,8 +163,9 @@ export default function ScanCaptureScreen() {
     }
   }
 
-  async function uploadShot(kind: ScanAngle, uri: string, position: number) {
+  async function uploadAndCheck(kind: ScanAngle, uri: string, position: number) {
     if (!draft) return;
+    let mediaId: string;
     try {
       const res = await api.upload<{ media: { id: string } }>(
         `/api/scans/${draft.scanId}/media`,
@@ -154,10 +173,65 @@ export default function ScanCaptureScreen() {
         { kind, position: String(position) },
         { fieldName: 'media' },
       );
-      setShots((s) => ({ ...s, [kind]: { localUri: uri, mediaId: res.media.id, uploading: false, failed: false } }));
+      mediaId = res.media.id;
     } catch {
-      setShots((s) => ({ ...s, [kind]: { localUri: uri, mediaId: null, uploading: false, failed: true } }));
+      setShots((s) => ({ ...s, [kind]: { ...s[kind]!, uploading: false, failed: true, check: undefined } }));
+      return;
     }
+
+    setShots((s) => ({ ...s, [kind]: { ...s[kind]!, mediaId, uploading: false } }));
+
+    let verdict: AngleCheckResult;
+    try {
+      verdict = await api.request<AngleCheckResult>(
+        `/api/scans/${draft.scanId}/media/${mediaId}/check`,
+        { method: 'POST', timeoutMs: 30_000 },
+      );
+    } catch {
+      // Check errored — keep the photo, treat as weak, let the farmer move on.
+      setShots((s) => ({ ...s, [kind]: { ...s[kind]!, check: 'weak', checkNote: null } }));
+      advancePast(kind);
+      return;
+    }
+
+    setShots((s) => ({
+      ...s,
+      [kind]: { ...s[kind]!, check: verdict.checkStatus, checkNote: verdict.checkNote },
+    }));
+
+    if (verdict.checkStatus === 'rejected') {
+      haptic.error();
+      // drop the bad photo so it never reaches the diagnosis
+      void api
+        .request(`/api/scans/${draft.scanId}/media/${mediaId}`, { method: 'DELETE' })
+        .catch(() => {});
+      setShots((s) => ({ ...s, [kind]: { ...s[kind]!, mediaId: null } }));
+    } else {
+      haptic.success();
+      advancePast(kind);
+    }
+  }
+
+  /** Move to the next angle that still needs a photo, or to review. */
+  function advancePast(kind: ScanAngle) {
+    const idx = GUIDE.findIndex((g) => g.kind === kind);
+    setTimeout(() => {
+      setShots((cur) => {
+        let next = -1;
+        for (let i = idx + 1; i < GUIDE.length; i++) {
+          const g = GUIDE[i]!;
+          const sh = cur[g.kind];
+          if (g.required && (!sh || sh.check === 'rejected')) {
+            next = i;
+            break;
+          }
+          if (next === -1 && (!sh || sh.check === 'rejected')) next = i;
+        }
+        if (next >= 0) setStep(next);
+        else setPhase('review');
+        return cur;
+      });
+    }, 550);
   }
 
   async function retake(kind: ScanAngle) {
@@ -270,6 +344,16 @@ export default function ScanCaptureScreen() {
 
   if (phase === 'capture' || phase === 'video') {
     const isVideo = phase === 'video';
+    const cur = shots[angle.kind];
+    const frameColor =
+      cur?.check === 'ok' || cur?.check === 'weak'
+        ? '#5FD08A'
+        : cur?.check === 'rejected'
+          ? '#FF7A66'
+          : 'rgba(255,255,255,0.55)';
+    const frameSize = isVideo ? '78%' : angle.frame === 'wide' ? '84%' : angle.frame === 'tight' ? '50%' : '68%';
+    const canShoot = camReady && !busyShot && !checking;
+
     return (
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <CameraView
@@ -280,9 +364,9 @@ export default function ScanCaptureScreen() {
           onCameraReady={() => setCamReady(true)}
         />
 
-        {/* frame guide */}
+        {/* frame guide — size + colour follow the angle and its check */}
         <View pointerEvents="none" style={styles.frameWrap}>
-          <View style={styles.frame} />
+          <View style={[styles.frame, { width: frameSize, borderColor: frameColor }]} />
         </View>
 
         {/* top: what to shoot */}
@@ -295,36 +379,86 @@ export default function ScanCaptureScreen() {
               {isVideo ? t('Pan slowly around the plant') : t(angle.title)}
             </Text>
             <Text variant="caption" color="rgba(255,255,255,0.75)" raw>
-              {isVideo ? t('Up to 12 seconds') : `${step + 1} / ${GUIDE.length} · ${t(angle.hint)}`}
+              {isVideo
+                ? t('Up to 12 seconds')
+                : `${t('Step')} ${step + 1}/${GUIDE.length}${angle.required ? '' : ` · ${t('optional')}`} · ${t(angle.hint)}`}
             </Text>
           </View>
           <View style={{ width: 24 }} />
         </View>
 
-        {/* bottom: thumbnails + shutter */}
+        {/* bottom: verdict + thumbnails + shutter */}
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + space.md }]}>
+          {!isVideo && cur?.check && (
+            <Animated.View entering={FadeIn.duration(150)} style={styles.verdict}>
+              {cur.check === 'pending' ? (
+                <Row gap={8}>
+                  <ActivityIndicator color="#fff" />
+                  <Text variant="label" color="#fff">
+                    {t('Checking your photo…')}
+                  </Text>
+                </Row>
+              ) : cur.check === 'rejected' ? (
+                <Row gap={8} style={{ alignItems: 'flex-start' }}>
+                  <Icon name="warningCircle" size={16} color="#FF7A66" weight="fill" />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="label" color="#FF7A66">
+                      {t('Take this one again')}
+                    </Text>
+                    {cur.checkNote ? (
+                      <Text variant="caption" color="rgba(255,255,255,0.85)" raw>
+                        {cur.checkNote}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Row>
+              ) : (
+                <Row gap={8}>
+                  <Icon name="check" size={16} color="#5FD08A" weight="fill" />
+                  <Text variant="label" color="#5FD08A">
+                    {cur.check === 'weak' ? t('Good enough — moving on') : t('Looks good')}
+                  </Text>
+                </Row>
+              )}
+            </Animated.View>
+          )}
+
           {!isVideo && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 56, marginBottom: space.sm }}>
               <Row gap={6}>
                 {GUIDE.map((g, i) => {
                   const shot = shots[g.kind];
+                  const bad = shot?.failed || shot?.check === 'rejected';
                   return (
                     <View
                       key={g.kind}
                       style={[
                         styles.thumb,
                         i === step && styles.thumbActive,
-                        shot?.failed && { borderColor: palette.danger },
+                        bad && { borderColor: palette.danger },
+                        (shot?.check === 'ok' || shot?.check === 'weak') && { borderColor: '#5FD08A' },
                       ]}
                     >
                       {shot ? (
                         <Image source={{ uri: shot.localUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                       ) : (
-                        <Text variant="caption" color="rgba(255,255,255,0.5)" raw>{i + 1}</Text>
+                        <Text variant="caption" color="rgba(255,255,255,0.5)" raw>
+                          {g.required ? i + 1 : '+'}
+                        </Text>
                       )}
-                      {shot?.uploading && (
+                      {shot?.check === 'pending' && (
                         <View style={styles.thumbOverlay}>
                           <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                      )}
+                      {(shot?.check === 'ok' || shot?.check === 'weak') && (
+                        <View style={[styles.thumbBadge, { backgroundColor: '#5FD08A' }]}>
+                          <Icon name="check" size={9} color="#000" weight="bold" />
+                        </View>
+                      )}
+                      {bad && (
+                        <View style={[styles.thumbBadge, { backgroundColor: palette.danger }]}>
+                          <Icon name="close" size={9} color="#fff" weight="bold" />
                         </View>
                       )}
                     </View>
@@ -335,28 +469,37 @@ export default function ScanCaptureScreen() {
           )}
 
           <Row between style={{ alignItems: 'center' }}>
-            <Pressable
-              onPress={() => (isVideo ? setPhase('review') : step < GUIDE.length - 1 ? setStep(step + 1) : setPhase(capturedCount > 0 ? 'review' : 'capture'))}
-              hitSlop={10}
-              style={{ width: 80 }}
-            >
-              <Text variant="label" color="#fff">{t('Skip')}</Text>
-            </Pressable>
+            {!isVideo && !angle.required && !checking ? (
+              <Pressable
+                onPress={() =>
+                  step < GUIDE.length - 1 ? setStep(step + 1) : setPhase(capturedCount > 0 ? 'review' : 'capture')
+                }
+                hitSlop={10}
+                style={{ width: 80 }}
+              >
+                <Text variant="label" color="#fff">
+                  {t('Skip')}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={{ width: 80 }} />
+            )}
 
             {isVideo ? (
               <Pressable onPress={toggleRecord} style={[styles.shutter, recording && styles.shutterRec]}>
                 <View style={recording ? styles.recSquare : styles.recDot} />
               </Pressable>
             ) : (
-              <Pressable onPress={capture} disabled={!camReady || busyShot} style={styles.shutter}>
-                {busyShot ? <ActivityIndicator color="#000" /> : <View style={styles.shutterInner} />}
+              <Pressable onPress={capture} disabled={!canShoot} style={[styles.shutter, !canShoot && { opacity: 0.5 }]}>
+                {busyShot || checking ? <ActivityIndicator color="#000" /> : <View style={styles.shutterInner} />}
               </Pressable>
             )}
 
             <Pressable
               onPress={() => setPhase('review')}
               hitSlop={10}
-              style={{ width: 80, alignItems: 'flex-end' }}
+              disabled={requiredLeft.length > 0 && !isVideo}
+              style={{ width: 80, alignItems: 'flex-end', opacity: requiredLeft.length > 0 && !isVideo ? 0.4 : 1 }}
             >
               <Text variant="label" color="#fff">
                 {t('Done')} {capturedCount > 0 ? `(${capturedCount})` : ''}
@@ -386,19 +529,35 @@ export default function ScanCaptureScreen() {
           <Reveal>
             <Card>
               <Text variant="subhead">{t('What you will photograph')}</Text>
-              <View style={{ gap: space.xs, marginTop: space.xs }}>
-                {GUIDE.map((g) => (
-                  <Row key={g.kind} gap={space.sm}>
-                    <Icon name={g.required ? 'check' : 'circle'} size={15} color={g.required ? palette.primary : palette.textFaint} weight={g.required ? 'fill' : 'regular'} />
-                    <Text variant="body" style={{ flex: 1 }}>
-                      {t(g.title)}
-                      {g.required ? '' : ` · ${t('optional')}`}
-                    </Text>
+              <Text variant="caption" faint>
+                {t('One photo at a time. After each shot the AI checks it and asks again if it is not clear enough.')}
+              </Text>
+              <View style={{ gap: space.sm, marginTop: space.sm }}>
+                {GUIDE.map((g, i) => (
+                  <Row key={g.kind} gap={space.sm} style={{ alignItems: 'flex-start' }}>
+                    <View style={styles.stepNum}>
+                      <Text variant="caption" color={palette.primaryDeep} raw>
+                        {i + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="body">
+                        {t(g.title)}
+                        {g.required ? '' : ` · ${t('optional')}`}
+                      </Text>
+                      <Text variant="caption" faint>
+                        {t(g.hint)}
+                      </Text>
+                    </View>
                   </Row>
                 ))}
-                <Row gap={space.sm}>
-                  <Icon name="video" size={15} color={palette.textFaint} />
-                  <Text variant="body" style={{ flex: 1 }}>{t('A short video')} · {t('optional')}</Text>
+                <Row gap={space.sm} style={{ alignItems: 'flex-start' }}>
+                  <View style={styles.stepNum}>
+                    <Icon name="video" size={12} color={palette.primaryDeep} />
+                  </View>
+                  <Text variant="body" style={{ flex: 1 }}>
+                    {t('A short video')} · {t('optional')}
+                  </Text>
                 </Row>
               </View>
             </Card>
@@ -457,16 +616,27 @@ export default function ScanCaptureScreen() {
                   {shot ? (
                     <>
                       <Image source={{ uri: shot.localUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                      {shot.failed && (
-                        <View style={styles.reviewBadge}>
+                      {shot.failed || shot.check === 'rejected' ? (
+                        <View style={[styles.reviewBadge, { backgroundColor: palette.danger }]}>
                           <Icon name="retry" size={13} color="#fff" weight="bold" />
                         </View>
-                      )}
+                      ) : shot.check === 'ok' || shot.check === 'weak' ? (
+                        <View style={[styles.reviewBadge, { backgroundColor: '#4E9A6B' }]}>
+                          <Icon name="check" size={12} color="#fff" weight="bold" />
+                        </View>
+                      ) : null}
                     </>
                   ) : (
                     <View style={{ alignItems: 'center', gap: 2 }}>
-                      <Icon name="plus" size={16} color={palette.textFaint} />
-                      <Text variant="caption" faint center raw>{t(g.title)}</Text>
+                      <Icon
+                        name={g.required ? 'warningCircle' : 'plus'}
+                        size={16}
+                        color={g.required ? palette.warn : palette.textFaint}
+                      />
+                      <Text variant="caption" faint center raw>
+                        {t(g.title)}
+                        {g.required ? `\n${t('required')}` : ''}
+                      </Text>
                     </View>
                   )}
                 </Pressable>
@@ -493,11 +663,16 @@ export default function ScanCaptureScreen() {
       </ScrollView>
 
       <View style={{ paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.md, gap: space.sm }}>
+        {requiredLeft.length > 0 && (
+          <Text variant="caption" color={palette.warn} center>
+            {t('Still needed: {names}', { names: requiredLeft.map((g) => t(g.title)).join(', ') })}
+          </Text>
+        )}
         <Button
           title={t('Diagnose crop')}
           size="lg"
           loading={submitting}
-          disabled={capturedCount === 0}
+          disabled={capturedCount === 0 || requiredLeft.length > 0}
           onPress={() => submit(false)}
         />
         <Pressable onPress={resetAll} style={{ alignSelf: 'center', paddingVertical: space.xs }}>
@@ -550,6 +725,32 @@ const styles = StyleSheet.create({
   },
   thumbActive: { borderColor: '#fff' },
   thumbOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  thumbBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verdict: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    marginBottom: space.sm,
+  },
+  stepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: palette.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shutter: {
     width: 70,
     height: 70,

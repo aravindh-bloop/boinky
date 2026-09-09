@@ -307,6 +307,106 @@ export async function diagnoseCropImageSet(
   return parsed;
 }
 
+// ── Per-photo angle check for the guided capture wizard ──
+
+export interface AngleCheckVerdict {
+  ok: boolean;
+  isPlant: boolean;
+  matchesAngle: boolean;
+  quality: 'good' | 'usable' | 'poor';
+  /** One short farmer-facing reason, when not ok. */
+  issue: string | null;
+  /** One short "do this" instruction. */
+  fix: string | null;
+}
+
+const angleCheckSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isPlant: { type: Type.BOOLEAN },
+    matchesAngle: { type: Type.BOOLEAN },
+    quality: { type: Type.STRING, enum: ['good', 'usable', 'poor'] },
+    issue: { type: Type.STRING },
+    fix: { type: Type.STRING },
+  },
+  required: ['isPlant', 'matchesAngle', 'quality'],
+};
+
+/**
+ * Judge ONE freshly-taken photo against the angle the wizard asked for, so the
+ * app can accept it or ask for a retake before moving to the next shot. Fails
+ * open — a Gemini error never blocks the farmer.
+ */
+export async function checkScanAngle(
+  image: ScanImageInput,
+  expectedKind: string,
+  cropHint?: string | null,
+): Promise<AngleCheckVerdict> {
+  const want = ANGLE_LABEL[expectedKind] ?? expectedKind;
+  const prompt = `A farmer is taking a guided set of crop photos for a disease diagnosis.
+This photo is meant to be: "${want}".${cropHint ? ` The crop is ${cropHint}.` : ''}
+
+Judge ONLY this single photo:
+- isPlant: is a crop plant (or its leaf / stem / fruit / a field of it) clearly in the
+  photo? false for a blurry mess, a finger over the lens, only sky or bare ground, a
+  person, or a random indoor object.
+- matchesAngle: does the framing match "${want}"? whole plant = the whole plant fits in
+  frame; close-up of the affected part = the spots/damage fill most of the frame; underside
+  of a leaf = the back of a leaf; stem / base = the lower stem where it meets the soil;
+  fruit / panicle = pods, fruit or a grain head; wider view = many plants around it.
+- quality: "good" (sharp, well-lit), "usable" (a little dark / tilted / far but a diagnosis
+  could still use it), "poor" (too blurry, dark, far or obstructed to use).
+- issue: if not good, ONE short plain sentence a farmer understands.
+- fix: ONE short instruction to fix it.
+Be lenient on "usable"; be strict on isPlant and matchesAngle.`;
+
+  try {
+    const res = await ai().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: image.mimeType, data: image.base64 } },
+            { text: prompt },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: angleCheckSchema as unknown as Record<string, unknown>,
+        temperature: 0.1,
+      },
+    });
+    const o = JSON.parse(res.text ?? '{}') as Record<string, unknown>;
+    const isPlant = o.isPlant === true;
+    const matchesAngle = o.matchesAngle === true;
+    const quality = (['good', 'usable', 'poor'] as const).includes(o.quality as never)
+      ? (o.quality as AngleCheckVerdict['quality'])
+      : 'usable';
+    const ok = isPlant && matchesAngle && quality !== 'poor';
+    const issueText =
+      typeof o.issue === 'string' && o.issue.trim()
+        ? o.issue.trim()
+        : !isPlant
+          ? 'No crop is clearly visible in this photo.'
+          : !matchesAngle
+            ? `This does not look like the ${want}.`
+            : 'The photo is not clear enough to use.';
+    return {
+      ok,
+      isPlant,
+      matchesAngle,
+      quality,
+      issue: ok ? null : issueText,
+      fix: typeof o.fix === 'string' && o.fix.trim() ? o.fix.trim() : null,
+    };
+  } catch (err) {
+    logger.warn({ err, expectedKind }, 'angle check failed — allowing the photo');
+    return { ok: true, isPlant: true, matchesAngle: true, quality: 'usable', issue: null, fix: null };
+  }
+}
+
 // ── Management guidance for a known diagnosis (used after an expert correction) ──
 
 export interface ManagementGuidance {

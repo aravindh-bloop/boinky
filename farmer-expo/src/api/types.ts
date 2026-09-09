@@ -268,6 +268,17 @@ export interface ScanDraft {
   angles: ScanAngle[];
 }
 
+export interface AngleCheckResult {
+  ok: boolean;
+  isPlant: boolean;
+  matchesAngle: boolean;
+  quality: 'good' | 'usable' | 'poor';
+  issue: string | null;
+  fix: string | null;
+  checkStatus: 'ok' | 'weak' | 'rejected';
+  checkNote: string | null;
+}
+
 export interface Scan {
   id: string;
   field_id: string | null;

@@ -5,6 +5,8 @@ import { logger } from '../../lib/logger.js';
 import {
   diagnoseCropImage,
   diagnoseCropImageSet,
+  checkScanAngle,
+  type AngleCheckVerdict,
   type DiagnosisResult,
   type ScanImageInput,
 } from '../../integrations/gemini.js';
@@ -78,10 +80,12 @@ export interface ScanMediaRow {
   duration_s: number | null;
   position: number;
   created_at: string;
+  check_status: 'unchecked' | 'ok' | 'weak' | 'rejected';
+  check_note: string | null;
 }
 
 const SCAN_MEDIA_COLS =
-  'id, scan_id, kind, url, public_id, resource, width, height, bytes, format, duration_s, position, created_at';
+  'id, scan_id, kind, url, public_id, resource, width, height, bytes, format, duration_s, position, created_at, check_status, check_note';
 const SCAN_MEDIA_SELECT = SCAN_MEDIA_COLS.split(', ')
   .map((c) => `m.${c}`)
   .join(', ');
@@ -541,6 +545,61 @@ export async function addScanMedia(
   return row;
 }
 
+export interface AngleCheckResult extends AngleCheckVerdict {
+  checkStatus: 'ok' | 'weak' | 'rejected';
+  checkNote: string | null;
+}
+
+/**
+ * Judge one freshly-uploaded photo against the angle the wizard asked for and
+ * store the verdict on the media row. The app calls this right after `/media`
+ * and only advances to the next angle when `ok` is true.
+ */
+export async function checkScanMediaAngle(
+  scanId: string,
+  mediaId: string,
+  farmerId: string,
+): Promise<AngleCheckResult> {
+  await loadDraft(scanId, farmerId);
+  const m = await queryMaybe<ScanMediaRow>(
+    `SELECT ${SCAN_MEDIA_SELECT} FROM scan_media m WHERE m.id = $1 AND m.scan_id = $2`,
+    [mediaId, scanId],
+  );
+  if (!m) throw AppError.notFound('Media not found');
+
+  if (m.resource !== 'image' || !m.public_id) {
+    return { ok: true, isPlant: true, matchesAngle: true, quality: 'usable', issue: null, fix: null, checkStatus: 'ok', checkNote: null };
+  }
+
+  let cropHint: string | null = null;
+  const scan = await queryMaybe<{ field_id: string | null }>(`SELECT field_id FROM scans WHERE id = $1`, [scanId]);
+  if (scan?.field_id) {
+    const f = await queryMaybe<{ crop: string }>(`SELECT crop FROM fields WHERE id = $1`, [scan.field_id]);
+    cropHint = f?.crop ?? null;
+  }
+
+  const got = await fetchImageAsBase64(imageDerivedUrl(m.public_id, 768));
+  if (!got) {
+    return { ok: true, isPlant: true, matchesAngle: true, quality: 'usable', issue: null, fix: null, checkStatus: 'ok', checkNote: null };
+  }
+
+  const verdict = await checkScanAngle({ kind: m.kind, base64: got.data, mimeType: got.mimeType }, m.kind, cropHint);
+  const checkStatus: AngleCheckResult['checkStatus'] = verdict.ok
+    ? verdict.quality === 'usable'
+      ? 'weak'
+      : 'ok'
+    : 'rejected';
+  const checkNote = verdict.issue
+    ? [verdict.issue, verdict.fix].filter(Boolean).join(' ')
+    : null;
+  await query(`UPDATE scan_media SET check_status = $2, check_note = $3 WHERE id = $1`, [
+    mediaId,
+    checkStatus,
+    checkNote,
+  ]);
+  return { ...verdict, checkStatus, checkNote };
+}
+
 export async function removeScanMedia(
   scanId: string,
   mediaId: string,
@@ -586,7 +645,9 @@ export async function submitScanDraft(
   input: SubmitDraftInput,
 ): Promise<ScanRow> {
   const draft = await loadDraft(scanId, input.farmerId);
-  const media = await getScanMedia(scanId);
+  const all = await getScanMedia(scanId);
+  // Photos the angle check bounced don't count towards coverage or the diagnosis.
+  const media = all.filter((m) => m.check_status !== 'rejected');
   if (media.length === 0) throw AppError.badRequest('Add at least one photo before submitting');
 
   const haveKinds = new Set(media.map((m) => m.kind));

@@ -157,6 +157,16 @@ scansRouter.post(
   }),
 );
 
+scansRouter.post(
+  '/:id/media/:mediaId/check',
+  asyncHandler(async (req, res) => {
+    const { id, mediaId } = z
+      .object({ id: z.string().uuid(), mediaId: z.string().uuid() })
+      .parse(req.params);
+    res.json(await scans.checkScanMediaAngle(id, mediaId, req.user!.sub));
+  }),
+);
+
 scansRouter.delete(
   '/:id/media/:mediaId',
   asyncHandler(async (req, res) => {
