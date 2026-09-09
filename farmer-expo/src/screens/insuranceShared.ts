@@ -11,8 +11,9 @@ const STAGE_LABELS: Record<ClaimStage, string> = {
   closed: 'Closed',
 };
 
-export function stageLabel(stage: ClaimStage, t: TFunc): string {
-  return t(STAGE_LABELS[stage] ?? stage);
+export function stageLabel(stage: ClaimStage | string | null | undefined, t: TFunc): string {
+  if (!stage) return t('Unknown');
+  return t(STAGE_LABELS[stage as ClaimStage] ?? stage);
 }
 
 export interface SlaBadge {
@@ -22,7 +23,12 @@ export interface SlaBadge {
 }
 
 /** The status pill for a tracked claim — on track / due soon / overdue / rejected / paid. */
-export function slaBadge(clock: StageClock, outcome: string | null, t: TFunc): SlaBadge {
+export function slaBadge(
+  clock: StageClock | null | undefined,
+  outcome: string | null,
+  t: TFunc,
+): SlaBadge {
+  if (!clock) return { label: t('Tracking'), color: palette.textMuted, soft: palette.surfaceSunken };
   if (outcome === 'rejected') return { label: t('Rejected'), color: palette.danger, soft: palette.dangerSoft };
   if (clock.stage === 'closed') return { label: t('Closed'), color: palette.textMuted, soft: palette.surfaceSunken };
   if (clock.penalInterestDue)

@@ -34,10 +34,13 @@ export default function InsuranceScreen() {
   const claims = useApi<{ claims: ClaimTrackListItem[] }>('/api/insurance/claims');
   const escs = useApi<{ escalations: MyEscalation[] }>('/api/insurance/escalations');
 
-  const policies = pols.data?.policies ?? [];
-  const claimList = claims.data?.claims ?? [];
+  const policies = (pols.data?.policies ?? []).filter((p) => p && p.id && 'season' in p);
+  const rawClaims = claims.data?.claims ?? [];
+  // Only render claims from the tracker backend (they carry a computed `clock`).
+  const claimList = rawClaims.filter((c) => c && c.clock && c.stage);
+  const staleServer = rawClaims.length > 0 && claimList.length === 0;
   const openEsc = (escs.data?.escalations ?? []).filter(
-    (e) => e.status !== 'resolved' && e.status !== 'closed',
+    (e) => e && e.status !== 'resolved' && e.status !== 'closed',
   );
   const loading = pols.loading && claims.loading;
 
@@ -91,6 +94,16 @@ export default function InsuranceScreen() {
               />
             ) : (
               <>
+                {staleServer && (
+                  <Card elevation="flat" accent={palette.warn}>
+                    <Row gap={space.sm}>
+                      <Icon name="warning" size={16} color={palette.warn} weight="fill" />
+                      <Text variant="caption" color="#8A6A22" style={{ flex: 1 }}>
+                        {t('The server needs updating to show claim tracking. Your policies are safe.')}
+                      </Text>
+                    </Row>
+                  </Card>
+                )}
                 {/* tracked claims first — they need attention */}
                 {claimList.length > 0 && (
                   <View style={{ gap: space.sm }}>

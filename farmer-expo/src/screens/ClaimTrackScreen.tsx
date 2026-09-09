@@ -45,6 +45,14 @@ export default function ClaimTrackScreen() {
 
   if (loading) return <LoaderScreen label="Loading your claim" />;
   if (error || !data) return <ErrorState message={error ?? 'Not found'} onRetry={reload} />;
+  if (!data.timeline || !data.clock || !data.stageInfo) {
+    return (
+      <ErrorState
+        message={t('The server needs updating to show claim tracking. Please try again later.')}
+        onRetry={reload}
+      />
+    );
+  }
 
   const { claim, clock, timeline, events, escalations } = data;
   const badge = slaBadge(clock, claim.outcome, t);
