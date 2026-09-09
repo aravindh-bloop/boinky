@@ -18,6 +18,7 @@ import { useApi } from '../api/useApi';
 import { api, ApiError } from '../api/client';
 import { getFix } from '../location';
 import { useT } from '../i18n';
+import { useVoice } from '../onboarding/voice';
 import type { AngleCheckResult, Field, Scan, ScanAngle, ScanDraft } from '../api/types';
 import {
   Button,
@@ -54,7 +55,7 @@ const GUIDE: {
   { kind: 'field_wide', title: 'The wider field', hint: 'Show how much of the crop around it looks the same', frame: 'wide' },
 ];
 
-type CheckState = 'pending' | 'ok' | 'weak' | 'rejected';
+type CheckState = 'pending' | 'ok' | 'weak' | 'rejected' | 'skipped';
 
 interface Shot {
   localUri: string;
@@ -71,8 +72,11 @@ export default function ScanCaptureScreen() {
   const nav = useNavigation<Nav>();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const voice = useVoice();
   const { data } = useApi<{ fields: Field[] }>('/api/fields');
   const fields = data?.fields ?? [];
+
+  const [voiceOn, setVoiceOn] = useState(true);
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [fieldId, setFieldId] = useState<string | undefined>();
@@ -141,6 +145,25 @@ export default function ScanCaptureScreen() {
   // ── capture one photo for the current angle ────────────────────────────────
   const angle = GUIDE[step]!;
 
+  // Speak the instruction for each angle as the farmer reaches it.
+  const spokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (phase !== 'capture') {
+      spokenRef.current = null;
+      return;
+    }
+    const key = `${step}:${angle.kind}`;
+    if (spokenRef.current === key) return;
+    spokenRef.current = key;
+    if (voiceOn) {
+      const n = `${step + 1}`;
+      voice.speak(`${t('Photo')} ${n}. ${t(angle.title)}. ${t(angle.hint)}.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, step, voiceOn]);
+
+  useEffect(() => voice.stop, [voice.stop]);
+
   async function capture() {
     if (!camRef.current || !camReady || busyShot || checking || !draft) return;
     setBusyShot(true);
@@ -188,8 +211,9 @@ export default function ScanCaptureScreen() {
         { method: 'POST', timeoutMs: 30_000 },
       );
     } catch {
-      // Check errored — keep the photo, treat as weak, let the farmer move on.
-      setShots((s) => ({ ...s, [kind]: { ...s[kind]!, check: 'weak', checkNote: null } }));
+      // The check could not run (offline, or the server is not updated yet).
+      // Keep the photo but don't pretend it was verified.
+      setShots((s) => ({ ...s, [kind]: { ...s[kind]!, check: 'skipped', checkNote: null } }));
       advancePast(kind);
       return;
     }
@@ -201,6 +225,7 @@ export default function ScanCaptureScreen() {
 
     if (verdict.checkStatus === 'rejected') {
       haptic.error();
+      if (voiceOn && verdict.checkNote) voice.speak(verdict.checkNote);
       // drop the bad photo so it never reaches the diagnosis
       void api
         .request(`/api/scans/${draft.scanId}/media/${mediaId}`, { method: 'DELETE' })
@@ -384,7 +409,16 @@ export default function ScanCaptureScreen() {
                 : `${t('Step')} ${step + 1}/${GUIDE.length}${angle.required ? '' : ` · ${t('optional')}`} · ${t(angle.hint)}`}
             </Text>
           </View>
-          <View style={{ width: 24 }} />
+          <Pressable
+            onPress={() => {
+              if (voiceOn) voice.stop();
+              else voice.speak(`${t(angle.title)}. ${t(angle.hint)}.`);
+              setVoiceOn((v) => !v);
+            }}
+            hitSlop={12}
+          >
+            <Icon name="mic" size={20} color={voiceOn ? '#fff' : 'rgba(255,255,255,0.35)'} weight={voiceOn ? 'fill' : 'regular'} />
+          </Pressable>
         </View>
 
         {/* bottom: verdict + thumbnails + shutter */}
@@ -411,6 +445,13 @@ export default function ScanCaptureScreen() {
                       </Text>
                     ) : null}
                   </View>
+                </Row>
+              ) : cur.check === 'skipped' ? (
+                <Row gap={8}>
+                  <Icon name="check" size={16} color="rgba(255,255,255,0.7)" />
+                  <Text variant="label" color="rgba(255,255,255,0.7)">
+                    {t('Saved — could not check this one')}
+                  </Text>
                 </Row>
               ) : (
                 <Row gap={8}>
