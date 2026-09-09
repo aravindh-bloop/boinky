@@ -48,9 +48,6 @@ export interface ActivityInput {
   cost?: number;
   activityDate?: string;
   sourceTaskId?: string;
-  /** if true and cost>0, also record an expense row */
-  logExpense?: boolean;
-  expenseCategory?: string;
 }
 
 export async function createActivity(farmerId: string, input: ActivityInput): Promise<ActivityRow> {
@@ -75,22 +72,6 @@ export async function createActivity(farmerId: string, input: ActivityInput): Pr
       ],
     );
     const id = rows[0]!.id;
-
-    if (input.logExpense && input.cost && input.cost > 0) {
-      await client.query(
-        `INSERT INTO expenses (farmer_id, field_id, category, description, amount, spent_on, activity_id)
-         VALUES ($1,$2,$3,$4,$5, coalesce($6::date, CURRENT_DATE), $7)`,
-        [
-          farmerId,
-          input.fieldId ?? null,
-          input.expenseCategory ?? categoryForKind(input.kind),
-          input.title,
-          input.cost,
-          input.activityDate ?? null,
-          id,
-        ],
-      );
-    }
 
     if (input.sourceTaskId) {
       await client.query(`UPDATE calendar_tasks SET is_done = true WHERE id = $1`, [input.sourceTaskId]);
@@ -144,21 +125,4 @@ export async function deleteActivity(id: string, farmerId: string): Promise<void
     farmerId,
   ]);
   if (rows.length === 0) throw AppError.notFound('Activity not found');
-}
-
-function categoryForKind(kind: string): string {
-  switch (kind) {
-    case 'spraying':
-      return 'pesticide';
-    case 'fertilizing':
-      return 'fertilizer';
-    case 'sowing':
-      return 'seed';
-    case 'irrigation':
-      return 'irrigation';
-    case 'weeding':
-      return 'labour';
-    default:
-      return 'other';
-  }
 }

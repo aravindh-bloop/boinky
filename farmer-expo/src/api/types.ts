@@ -424,19 +424,6 @@ export interface SchemeThreadDetail {
   messages: { id: string; sender_role: 'farmer' | 'official'; body: string; created_at: string }[];
 }
 
-export interface InventoryItem {
-  id: string;
-  item_name: string;
-  item_type: string | null;
-  quantity: number | null;
-  unit: string | null;
-  low_stock_at: number | null;
-  expiry_date: string | null;
-  low_stock: boolean;
-  expired: boolean;
-  expiring_soon: boolean;
-}
-
 export interface SafetyReport {
   crop: string | null;
   expectedHarvestDate: string | null;
@@ -571,41 +558,6 @@ export interface Activity {
   created_at: string;
 }
 
-export interface Expense {
-  id: string;
-  field_id: string | null;
-  field_name: string | null;
-  category: string;
-  description: string | null;
-  amount: number;
-  spent_on: string;
-  created_at: string;
-}
-
-export interface Harvest {
-  id: string;
-  field_id: string | null;
-  field_name: string | null;
-  harvested_on: string;
-  crop: string | null;
-  quantity: number;
-  unit: string;
-  unit_price: number | null;
-  revenue: number | null;
-  buyer: string | null;
-  note: string | null;
-}
-
-export interface FinanceSummary {
-  since: string;
-  totalSpent: number;
-  totalRevenue: number;
-  net: number;
-  byCategory: { category: string; amount: number }[];
-  byField: { fieldId: string | null; fieldName: string | null; spent: number; revenue: number }[];
-  harvestQty: { unit: string; quantity: number }[];
-}
-
 export interface AggTask {
   id: string;
   field_id: string;
@@ -660,8 +612,6 @@ export interface HomeData {
     image_url: string;
     created_at: string;
   }[];
-  lowStockCount: number;
-  finance: { spent: number; revenue: number; net: number } | null;
 }
 
 // ── AI daily brief (GET /api/insights/daily) ──
@@ -673,15 +623,12 @@ export type InsightCategory =
   | 'task'
   | 'risk'
   | 'outbreak'
-  | 'stock'
-  | 'finance'
   | 'general';
 export type InsightAction =
   | 'open_field'
   | 'open_tasks'
   | 'open_weather'
   | 'open_scan'
-  | 'open_stock'
   | 'open_alerts'
   | 'open_schemes'
   | 'none';

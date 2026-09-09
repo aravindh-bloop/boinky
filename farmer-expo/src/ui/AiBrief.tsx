@@ -35,8 +35,6 @@ const CATEGORY_ICON: Record<InsightCard['category'], IconName> = {
   task: 'tasks',
   risk: 'shield',
   outbreak: 'hotspot',
-  stock: 'stock',
-  finance: 'money',
   general: 'insight',
 };
 

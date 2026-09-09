@@ -539,15 +539,12 @@ export type InsightCategory =
   | 'task'
   | 'risk'
   | 'outbreak'
-  | 'stock'
-  | 'finance'
   | 'general';
 export type InsightAction =
   | 'open_field'
   | 'open_tasks'
   | 'open_weather'
   | 'open_scan'
-  | 'open_stock'
   | 'open_alerts'
   | 'open_schemes'
   | 'none';
@@ -577,8 +574,6 @@ const CATEGORIES: InsightCategory[] = [
   'task',
   'risk',
   'outbreak',
-  'stock',
-  'finance',
   'general',
 ];
 const ACTIONS: InsightAction[] = [
@@ -586,7 +581,6 @@ const ACTIONS: InsightAction[] = [
   'open_tasks',
   'open_weather',
   'open_scan',
-  'open_stock',
   'open_alerts',
   'open_schemes',
   'none',
@@ -629,7 +623,7 @@ const briefSchema = {
 const BRIEF_SYSTEM = `You are an experienced agronomist writing a short daily briefing for one
 smallholder farmer in India. You are given a JSON snapshot of their actual farm: fields and
 crops, weather forecast, risk scores, calendar tasks, recent scans, recent activities they
-have logged, nearby outbreaks, extension-office alerts, stock and season finances.
+have logged, nearby outbreaks and extension-office alerts.
 
 Write up to 5 insight cards, most important first. Write only as many as the facts
 genuinely support — two well-grounded cards are better than five padded ones. Never add a
@@ -807,7 +801,7 @@ export interface AssistantTurn {
 
 const ASSISTANT_SYSTEM = `You are AgriPod, an assistant for a smallholder farmer in India.
 You are given a JSON snapshot of THIS farmer's actual operation (fields, crops, weather,
-risk, tasks, recent scans, activities, nearby outbreaks, finances) and a short portrait of
+risk, tasks, recent scans, activities, nearby outbreaks) and a short portrait of
 how they farm.
 
 Answer their question directly and practically, in plain spoken English (it will be

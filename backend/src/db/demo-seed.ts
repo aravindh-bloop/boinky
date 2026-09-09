@@ -58,10 +58,7 @@ async function ids(): Promise<Ctx> {
 
 async function wipe(farmerId: string, officerId: string) {
   await pool.query(`DELETE FROM scans     WHERE farmer_id = $1`, [farmerId]);
-  await pool.query(`DELETE FROM expenses  WHERE farmer_id = $1`, [farmerId]);
   await pool.query(`DELETE FROM activities WHERE farmer_id = $1`, [farmerId]);
-  await pool.query(`DELETE FROM harvests  WHERE farmer_id = $1`, [farmerId]);
-  await pool.query(`DELETE FROM inventory_items WHERE farmer_id = $1`, [farmerId]);
   await pool.query(`DELETE FROM alerts WHERE official_id = $1`, [officerId]);
   await pool.query(`DELETE FROM ai_insights WHERE farmer_id = $1`, [farmerId]);
   await pool.query(
@@ -260,89 +257,11 @@ const ACTIVITIES: [
 
 async function seedActivities(c: Ctx) {
   for (const [field, kind, title, note, daysAgo, input, qty, unit, cost] of ACTIVITIES) {
-    const { rows } = await pool.query<{ id: string }>(
+    await pool.query(
       `INSERT INTO activities
          (farmer_id, field_id, kind, title, note, input_name, quantity, unit, cost, activity_date, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ${D(daysAgo)}::date, ${TS(daysAgo)})
-       RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ${D(daysAgo)}::date, ${TS(daysAgo)})`,
       [c.farmerId, F(c, field), kind, title, note, input, qty, unit, cost],
-    );
-    if (cost != null) {
-      await pool.query(
-        `INSERT INTO expenses (farmer_id, field_id, category, description, amount, spent_on, activity_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, ${D(daysAgo)}::date, $6, ${TS(daysAgo)})`,
-        [
-          c.farmerId,
-          F(c, field),
-          kind === 'fertilizing' ? 'fertilizer' : kind === 'spraying' ? 'pesticide' : kind === 'sowing' ? 'seed' : kind === 'irrigation' ? 'irrigation' : 'labour',
-          title,
-          cost,
-          rows[0]!.id,
-        ],
-      );
-    }
-  }
-}
-
-// ── standalone expenses (not tied to an activity) ─────────────────────────
-const EXPENSES: [string | null, string, string, number, number][] = [
-  // field, category, description, amount, daysAgo
-  ['North Plot', 'labour', 'Transplanting labour — 8 women', 4800, 55],
-  ['North Plot', 'machinery', 'Rotavator + puddling (rented)', 2600, 57],
-  [null, 'transport', 'Carting inputs from market', 700, 45],
-  ['Back Acre', 'labour', 'Sowing + gap filling', 1800, 44],
-  [null, 'machinery', 'Diesel for pump set', 1200, 22],
-  ['River Field', 'fertilizer', 'Potash — 2 bags', 1700, 30],
-  [null, 'other', 'Sprayer repair', 350, 12],
-];
-
-async function seedExpenses(c: Ctx) {
-  for (const [field, category, description, amount, daysAgo] of EXPENSES) {
-    await pool.query(
-      `INSERT INTO expenses (farmer_id, field_id, category, description, amount, spent_on, created_at)
-       VALUES ($1, $2, $3, $4, $5, ${D(daysAgo)}::date, ${TS(daysAgo)})`,
-      [c.farmerId, field ? F(c, field) : null, category, description, amount],
-    );
-  }
-}
-
-// ── harvests ──────────────────────────────────────────────────────────────
-async function seedHarvests(c: Ctx) {
-  // previous groundnut cycle on Back Acre
-  await pool.query(
-    `INSERT INTO harvests (farmer_id, field_id, harvested_on, crop, quantity, unit, unit_price, revenue, buyer, note, created_at)
-     VALUES ($1, $2, ${D(150)}::date, 'groundnut', 9.5, 'quintal', 6100, 57950, 'Koyambedu trader', 'Last season, before current crop', ${TS(150)})`,
-    [c.farmerId, F(c, 'Back Acre')],
-  );
-  // a partial early sugarcane cut
-  await pool.query(
-    `INSERT INTO harvests (farmer_id, field_id, harvested_on, crop, quantity, unit, unit_price, revenue, buyer, note, created_at)
-     VALUES ($1, $2, ${D(9)}::date, 'sugarcane', 6, 'tonne', 3150, 18900, 'Local jaggery unit', 'Early cut from headland rows', ${TS(9)})`,
-    [c.farmerId, F(c, 'River Field')],
-  );
-}
-
-// ── inventory ─────────────────────────────────────────────────────────────
-const STOCK: [string, string, number, string, number | null, number, number | null][] = [
-  // name, type, qty, unit, lowStockAt, purchaseDaysAgo, expiryDaysFromNow
-  ['Urea', 'fertilizer', 40, 'kg', 25, 20, null],
-  ['DAP', 'fertilizer', 10, 'kg', 25, 55, null],
-  ['Muriate of Potash', 'fertilizer', 30, 'kg', 20, 30, null],
-  ['Chlorantraniliprole 18.5% SC', 'pesticide', 120, 'ml', 250, 40, 210],
-  ['Neem oil (10000 ppm)', 'pesticide', 900, 'ml', 500, 25, 400],
-  ['Mancozeb 75% WP', 'pesticide', 350, 'g', 500, 30, 25],
-  ['Rice seed — ADT-43 (leftover)', 'seed', 4, 'kg', 10, 58, null],
-  ['Knapsack sprayer (16 L)', 'equipment', 1, 'unit', null, 400, null],
-];
-
-async function seedStock(c: Ctx) {
-  for (const [name, type, qty, unit, low, purAgo, expIn] of STOCK) {
-    await pool.query(
-      `INSERT INTO inventory_items
-         (farmer_id, item_name, item_type, quantity, unit, low_stock_at, purchase_date, expiry_date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, ${D(purAgo)},
-               ${expIn == null ? 'NULL::date' : `(CURRENT_DATE + ${expIn})`}, now(), now())`,
-      [c.farmerId, name, type, qty, unit, low],
     );
   }
 }
@@ -581,9 +500,6 @@ async function main() {
   await seedNeighbourOutbreak(c);
   await seedScans(c);
   await seedActivities(c);
-  await seedExpenses(c);
-  await seedHarvests(c);
-  await seedStock(c);
   await seedAlerts(c);
   await seedPod(c);
   await seedSchemes(c);
@@ -594,9 +510,6 @@ async function main() {
     `SELECT
        (SELECT count(*) FROM scans WHERE farmer_id = $1) AS scans,
        (SELECT count(*) FROM activities WHERE farmer_id = $1) AS activities,
-       (SELECT count(*) FROM expenses WHERE farmer_id = $1) AS expenses,
-       (SELECT count(*) FROM harvests WHERE farmer_id = $1) AS harvests,
-       (SELECT count(*) FROM inventory_items WHERE farmer_id = $1) AS stock,
        (SELECT count(*) FROM alerts WHERE official_id = $2) AS alerts,
        (SELECT count(*) FROM calendar_tasks WHERE field_id IN (SELECT id FROM fields WHERE farmer_id = $1)) AS tasks`,
     [c.farmerId, c.officerId],

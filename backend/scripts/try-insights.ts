@@ -55,8 +55,6 @@ async function main() {
   }
   console.log(`  nearby outbreaks: ${ctx.nearbyOutbreaks ? `${ctx.nearbyOutbreaks.count} within ${ctx.nearbyOutbreaks.radiusKm}km, nearest ${ctx.nearbyOutbreaks.nearestKm}km` : 'none'}`);
   console.log(`  official alerts : ${ctx.officialAlerts.length}`);
-  console.log(`  low stock       : ${ctx.inventory.lowStock.length}, expiring: ${ctx.inventory.expiringSoon.length}`);
-  console.log(`  finance (180d)  : spent ${ctx.finance.spent}, revenue ${ctx.finance.revenue}, net ${ctx.finance.net}`);
   console.log(`  digest          : ${contextDigest(ctx)}`);
   console.log(`  context bytes   : ${JSON.stringify(ctx).length}`);
 

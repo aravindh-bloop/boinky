@@ -33,9 +33,6 @@ import PolicyFormScreen from './screens/PolicyFormScreen';
 import StartClaimScreen from './screens/StartClaimScreen';
 import ClaimTrackScreen from './screens/ClaimTrackScreen';
 import EscalateScreen from './screens/EscalateScreen';
-import StockScreen from './screens/StockScreen';
-import ExpensesScreen from './screens/ExpensesScreen';
-import HarvestScreen from './screens/HarvestScreen';
 import LogActivityScreen from './screens/LogActivityScreen';
 
 /** Header title that follows the app language (screen `options` can't use hooks). */
@@ -75,12 +72,6 @@ export type SchemesStackParams = {
   SchemesList: undefined;
   MySchemes: undefined;
   SchemeThread: { threadId?: string; schemeId?: string; schemeTitle?: string } | undefined;
-};
-export type StockStackParams = {
-  StockMain: undefined;
-  Expenses: undefined;
-  Harvest: undefined;
-  LogActivity: { fieldId?: string } | undefined;
 };
 export type InsuranceStackParams = {
   InsuranceHome: undefined;
@@ -167,18 +158,6 @@ function InsuranceStack() {
   );
 }
 
-const StockNav = createNativeStackNavigator<StockStackParams>();
-function StockStack() {
-  return (
-    <StockNav.Navigator screenOptions={screenOpts}>
-      <StockNav.Screen name="StockMain" component={StockScreen} options={{ headerShown: false }} />
-      <StockNav.Screen name="Expenses" component={ExpensesScreen} options={{ headerShown: false }} />
-      <StockNav.Screen name="Harvest" component={HarvestScreen} options={{ headerShown: false }} />
-      <StockNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
-    </StockNav.Navigator>
-  );
-}
-
 const Tabs = createBottomTabNavigator();
 function MainTabs() {
   return (
@@ -188,7 +167,6 @@ function MainTabs() {
       <Tabs.Screen name="Scan" component={ScanStack} />
       <Tabs.Screen name="Schemes" component={SchemesStack} />
       <Tabs.Screen name="Insurance" component={InsuranceStack} />
-      <Tabs.Screen name="Stock" component={StockStack} />
     </Tabs.Navigator>
   );
 }

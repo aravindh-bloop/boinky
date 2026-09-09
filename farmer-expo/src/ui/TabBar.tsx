@@ -23,7 +23,6 @@ const TAB_ICON: Record<string, IconName> = {
   Scan: 'scan',
   Schemes: 'schemes',
   Insurance: 'umbrella',
-  Stock: 'stock',
 };
 
 function TabButton({

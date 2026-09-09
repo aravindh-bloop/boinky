@@ -1,21 +1,18 @@
-import { query, queryMaybe, queryOne } from '../../db/query.js';
+import { query } from '../../db/query.js';
 import { getUserById } from '../auth/auth.service.js';
 import { getFarmerTasks } from '../farm/tasks.service.js';
 import { getWeather } from '../weather/weather.service.js';
 import { buildFarmerAlertFeed } from '../alerts/alerts.feed.js';
 import { getNearbyOutbreaksForFarmer } from '../hotspots/hotspots.service.js';
-import { logger } from '../../lib/logger.js';
 
 export async function getHome(farmerId: string) {
   // Everything that can run in parallel, does. Each helper is 1–2 fast queries.
-  const [me, fieldRisk, tasks, alerts, nearby, finance, lowStock, recentScans, w] = await Promise.all([
+  const [me, fieldRisk, tasks, alerts, nearby, recentScans, w] = await Promise.all([
     getUserById(farmerId),
     fieldRiskOverview(farmerId),
     getFarmerTasks(farmerId, 7),
     buildFarmerAlertFeed(farmerId, { live: true }).catch(() => []),
     getNearbyOutbreaksForFarmer(farmerId).catch(() => null),
-    financeSnapshot(farmerId),
-    countLowStock(farmerId),
     query<{
       id: string;
       diagnosis_label: string | null;
@@ -65,8 +62,6 @@ export async function getHome(farmerId: string) {
     fieldRisk,
     highestRisk,
     recentScans,
-    lowStockCount: lowStock,
-    finance,
   };
 }
 
@@ -99,25 +94,3 @@ async function fieldRiskOverview(farmerId: string) {
   );
 }
 
-/** One query for the season money snapshot. */
-async function financeSnapshot(farmerId: string) {
-  const row = await queryOne<{ spent: number; revenue: number }>(
-    `SELECT
-       (SELECT coalesce(sum(amount),0)::float FROM expenses
-         WHERE farmer_id = $1 AND spent_on > now() - interval '180 days') AS spent,
-       (SELECT coalesce(sum(revenue),0)::float FROM harvests
-         WHERE farmer_id = $1 AND harvested_on > now() - interval '180 days') AS revenue`,
-    [farmerId],
-  );
-  return { spent: row.spent, revenue: row.revenue, net: row.revenue - row.spent };
-}
-
-async function countLowStock(farmerId: string): Promise<number> {
-  const row = await queryMaybe<{ n: number }>(
-    `SELECT count(*)::int AS n FROM inventory_items
-      WHERE farmer_id = $1 AND low_stock_at IS NOT NULL AND quantity IS NOT NULL
-        AND quantity <= low_stock_at`,
-    [farmerId],
-  );
-  return row?.n ?? 0;
-}

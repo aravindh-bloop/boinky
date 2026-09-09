@@ -61,9 +61,6 @@ export default function HomeScreen() {
         case 'open_alerts':
           nav.navigate('Alerts');
           break;
-        case 'open_stock':
-          nav.getParent()?.navigate('Stock' as never);
-          break;
         case 'open_schemes':
           nav.getParent()?.navigate('Schemes' as never);
           break;

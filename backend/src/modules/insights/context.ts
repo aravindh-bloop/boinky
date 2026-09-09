@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { query, queryOne } from '../../db/query.js';
+import { query } from '../../db/query.js';
 import { getUserById } from '../auth/auth.service.js';
 import { getFarmerTasks } from '../farm/tasks.service.js';
 import { getWeather } from '../weather/weather.service.js';
@@ -49,11 +49,6 @@ export interface FarmContext {
     matchReason: string | null;
     daysAgo: number;
   }[];
-  inventory: {
-    lowStock: { name: string; type: string | null; quantity: number | null; unit: string | null }[];
-    expiringSoon: { name: string; expiryDate: string; daysLeft: number }[];
-  };
-  finance: { spent: number; revenue: number; net: number; windowDays: number };
   /** A rolling portrait of how this farmer farms (Module 2). Null until there is history. */
   farmerProfile: { summary: string; facts: Record<string, unknown> } | null;
 }
@@ -125,21 +120,17 @@ export async function buildFarmContext(
 ): Promise<FarmContext> {
   const live = opts.liveWeather ?? true;
 
-  const [me, fields, tasks, scans, activities, nearby, alerts, lowStock, expiring, finance, w, profile] =
-    await Promise.all([
-      getUserById(farmerId),
-      contextFields(farmerId),
-      getFarmerTasks(farmerId, 7),
-      contextScans(farmerId),
-      contextActivities(farmerId),
-      getNearbyOutbreaksForFarmer(farmerId).catch(() => null),
-      listFarmerAlerts({ farmerId, limit: 5 }).catch(() => []),
-      lowStockItems(farmerId),
-      expiringItems(farmerId),
-      financeSnapshot(farmerId),
-      getWeather({ farmerId, cachedOnly: !live }).catch(() => null),
-      getFarmerProfile(farmerId).catch(() => null),
-    ]);
+  const [me, fields, tasks, scans, activities, nearby, alerts, w, profile] = await Promise.all([
+    getUserById(farmerId),
+    contextFields(farmerId),
+    getFarmerTasks(farmerId, 7),
+    contextScans(farmerId),
+    contextActivities(farmerId),
+    getNearbyOutbreaksForFarmer(farmerId).catch(() => null),
+    listFarmerAlerts({ farmerId, limit: 5 }).catch(() => []),
+    getWeather({ farmerId, cachedOnly: !live }).catch(() => null),
+    getFarmerProfile(farmerId).catch(() => null),
+  ]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -199,8 +190,6 @@ export async function buildFarmContext(
       matchReason: (a as { match_reason?: string | null }).match_reason ?? null,
       daysAgo: daysBetween(String(a.created_at).slice(0, 10), today),
     })),
-    inventory: { lowStock, expiringSoon: expiring },
-    finance: { ...finance, windowDays: 180 },
     farmerProfile: profile ? { summary: profile.summary, facts: profile.facts } : null,
   };
 }
@@ -282,42 +271,6 @@ async function contextActivities(farmerId: string): Promise<ContextActivity[]> {
   );
 }
 
-async function lowStockItems(farmerId: string) {
-  return query<{ name: string; type: string | null; quantity: number | null; unit: string | null }>(
-    `SELECT item_name AS name, item_type AS type, quantity::float AS quantity, unit
-       FROM inventory_items
-      WHERE farmer_id = $1 AND low_stock_at IS NOT NULL AND quantity IS NOT NULL
-        AND quantity <= low_stock_at
-      ORDER BY item_name`,
-    [farmerId],
-  );
-}
-
-async function expiringItems(farmerId: string) {
-  return query<{ name: string; expiryDate: string; daysLeft: number }>(
-    `SELECT item_name AS name,
-            to_char(expiry_date,'YYYY-MM-DD') AS "expiryDate",
-            (expiry_date - CURRENT_DATE) AS "daysLeft"
-       FROM inventory_items
-      WHERE farmer_id = $1 AND expiry_date IS NOT NULL
-        AND expiry_date <= CURRENT_DATE + 30
-      ORDER BY expiry_date`,
-    [farmerId],
-  );
-}
-
-async function financeSnapshot(farmerId: string) {
-  const row = await queryOne<{ spent: number; revenue: number }>(
-    `SELECT
-       (SELECT coalesce(sum(amount),0)::float FROM expenses
-         WHERE farmer_id = $1 AND spent_on > now() - interval '180 days') AS spent,
-       (SELECT coalesce(sum(revenue),0)::float FROM harvests
-         WHERE farmer_id = $1 AND harvested_on > now() - interval '180 days') AS revenue`,
-    [farmerId],
-  );
-  return { spent: row.spent, revenue: row.revenue, net: row.revenue - row.spent };
-}
-
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
 
@@ -350,8 +303,6 @@ export function contextDigest(ctx: FarmContext): string {
     activities: ctx.recentActivities.map((a) => `${a.daysAgo}:${a.kind}:${a.title}`),
     outbreaks: ctx.nearbyOutbreaks?.count ?? 0,
     alerts: ctx.officialAlerts.map((a) => a.title),
-    lowStock: ctx.inventory.lowStock.map((i) => i.name),
-    expiring: ctx.inventory.expiringSoon.map((i) => i.name),
     advisories: ctx.weather?.advisories.map((a) => a.title),
     wetSoon: near.some((d) => (d.precipMm ?? 0) >= 8 || (d.precipProbPct ?? 0) >= 60),
     hotSoon: near.some((d) => (d.tempMaxC ?? 0) >= 38),

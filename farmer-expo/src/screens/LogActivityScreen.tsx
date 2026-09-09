@@ -68,7 +68,6 @@ export default function LogActivityScreen() {
           unit: unit.trim() || undefined,
           cost: cost ? Number(cost) : undefined,
           sourceTaskId: params.taskId,
-          logExpense: !!cost,
         },
       });
       nav.goBack();
@@ -150,7 +149,6 @@ export default function LogActivityScreen() {
           onChangeText={setCost}
           keyboardType="decimal-pad"
           placeholder="900"
-          hint="Adds to your expenses automatically"
         />
         <Input label="Notes (optional)" value={note} onChangeText={setNote} placeholder="Anything worth remembering" multiline />
       </Card>

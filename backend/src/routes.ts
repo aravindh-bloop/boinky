@@ -8,7 +8,6 @@ import { hotspotsRouter } from './modules/hotspots/hotspots.routes.js';
 import { pesticidesRouter } from './modules/pesticides/pesticides.routes.js';
 import { calendarRouter } from './modules/calendar/calendar.routes.js';
 import { schemesRouter } from './modules/schemes/schemes.routes.js';
-import { inventoryRouter } from './modules/inventory/inventory.routes.js';
 import { officialRouter } from './modules/official/official.routes.js';
 import { weatherRouter } from './modules/weather/weather.routes.js';
 import { homeRouter } from './modules/home/home.routes.js';
@@ -19,12 +18,7 @@ import { ttsRouter } from './modules/tts/tts.routes.js';
 import { tutorialRouter } from './modules/tutorial/tutorial.routes.js';
 import { assistantRouter } from './modules/assistant/assistant.routes.js';
 import { insuranceRouter } from './modules/insurance/insurance.routes.js';
-import {
-  activitiesRouter,
-  expensesRouter,
-  harvestsRouter,
-  tasksRouter,
-} from './modules/farm/farm.routes.js';
+import { activitiesRouter, tasksRouter } from './modules/farm/farm.routes.js';
 
 export const apiRouter = Router();
 
@@ -45,10 +39,7 @@ apiRouter.use('/pesticides', pesticidesRouter);
 apiRouter.use('/calendar', calendarRouter);
 apiRouter.use('/tasks', tasksRouter);
 apiRouter.use('/activities', activitiesRouter);
-apiRouter.use('/expenses', expensesRouter);
-apiRouter.use('/harvests', harvestsRouter);
 apiRouter.use('/schemes', schemesRouter);
 apiRouter.use('/insurance', insuranceRouter);
-apiRouter.use('/inventory', inventoryRouter);
 apiRouter.use('/pod', podRouter);
 apiRouter.use('/official', officialRouter);
