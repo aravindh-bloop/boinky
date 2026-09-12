@@ -11,6 +11,8 @@ import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
 import { logger } from '../lib/logger.js';
 import { resolveAdmin } from '../integrations/geocode.js';
+import { regenerateFieldCalendar } from '../modules/calendar/calendar.service.js';
+import { getFieldRisk } from '../modules/risk/risk.service.js';
 
 async function upsertUser(u: {
   name: string;
@@ -49,11 +51,11 @@ interface FieldSeed {
   acres: number;
 }
 
-// Chennai-region demo farm. Coordinates around Chennai (13.08 N, 80.27 E);
-// sowing dates chosen so each crop sits inside its peak-vulnerability window.
+// Chennai-region demo farm — 2 realistic fields, the two crops actually grown
+// on the smallholder tracts around Chennai/Tiruvallur (paddy + groundnut).
+// Sowing dates chosen so each crop sits inside its peak-vulnerability window.
 const FIELDS: FieldSeed[] = [
   { name: 'North Plot', crop: 'rice', variety: 'ADT-43', daysSinceSown: 55, lng: 80.2707, lat: 13.0827, acres: 2 },
-  { name: 'River Field', crop: 'sugarcane', variety: 'Co-86032', daysSinceSown: 120, lng: 80.25, lat: 13.1, acres: 1.5 },
   { name: 'Back Acre', crop: 'groundnut', variety: 'TMV-7', daysSinceSown: 45, lng: 80.22, lat: 13.05, acres: 1 },
 ];
 
@@ -101,12 +103,38 @@ async function main() {
 
   for (const f of FIELDS) await upsertField(farmerId, f);
 
+  // Drop any field this farmer has that isn't in the current list (e.g. an
+  // old demo field from a previous seed run) — cascades its scans/activities/
+  // calendar/risk rows.
+  const keepNames = FIELDS.map((f) => f.name);
+  await pool.query(`DELETE FROM fields WHERE farmer_id = $1 AND name <> ALL($2::text[])`, [
+    farmerId,
+    keepNames,
+  ]);
+
   // Location-dependent caches from a previous region must not linger.
   await pool.query(
     `DELETE FROM risk_snapshots WHERE field_id IN (SELECT id FROM fields WHERE farmer_id = $1)`,
     [farmerId],
   );
   await pool.query(`DELETE FROM ai_insights WHERE farmer_id = $1`, [farmerId]);
+
+  // Real calendar + risk for the two kept fields (computed, not fabricated).
+  const { rows: kept } = await pool.query<{ id: string }>(`SELECT id FROM fields WHERE farmer_id = $1`, [
+    farmerId,
+  ]);
+  for (const { id: fieldId } of kept) {
+    try {
+      await regenerateFieldCalendar(fieldId, farmerId);
+    } catch (e) {
+      logger.warn({ e, fieldId }, 'calendar regen failed');
+    }
+    try {
+      await getFieldRisk(fieldId, farmerId, { refresh: true });
+    } catch (e) {
+      logger.warn({ e, fieldId }, 'risk compute failed');
+    }
+  }
 
   logger.info({ farmerId, fields: FIELDS.length }, 'dev seed complete — login farmer 9990001111 / secret123');
   await pool.end();
