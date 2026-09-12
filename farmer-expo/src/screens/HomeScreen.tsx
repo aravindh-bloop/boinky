@@ -13,6 +13,7 @@ import type { AggTask, HomeData, InsightCard, Weather } from '../api/types';
 import {
   AiBrief,
   Card,
+  FloatingBubbles,
   Icon,
   Reveal,
   Row,
@@ -104,6 +105,7 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+      <FloatingBubbles />
       <ScrollView
         contentContainerStyle={{ paddingBottom: space.xxxl }}
         showsVerticalScrollIndicator={false}
@@ -111,7 +113,7 @@ export default function HomeScreen() {
       >
         {/* ── hero ── */}
         <LinearGradient
-          colors={gradients.hero}
+          colors={gradients.home}
           start={{ x: 0.15, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={{
@@ -328,7 +330,7 @@ export default function HomeScreen() {
           <Reveal index={3}>
             <PressableScale onPress={() => nav.getParent()?.navigate('Scan' as never)} feedback="press">
               <LinearGradient
-                colors={gradients.dawn}
+                colors={gradients.homeCta}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={hs.cta}

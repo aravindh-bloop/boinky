@@ -190,6 +190,9 @@ export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
 };
 
 export const gradients = {
+  // Home screen hero — soft sage green (from the user's reference swatch)
+  home: ['#9DBC9A', '#6E8F6C'] as const,
+  homeCta: ['#B2CCB0', '#9DBC9A'] as const,
   // the dashboard hero — deep phthalo green (blue-leaning, saturated)
   hero: ['#0F5138', '#0A3527'] as const,
   canopy: ['#0F5138', '#0A3527'] as const,
