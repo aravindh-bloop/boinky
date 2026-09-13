@@ -3,7 +3,7 @@
  * usable login immediately after a fresh DB. Idempotent — safe to re-run; it
  * also updates the demo rows in place (region, language, crops, location).
  *
- * Login: farmer  9990001111 / secret123
+ * Login: farmer  ramesh.kumar@agripod.app / AgriPod@2026  (phone 9990001111, same password, also works)
  *        official officer@agri.gov.in / secret123
  */
 import 'dotenv/config';
@@ -83,15 +83,34 @@ async function upsertField(farmerId: string, f: FieldSeed) {
   }
 }
 
+/**
+ * The demo farmer's login is shown to judges, so it needs a real-looking
+ * email and a presentable password rather than a bare digit string and
+ * "secret123". Set directly by id — not through `upsertUser`'s ON CONFLICT,
+ * which is keyed on phone OR email and would misfire once both are set.
+ *
+ * Also clears `onboarded_at` so the voice-guided first-run tutorial plays
+ * again on next login — it's a feature worth a judge actually seeing, not
+ * something a stale "already onboarded" flag should hide.
+ */
+async function setDemoCredentials(farmerId: string) {
+  const hash = await bcrypt.hash('AgriPod@2026', 10);
+  await pool.query(
+    `UPDATE users SET email = $1, password_hash = $2, onboarded_at = NULL WHERE id = $3`,
+    ['ramesh.kumar@agripod.app', hash, farmerId],
+  );
+}
+
 async function main() {
   const farmerId = await upsertUser({
-    name: 'Test Farmer',
+    name: 'Ramesh Kumar',
     phone: '9990001111',
     role: 'farmer',
     region: 'Chennai',
     district: 'Chennai',
     lang: 'en',
   });
+  await setDemoCredentials(farmerId);
   await upsertUser({
     name: 'Officer R',
     email: 'officer@agri.gov.in',
@@ -136,7 +155,10 @@ async function main() {
     }
   }
 
-  logger.info({ farmerId, fields: FIELDS.length }, 'dev seed complete — login farmer 9990001111 / secret123');
+  logger.info(
+    { farmerId, fields: FIELDS.length },
+    'dev seed complete — login farmer ramesh.kumar@agripod.app / AgriPod@2026',
+  );
   await pool.end();
 }
 

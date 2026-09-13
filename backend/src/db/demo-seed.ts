@@ -1,8 +1,9 @@
 /**
  * Demo data seed — fills the Chennai demo farmer with a realistic spread of
- * scans, activities, expenses, harvests, stock, an officer alert and a nearby
- * outbreak, then regenerates each field's calendar and risk snapshot. Lets you
- * walk every screen with content in it.
+ * scans, activities, a pod device, scheme applications, PMFBY policies/claims,
+ * an officer alert and a nearby outbreak, then regenerates each field's
+ * calendar and risk snapshot. Lets a judge open the app and see a lived-in
+ * account instead of an empty shell.
  *
  * Idempotent: it wipes the demo farmer's own runtime rows first, then re-inserts.
  * The base `seed:dev` (farmer + official + fields) must have run first.
@@ -114,19 +115,6 @@ const SCANS: ScanSeed[] = [
     risk: 74,
     advisory:
       'This is bacterial leaf blight — the yellow drying along the leaf edges is the sign. Stop top-dressing nitrogen for now, as lush growth spreads it faster. Drain excess water and do not let irrigation run from an infected plot into a clean one. There is no spray that cures it; a copper hydroxide spray only slows it. For the next crop, use a resistant variety and treat the seed before sowing.',
-  },
-  {
-    field: 'River Field',
-    daysAgo: 8,
-    label: 'Early Shoot Borer',
-    category: 'pest',
-    part: 'central shoot',
-    confidence: 0.79,
-    severity: 'medium',
-    status: 'auto_confirmed',
-    risk: 55,
-    advisory:
-      'Early shoot borer has killed some central shoots — pull one and check for the dead-heart smell. Cut affected shoots below ground level and destroy them. Earth up the rows and give a light irrigation. Release Trichogramma cards if you can get them from the sugarcane office. Trash mulching between rows also lowers the next generation.',
   },
   {
     field: 'Back Acre',
@@ -247,10 +235,9 @@ const ACTIVITIES: [
   ['North Plot', 'fertilizing', 'Basal dose', 'DAP + MOP before transplanting', 55, 'DAP', 50, 'kg', 1450],
   ['Back Acre', 'sowing', 'Sowed groundnut', 'TMV-7, seed treated with Trichoderma', 45, 'Groundnut seed', 40, 'kg', 3200],
   ['North Plot', 'fertilizing', 'First top-dress', 'Urea at active tillering', 33, 'Urea', 25, 'kg', 640],
-  ['River Field', 'weeding', 'Inter-row weeding', 'Manual, 4 labourers', 20, null, null, null, 1600],
   ['North Plot', 'spraying', 'Sprayed for stem borer', 'Cartap hydrochloride, knapsack', 14, 'Cartap 4G', 8, 'kg', 520],
   ['Back Acre', 'irrigation', 'Irrigated at pegging', 'Full irrigation, ~3 hours', 10, null, null, null, 300],
-  ['River Field', 'scouting', 'Checked for shoot borer', 'Found a few dead-hearts in row 6-8', 8, null, null, null, null],
+  ['Back Acre', 'scouting', 'Checked for leaf spot spread', 'Found a few more spots on middle leaves', 8, null, null, null, null],
   ['North Plot', 'irrigation', 'Maintained 2 cm standing water', null, 4, null, null, null, 300],
   ['Back Acre', 'spraying', 'Sprayed for leaf spot', 'Mancozeb + carbendazim', 3, 'Mancozeb', 500, 'g', 340],
 ];

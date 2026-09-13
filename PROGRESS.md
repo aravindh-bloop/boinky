@@ -4,7 +4,7 @@
 > checkpoint. If context is lost, read this file + `docs/AgriPod_Solution_Document.docx`
 > + `docs/ARCHITECTURE.md` to resume with zero prior conversation.
 
-Last updated: **2026-08-29**
+Last updated: **2026-09-13**
 
 **Repo:** https://github.com/aravindh-bloop/boinky (branch `main`).
 **Farmer app runs via `npx expo start` + Expo Go** (SDK 57). The EAS build / APK /
@@ -741,6 +741,7 @@ Everything needs one Render deploy: `migrate:deploy` picks up migrations
 | 2026-09-03 | **Deep AI M5 — tutorial + voice onboarding** | ✅ Sarvam bulbul:v3 TTS + tts_cache + server-driven tutorial (9 app / 6 pod steps, Tamil-localised) + expo-audio voice playback + auto-launch TutorialOverlay + Settings replay — tested /api/tts + /api/tutorial live |
 | 2026-09-03 | **Deep AI M2 — personalisation + Ask AgriPod** | ✅ farmer_ai_events/_profile + distillFarmerProfile (productsFailed verified) wired into FarmContext → brief cites it; assistant module (grounded Gemini chat, thread continuity, Sarvam-localised) + AskScreen + feedback loop — tested live vs Neon+Gemini |
 | 2026-09-05 | **Deep AI M4 — crop insurance** | ✅ policies + claims (draft→…→paid) + evidence media + gemini.assessClaimDamage (mismatch detection verified) + unified timeline/thread + 6th Insurance tab + dashboard Insurance page — tested end-to-end vs Neon+Cloudinary+Gemini. **★ all 5 Deep-AI modules done** |
+| 2026-09-13 | **Pre-APK polish pass** | ✅ sage-green rebrand + animated photo-backed login/boot screen (Ken Burns, no flicker); demo data cut to 2 real Chennai fields (rice + groundnut), all fabricated scan/claim history removed then a curated realistic re-seed restored for the judge walkthrough; fixed a real routing bug (`HomeStack` missing Calendar/LogActivity — dead nav from 3 screens); added a global `ErrorBoundary` + fixed two infinite-spinner/misleading-empty-state bugs; demo login hardened to `ramesh.kumar@agripod.app` / `AgriPod@2026`, pre-filled on the login screen |
 
 ---
 

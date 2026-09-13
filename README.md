@@ -76,7 +76,8 @@ npm run dev           # http://localhost:4000   (health check: GET /health)
 `npm run db:reset` runs migrations, seeds ~60 pesticide-PHI rows + ~20 government schemes,
 and creates:
 
-- farmer  — phone `9990001111` / password `secret123` (+ 3 demo fields with locations)
+- farmer  — email `ramesh.kumar@agripod.app` / password `AgriPod@2026` (phone `9990001111`, same
+  password, also works) (+ 2 demo fields: rice + groundnut, Chennai)
 - official — email `officer@agri.gov.in` / password `secret123`
 
 Other scripts: `npm run migrate:up`, `npm run seed`, `npm run seed:dev`, `npm run typecheck`,

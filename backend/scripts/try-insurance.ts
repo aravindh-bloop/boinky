@@ -19,7 +19,7 @@ async function token(id: string, pw: string) {
 }
 
 async function main() {
-  const ft = await token('9990001111', 'secret123');
+  const ft = await token('9990001111', 'AgriPod@2026');
   const ot = await token('officer@agri.gov.in', 'secret123');
   const H = (t: string) => ({ authorization: `Bearer ${t}`, 'content-type': 'application/json' });
 
