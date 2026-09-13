@@ -3,7 +3,7 @@
  * usable login immediately after a fresh DB. Idempotent — safe to re-run; it
  * also updates the demo rows in place (region, language, crops, location).
  *
- * Login: farmer  ramesh.kumar@agripod.app / AgriPod@2026  (phone 9990001111, same password, also works)
+ * Login: farmer  ramesh.kumar@agrian.app / Agrian@2026  (phone 9990001111, same password, also works)
  *        official officer@agri.gov.in / secret123
  */
 import 'dotenv/config';
@@ -94,10 +94,10 @@ async function upsertField(farmerId: string, f: FieldSeed) {
  * something a stale "already onboarded" flag should hide.
  */
 async function setDemoCredentials(farmerId: string) {
-  const hash = await bcrypt.hash('AgriPod@2026', 10);
+  const hash = await bcrypt.hash('Agrian@2026', 10);
   await pool.query(
     `UPDATE users SET email = $1, password_hash = $2, onboarded_at = NULL WHERE id = $3`,
-    ['ramesh.kumar@agripod.app', hash, farmerId],
+    ['ramesh.kumar@agrian.app', hash, farmerId],
   );
 }
 
@@ -157,7 +157,7 @@ async function main() {
 
   logger.info(
     { farmerId, fields: FIELDS.length },
-    'dev seed complete — login farmer ramesh.kumar@agripod.app / AgriPod@2026',
+    'dev seed complete — login farmer ramesh.kumar@agrian.app / Agrian@2026',
   );
   await pool.end();
 }

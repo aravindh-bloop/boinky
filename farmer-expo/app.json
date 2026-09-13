@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "AgriPod",
+    "name": "Agrian",
     "slug": "boinks",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -34,8 +34,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "AgriPod uses the camera to photograph your crop for disease and pest diagnosis.",
-          "photosPermission": "AgriPod needs access to your photos so you can pick a crop photo to diagnose."
+          "cameraPermission": "Agrian uses the camera to photograph your crop for disease and pest diagnosis.",
+          "photosPermission": "Agrian needs access to your photos so you can pick a crop photo to diagnose."
         }
       ],
       "expo-image",
@@ -43,22 +43,22 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "AgriPod uses the microphone so you can describe your crop problem in your own language."
+          "microphonePermission": "Agrian uses the microphone so you can describe your crop problem in your own language."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking.",
-          "locationWhenInUsePermission": "AgriPod uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking."
+          "locationAlwaysAndWhenInUsePermission": "Agrian uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking.",
+          "locationWhenInUsePermission": "Agrian uses your location to place your field precisely and to attribute crop scans to the right district for outbreak tracking."
         }
       ],
       "expo-video",
       [
         "expo-camera",
         {
-          "cameraPermission": "AgriPod uses the camera for the guided crop scan — photographing the plant from every angle for an accurate diagnosis.",
-          "microphonePermission": "AgriPod records a short video of the plant during a scan when you choose to.",
+          "cameraPermission": "Agrian uses the camera for the guided crop scan — photographing the plant from every angle for an accurate diagnosis.",
+          "microphonePermission": "Agrian records a short video of the plant during a scan when you choose to.",
           "recordAudioAndroid": true
         }
       ]

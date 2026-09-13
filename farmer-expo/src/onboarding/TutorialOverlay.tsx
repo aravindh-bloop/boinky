@@ -190,7 +190,7 @@ export function TutorialOverlay({ topic, visible, onDone }: Props) {
               <View style={{ flex: 1 }} />
               <View style={{ flex: 1.3 }}>
                 <Button
-                  title={steps && i === steps.length - 1 ? t('Start using AgriPod') : t('Next')}
+                  title={steps && i === steps.length - 1 ? t('Start using Agrian') : t('Next')}
                   onPress={next}
                 />
               </View>

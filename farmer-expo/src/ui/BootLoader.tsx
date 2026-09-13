@@ -85,7 +85,7 @@ export function BootLoader() {
             letterSpacing: 0.5,
           }}
         >
-          AgriPod
+          Agrian
         </Text>
         <Text variant="label" color="rgba(255,255,255,0.8)" style={{ marginTop: 4, letterSpacing: 1 }}>
           growing, together

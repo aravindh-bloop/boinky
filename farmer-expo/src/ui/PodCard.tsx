@@ -90,7 +90,7 @@ export function PodCard({
           )}
         </Row>
         <Text variant="caption" faint>
-          Pair an AgriPod sensor to see live soil moisture, temperature and pH here.
+          Pair an Agrian sensor to see live soil moisture, temperature and pH here.
         </Text>
       </Card>
     );

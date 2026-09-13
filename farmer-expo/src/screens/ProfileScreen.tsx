@@ -129,7 +129,7 @@ export default function ProfileScreen() {
               <Row gap={space.sm}>
                 <Icon name="insight" size={18} color={palette.primary} weight="fill" />
                 <Text variant="bodyStrong" style={{ flex: 1 }}>
-                  {t('How to use AgriPod')}
+                  {t('How to use Agrian')}
                 </Text>
                 <Icon name="right" size={16} color={palette.textFaint} />
               </Row>
@@ -138,7 +138,7 @@ export default function ProfileScreen() {
               <Row gap={space.sm}>
                 <Icon name="stock" size={18} color={palette.primary} weight="fill" />
                 <Text variant="bodyStrong" style={{ flex: 1 }}>
-                  {t('Set up an AgriPod sensor')}
+                  {t('Set up an Agrian sensor')}
                 </Text>
                 <Icon name="right" size={16} color={palette.textFaint} />
               </Row>

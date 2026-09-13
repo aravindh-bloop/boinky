@@ -1,4 +1,4 @@
-# 🌱 AgriPod — Smart Crop-Health & Farm Management
+# 🌱 Agrian — Smart Crop-Health & Farm Management
 
 A two-sided system for **early detection and management of crop diseases & pest infestations**,
 built for Smart India Hackathon (Govt. of Maharashtra). It has since grown into a full
@@ -76,7 +76,7 @@ npm run dev           # http://localhost:4000   (health check: GET /health)
 `npm run db:reset` runs migrations, seeds ~60 pesticide-PHI rows + ~20 government schemes,
 and creates:
 
-- farmer  — email `ramesh.kumar@agripod.app` / password `AgriPod@2026` (phone `9990001111`, same
+- farmer  — email `ramesh.kumar@agrian.app` / password `Agrian@2026` (phone `9990001111`, same
   password, also works) (+ 2 demo fields: rice + groundnut, Chennai)
 - official — email `officer@agri.gov.in` / password `secret123`
 

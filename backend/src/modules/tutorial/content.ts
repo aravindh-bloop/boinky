@@ -18,8 +18,8 @@ export type TutorialTopic = 'app' | 'pod';
 const APP: TutorialStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to AgriPod',
-    body: 'AgriPod helps you keep your crops healthy. It checks your plants for disease, watches the weather for you, and tells you what to do each day. Let me show you around. Tap next, or press play to hear each step.',
+    title: 'Welcome to Agrian',
+    body: 'Agrian helps you keep your crops healthy. It checks your plants for disease, watches the weather for you, and tells you what to do each day. Let me show you around. Tap next, or press play to hear each step.',
     icon: 'leaf',
   },
   {
@@ -43,13 +43,13 @@ const APP: TutorialStep[] = [
   {
     id: 'weather',
     title: 'Weather and risk',
-    body: 'AgriPod watches the forecast for your exact location. It warns you before heavy rain, a heat spell or a dry stretch, and it works out when disease pressure is building on your crop — often before you can see anything wrong.',
+    body: 'Agrian watches the forecast for your exact location. It warns you before heavy rain, a heat spell or a dry stretch, and it works out when disease pressure is building on your crop — often before you can see anything wrong.',
     icon: 'weather',
   },
   {
     id: 'calendar',
     title: 'Your crop calendar',
-    body: 'Add your field with its sowing date and AgriPod builds a full calendar — when to irrigate, when to feed the crop, when to scout for pests, when to expect harvest. Tick each task off as you do it.',
+    body: 'Add your field with its sowing date and Agrian builds a full calendar — when to irrigate, when to feed the crop, when to scout for pests, when to expect harvest. Tick each task off as you do it.',
     icon: 'calendar',
   },
   {
@@ -61,13 +61,13 @@ const APP: TutorialStep[] = [
   {
     id: 'benefits',
     title: 'Schemes and insurance',
-    body: 'AgriPod lists the government schemes you are eligible for and lets you apply from your phone. If you have a PMFBY crop-insurance policy, you can track your claim through every stage here, see if it is running late, and escalate it to the right officer if it gets stuck.',
+    body: 'Agrian lists the government schemes you are eligible for and lets you apply from your phone. If you have a PMFBY crop-insurance policy, you can track your claim through every stage here, see if it is running late, and escalate it to the right officer if it gets stuck.',
     icon: 'schemes',
   },
   {
     id: 'assistant',
-    title: 'Ask AgriPod anything',
-    body: 'Whenever you are unsure, open Ask AgriPod and type or speak your question. It knows your fields, your crops and your recent scans, and it answers in your language. It will never make up a number it does not have.',
+    title: 'Ask Agrian anything',
+    body: 'Whenever you are unsure, open Ask Agrian and type or speak your question. It knows your fields, your crops and your recent scans, and it answers in your language. It will never make up a number it does not have.',
     icon: 'ai',
   },
 ];
@@ -75,8 +75,8 @@ const APP: TutorialStep[] = [
 const POD: TutorialStep[] = [
   {
     id: 'what',
-    title: 'What the AgriPod sensor does',
-    body: 'The AgriPod sensor is a small box you push into the soil in your field. It measures how wet the soil is, its temperature, and how acid or alkaline it is, and sends the readings to this app every few minutes.',
+    title: 'What the Agrian sensor does',
+    body: 'The Agrian sensor is a small box you push into the soil in your field. It measures how wet the soil is, its temperature, and how acid or alkaline it is, and sends the readings to this app every few minutes.',
     icon: 'stock',
   },
   {
@@ -94,7 +94,7 @@ const POD: TutorialStep[] = [
   {
     id: 'pair',
     title: 'Pair it with the app',
-    body: 'Open a field in AgriPod and choose Connect a sensor. The app gives you a short key. Enter that key into the sensor once, using the setup card that came with it. You only do this the first time.',
+    body: 'Open a field in Agrian and choose Connect a sensor. The app gives you a short key. Enter that key into the sensor once, using the setup card that came with it. You only do this the first time.',
     icon: 'gear',
   },
   {

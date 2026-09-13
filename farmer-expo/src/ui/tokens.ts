@@ -1,5 +1,5 @@
 /**
- * AgriPod design tokens.
+ * Agrian design tokens.
  *
  * Clean and quiet: a cool off-white canvas, white cards, one fresh sage-green as
  * the only real colour, cool greys for everything structural. Lots of air,
@@ -33,7 +33,7 @@ export const palette = {
   // category accents — each feature area has a signature tint
   sky: '#4183B4', // weather, water, irrigation
   skySoft: '#D6E6F1',
-  iris: '#7A6FB8', // AI, insight, "ask AgriPod"
+  iris: '#7A6FB8', // AI, insight, "ask Agrian"
   irisSoft: '#E5E1F3',
   gold: '#D19E3B', // money, harvest, schemes
   goldSoft: '#F5E7C6',

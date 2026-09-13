@@ -62,7 +62,7 @@ export default function AskScreen() {
     } catch (e) {
       setMessages((m) => m.filter((x) => x.id !== optimistic.id));
       setDraft(body);
-      alertT('AgriPod could not answer', e instanceof ApiError ? e.message : 'Try again');
+      alertT('Agrian could not answer', e instanceof ApiError ? e.message : 'Try again');
     } finally {
       setThinking(false);
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 80);
@@ -107,7 +107,7 @@ export default function AskScreen() {
           </PressableScale>
           <Icon name="ai" size={18} color="#fff" weight="fill" />
           <Text variant="subhead" color="#fff" style={{ flex: 1 }}>
-            {t('Ask AgriPod')}
+            {t('Ask Agrian')}
           </Text>
         </Row>
       </LinearGradient>
@@ -133,7 +133,7 @@ export default function AskScreen() {
               >
                 <Icon name="ai" size={28} color={palette.iris} weight="duotone" />
               </View>
-              <Text variant="title" center>{t('Ask AgriPod')}</Text>
+              <Text variant="title" center>{t('Ask Agrian')}</Text>
               <Text variant="body" muted center>
                 {t('It knows your fields, crops and recent scans. Ask anything about your farm.')}
               </Text>
@@ -206,7 +206,7 @@ export default function AskScreen() {
         {thinking && (
           <Row gap={space.sm} style={{ alignSelf: 'flex-start', paddingVertical: space.sm }}>
             <ActivityIndicator color={palette.primary} />
-            <Text variant="body" muted>{t('AgriPod is thinking…')}</Text>
+            <Text variant="body" muted>{t('Agrian is thinking…')}</Text>
           </Row>
         )}
       </ScrollView>

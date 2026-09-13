@@ -160,7 +160,7 @@ export async function registerDevice(
   const row = await queryOne<{ id: string }>(
     `INSERT INTO pod_devices (field_id, farmer_id, label, key_hash)
      VALUES ($1, $2, $3, $4) RETURNING id`,
-    [fieldId, farmerId, label.trim() || 'AgriPod sensor', hashKey(key)],
+    [fieldId, farmerId, label.trim() || 'Agrian sensor', hashKey(key)],
   );
   return { deviceId: row.id, key };
 }

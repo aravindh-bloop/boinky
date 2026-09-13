@@ -16,7 +16,7 @@ async function main() {
 
   const app = createApp();
   const server = app.listen(env.PORT, () => {
-    logger.info(`AgriPod backend listening on http://localhost:${env.PORT}`);
+    logger.info(`Agrian backend listening on http://localhost:${env.PORT}`);
   });
 
   // Keep the Neon serverless compute warm so requests never hit a ~3s cold start.

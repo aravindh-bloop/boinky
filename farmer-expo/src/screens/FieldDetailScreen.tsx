@@ -157,7 +157,7 @@ export default function FieldDetailScreen() {
             onConnect={() =>
               alertT(
                 'Connect a field pod',
-                'Ask your officer or the AgriPod team to pair a sensor pod with this field. Once it is on, live readings show here.',
+                'Ask your officer or the Agrian team to pair a sensor pod with this field. Once it is on, live readings show here.',
               )
             }
           />

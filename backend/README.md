@@ -1,6 +1,6 @@
-# AgriPod Backend
+# Agrian Backend
 
-Node + Express + TypeScript API for the AgriPod crop-health platform.
+Node + Express + TypeScript API for the Agrian crop-health platform.
 Postgres (Neon) + PostGIS. Gemini (vision), Sarvam AI (multilingual advisory),
 Cloudinary (images), Open-Meteo (weather).
 

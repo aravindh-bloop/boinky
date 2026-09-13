@@ -59,7 +59,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           Something went wrong
         </Text>
         <Text variant="body" muted style={{ textAlign: 'center' }}>
-          AgriPod ran into a problem. Your data is safe — try again.
+          Agrian ran into a problem. Your data is safe — try again.
         </Text>
         <Button title="Try again" onPress={() => this.setState({ error: null })} />
       </View>

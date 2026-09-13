@@ -1,4 +1,4 @@
-# AgriPod — Build Progress Tracker
+# Agrian — Build Progress Tracker
 
 > **This file is the single source of truth for build state.** Update it after every
 > checkpoint. If context is lost, read this file + `docs/AgriPod_Solution_Document.docx`

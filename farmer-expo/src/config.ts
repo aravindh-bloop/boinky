@@ -11,4 +11,4 @@
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? 'https://agripod-backend.onrender.com';
 
-export const APP_NAME = 'AgriPod';
+export const APP_NAME = 'Agrian';

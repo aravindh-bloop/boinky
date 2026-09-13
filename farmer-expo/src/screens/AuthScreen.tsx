@@ -79,8 +79,8 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [busy, setBusy] = useState(false);
   // Pre-filled with the demo account — judges just tap "Log in".
-  const [identifier, setIdentifier] = useState('ramesh.kumar@agripod.app');
-  const [password, setPassword] = useState('AgriPod@2026');
+  const [identifier, setIdentifier] = useState('ramesh.kumar@agrian.app');
+  const [password, setPassword] = useState('Agrian@2026');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [region, setRegion] = useState('');
@@ -172,7 +172,7 @@ export default function AuthScreen() {
               raw
               style={{ textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 16, textShadowOffset: { width: 0, height: 3 } }}
             >
-              AgriPod
+              Agrian
             </Text>
             <Text variant="label" color="rgba(255,255,255,0.8)" style={{ marginTop: 2 }}>
               Healthy crops, in your pocket

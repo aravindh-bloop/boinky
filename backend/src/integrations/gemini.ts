@@ -792,14 +792,14 @@ export async function distillFarmerProfile(
   }
 }
 
-// ── Conversational assistant ("Ask AgriPod") ──
+// ── Conversational assistant ("Ask Agrian") ──
 
 export interface AssistantTurn {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const ASSISTANT_SYSTEM = `You are AgriPod, an assistant for a smallholder farmer in India.
+const ASSISTANT_SYSTEM = `You are Agrian, an assistant for a smallholder farmer in India.
 You are given a JSON snapshot of THIS farmer's actual operation (fields, crops, weather,
 risk, tasks, recent scans, activities, nearby outbreaks) and a short portrait of
 how they farm.
@@ -823,7 +823,7 @@ export async function askAssistant(
 ): Promise<string> {
   const convo = history
     .slice(-8)
-    .map((t) => `${t.role === 'user' ? 'Farmer' : 'AgriPod'}: ${t.content}`)
+    .map((t) => `${t.role === 'user' ? 'Farmer' : 'Agrian'}: ${t.content}`)
     .join('\n');
 
   let raw: string;

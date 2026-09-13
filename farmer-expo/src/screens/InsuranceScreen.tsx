@@ -149,7 +149,7 @@ export default function InsuranceScreen() {
 
                 <Text variant="caption" faint style={{ marginTop: space.sm }}>
                   {t(
-                    'AgriPod does not decide or pay claims — that is the government pipeline. It tracks yours and helps you push it forward.',
+                    'Agrian does not decide or pay claims — that is the government pipeline. It tracks yours and helps you push it forward.',
                   )}
                 </Text>
               </>
