@@ -23,7 +23,7 @@ export { Sparkline } from './Sparkline';
 export { PodCard } from './PodCard';
 export { OrganicBackground } from './OrganicBackground';
 export { FloatingBubbles } from './FloatingBubbles';
-export { AuthBackdrop } from './AuthBackdrop';
+export { useBreathe, useKenBurnsLoop, useKenBurnsSettle } from './kenBurns';
 export { Loader, LoaderScreen } from './Loader';
 export { SegmentedControl } from './SegmentedControl';
 export { EmptyState, ErrorState, Divider, Dot, Row, KeyStat, SectionHeader, ProgressBar } from './misc';

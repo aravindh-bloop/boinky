@@ -3,17 +3,31 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider } from './src/auth/AuthContext';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { I18nProvider } from './src/i18n';
 import RootNavigator from './src/navigation';
 import { fontMap } from './src/ui/fonts';
 import { hydrateCache } from './src/api/cache';
 import { warmUp } from './src/api/client';
 import { BootLoader } from './src/ui/BootLoader';
+import { ErrorBoundary } from './src/ui/ErrorBoundary';
 import { installErrorHook, logEvent } from './src/debug/eventlog';
 
 installErrorHook();
 logEvent('info', 'app launch');
+
+/**
+ * The one and only place that decides "are we still booting". AuthProvider is
+ * mounted unconditionally (below) so its token check runs in parallel with
+ * fonts/cache instead of after them, and so BootLoader never has to mount a
+ * second time waiting on auth — a second mount was restarting its photo
+ * animation from scratch, which read as the app "reloading" mid-launch.
+ */
+function AppGate({ assetsReady }: { assetsReady: boolean }) {
+  const { loading: authLoading } = useAuth();
+  if (!assetsReady || authLoading) return <BootLoader />;
+  return <RootNavigator />;
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts(fontMap);
@@ -40,21 +54,17 @@ export default function App() {
     return () => clearTimeout(bail);
   }, []);
 
-  const ready = fontsLoaded && cacheReady;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        {ready ? (
+        <ErrorBoundary>
           <AuthProvider>
             <I18nProvider>
-              <RootNavigator />
+              <AppGate assetsReady={fontsLoaded && cacheReady} />
             </I18nProvider>
           </AuthProvider>
-        ) : (
-          <BootLoader />
-        )}
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

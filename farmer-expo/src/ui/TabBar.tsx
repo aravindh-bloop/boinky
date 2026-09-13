@@ -129,7 +129,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             ]}
           >
             <LinearGradient
-              colors={gradients.dawn}
+              colors={gradients.home}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{

@@ -9,6 +9,7 @@ import {
   Card,
   Divider,
   EmptyState,
+  ErrorState,
   Icon,
   LoaderScreen,
   PressableScale,
@@ -36,6 +37,14 @@ export default function MySchemesScreen() {
   const threads = useApi<{ threads: SchemeThreadSummary[] }>('/api/schemes/threads');
 
   if (apps.loading && threads.loading) return <LoaderScreen label="Loading" />;
+  const active = tab === 'apps' ? apps : threads;
+  if (active.error && !active.data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.canvas, justifyContent: 'center' }}>
+        <ErrorState message={active.error} onRetry={active.reload} />
+      </View>
+    );
+  }
 
   async function withdraw(id: string) {
     try {

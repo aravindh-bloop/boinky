@@ -1,6 +1,6 @@
 import { alertT } from '../i18n/alert';
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,15 +11,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  AuthBackdrop,
   Button,
   Field,
+  Icon,
   Row,
   SegmentedControl,
   SelectChip,
@@ -27,11 +25,14 @@ import {
   palette,
   radius,
   space,
+  useBreathe,
+  useKenBurnsLoop,
 } from '../ui';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 
-const BG = require('../../assets/auth-bg.jpg');
+// Same photo the boot loader hands off from — one continuous scene.
+const BG = require('../../assets/auth-bg.webp');
 
 const LANGS = [
   ['en', 'English'],
@@ -42,44 +43,44 @@ const LANGS = [
   ['kn', 'ಕನ್ನಡ'],
 ];
 
-/** ~3.5s fade + settle on the map, then a barely-there endless breathe. */
-function useReveal() {
-  const p = useSharedValue(0);
-  const b = useSharedValue(0);
+/** A thin gradient line that draws itself in across the top of the card on mount. */
+function TopSweep() {
+  const s = useSharedValue(0);
   useEffect(() => {
-    p.value = withTiming(1, { duration: 3500, easing: Easing.out(Easing.cubic) });
-    b.value = withDelay(
-      900,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 8000, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0, { duration: 8000, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1,
-        false,
-      ),
-    );
-  }, [p, b]);
-  return useAnimatedStyle(() => ({
-    opacity: p.value,
-    transform: [{ scale: 0.92 + p.value * 0.08 + b.value * 0.015 }],
-  }));
+    s.value = withDelay(500, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [s]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scaleX: s.value }], opacity: s.value }));
+  return (
+    <Animated.View style={[{ height: 3, transformOrigin: 'left' } as const, style]}>
+      <LinearGradient
+        colors={[palette.leaf, palette.primary, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ flex: 1 }}
+      />
+    </Animated.View>
+  );
 }
 
 export default function AuthScreen() {
   const { login, signup } = useAuth();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const reveal = useReveal();
+  const kenBurns = useKenBurnsLoop();
+  const glow = useBreathe();
 
-  const mapH = Math.min(height * 0.28, 240);
-  const headerH = 150;
-  const glowCenterY = insets.top + headerH + mapH / 2;
+  // The photo + wordmark animate alone for a beat before the card appears —
+  // a proper intro on first launch, not an instant cut to a form.
+  const [showCard, setShowCard] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowCard(true), 3400);
+    return () => clearTimeout(t);
+  }, []);
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [busy, setBusy] = useState(false);
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  // Pre-filled with the demo account — judges just tap "Log in".
+  const [identifier, setIdentifier] = useState('ramesh.kumar@agripod.app');
+  const [password, setPassword] = useState('AgriPod@2026');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [region, setRegion] = useState('');
@@ -106,82 +107,107 @@ export default function AuthScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0B1A11' }}>
-      <AuthBackdrop glowCenterY={glowCenterY} />
+      {/* ── living backdrop photo — same transform the boot loader ended on, no jump ── */}
+      <Animated.View style={[StyleSheet.absoluteFill, kenBurns]}>
+        <Image source={BG} style={{ flex: 1 }} contentFit="cover" />
+      </Animated.View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* a light touch of scrim — just enough for the wordmark and card to read, the photo stays bright */}
+      <LinearGradient
+        colors={['rgba(8,20,13,0.32)', 'rgba(8,20,13,0.06)', 'rgba(8,20,13,0)']}
+        locations={[0, 0.6, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '26%' }}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={['rgba(6,14,10,0)', 'rgba(6,14,10,0.22)', 'rgba(5,12,9,0.45)']}
+        locations={[0, 0.45, 1]}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '52%' }}
+        pointerEvents="none"
+      />
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
-            paddingTop: insets.top + space.xxl,
-            paddingHorizontal: space.lg,
-            paddingBottom: insets.bottom + space.xxl,
+            justifyContent: 'space-between',
+            paddingTop: insets.top + space.xl,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── header ── */}
-          <Animated.View entering={FadeIn.duration(700)} style={{ alignItems: 'center', height: headerH, justifyContent: 'center' }}>
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: radius.pill,
-                backgroundColor: 'rgba(255,255,255,0.12)',
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.22)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: space.sm,
-              }}
-            >
-              <Text style={{ fontSize: 30 }} raw>
-                🌱
-              </Text>
+          {/* ── header — no entrance fade, it's already on screen from the boot loader ── */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 76, height: 76, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm }}>
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    width: 76,
+                    height: 76,
+                    borderRadius: 38,
+                    backgroundColor: 'rgba(130,200,120,0.4)',
+                  },
+                  glow,
+                ]}
+              />
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: radius.pill,
+                  backgroundColor: 'rgba(255,255,255,0.14)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.32)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name="leaf" size={28} color="#fff" weight="fill" />
+              </View>
             </View>
             <Text
               variant="hero"
               color="#fff"
               raw
-              style={{ textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 14, textShadowOffset: { width: 0, height: 2 } }}
+              style={{ textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 16, textShadowOffset: { width: 0, height: 3 } }}
             >
               AgriPod
             </Text>
-            <Text variant="label" color="rgba(255,255,255,0.72)">
+            <Text variant="label" color="rgba(255,255,255,0.8)" style={{ marginTop: 2 }}>
               Healthy crops, in your pocket
             </Text>
-          </Animated.View>
+          </View>
 
-          {/* ── the map, framed so nothing overlaps it ── */}
-          <Animated.View style={[{ height: mapH, marginTop: space.xs, marginBottom: space.xl }, reveal]}>
-            <Image source={BG} style={{ width: '100%', height: '100%' }} contentFit="contain" />
-          </Animated.View>
+          <View style={{ flex: 1, minHeight: space.xxl }} />
 
-          {/* ── liquid-glass form ── */}
-          <Animated.View entering={FadeInDown.delay(220).springify().damping(18).stiffness(150)}>
+          {/* ── liquid-glass form — held back until the intro has played ── */}
+          {showCard && (
+          <Animated.View
+            entering={FadeInDown.springify().damping(16).stiffness(140)}
+            style={{ paddingHorizontal: space.lg, paddingBottom: insets.bottom + space.xl }}
+          >
             <View
               style={{
                 borderRadius: radius.xxl,
                 overflow: 'hidden',
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.4)',
+                borderColor: 'rgba(255,255,255,0.38)',
                 shadowColor: '#000',
-                shadowOpacity: 0.28,
-                shadowRadius: 28,
-                shadowOffset: { width: 0, height: 16 },
-                elevation: 14,
+                shadowOpacity: 0.35,
+                shadowRadius: 32,
+                shadowOffset: { width: 0, height: 18 },
+                elevation: 16,
               }}
             >
+              <TopSweep />
               <BlurView
-                intensity={30}
+                intensity={46}
                 tint="light"
-                experimentalBlurMethod="dimezisBlurView"
-                style={{ padding: space.lg, gap: space.lg, backgroundColor: 'rgba(255,255,255,0.16)' }}
+                style={{ padding: space.lg, gap: space.lg, backgroundColor: 'rgba(255,255,255,0.3)' }}
               >
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0)']}
+                  colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']}
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
                   pointerEvents="none"
                 />
@@ -253,8 +279,7 @@ export default function AuthScreen() {
               </BlurView>
             </View>
           </Animated.View>
-
-          <View style={{ flex: 1 }} />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

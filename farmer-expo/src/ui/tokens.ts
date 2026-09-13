@@ -63,14 +63,6 @@ export const palette = {
   danger: '#C9553C',
   dangerSoft: '#F7DDD5',
   info: '#4183B4',
-
-  // sunrise scene — used only by the loading screen
-  sky1: '#FDEBD4',
-  sky2: '#F9D3A6',
-  sky3: '#EEB076',
-  sunGlow: '#FFD9A0',
-  horizonLine: '#C88A57',
-  fieldSilhouette: '#3E5A32',
 } as const;
 
 export const severity = {
@@ -191,7 +183,7 @@ export const shadow: Record<'e0' | 'e1' | 'e2' | 'e3', ViewStyle> = {
 
 export const gradients = {
   // Home screen hero — soft sage green (from the user's reference swatch)
-  home: ['#9DBC9A', '#6E8F6C'] as const,
+  home: ['#8FAE8C', '#62815F'] as const,
   homeCta: ['#B2CCB0', '#9DBC9A'] as const,
   // the dashboard hero — deep phthalo green (blue-leaning, saturated)
   hero: ['#0F5138', '#0A3527'] as const,

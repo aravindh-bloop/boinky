@@ -7,7 +7,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from './auth/AuthContext';
 import { palette, fonts, Text } from './ui';
-import { BootLoader } from './ui/BootLoader';
 import { TabBar } from './ui/TabBar';
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -53,6 +52,8 @@ export type HomeStackParams = {
   Ask: undefined;
   ScanResult: { scanId: string };
   FieldDetail: { fieldId: string };
+  Calendar: { fieldId: string; crop: string };
+  LogActivity: { fieldId?: string; taskId?: string; presetKind?: string } | undefined;
 };
 export type FieldsStackParams = {
   FieldsList: undefined;
@@ -104,6 +105,8 @@ function HomeStack() {
       <HomeNav.Screen name="Ask" component={AskScreen} options={{ headerShown: false }} />
       <HomeNav.Screen name="ScanResult" component={ScanResultScreen} options={{ headerTransparent: true, title: '' }} />
       <HomeNav.Screen name="FieldDetail" component={FieldDetailScreen} options={{ headerTransparent: true, title: '' }} />
+      <HomeNav.Screen name="Calendar" component={CalendarScreen} options={{ headerShown: false }} />
+      <HomeNav.Screen name="LogActivity" component={LogActivityScreen} options={{ headerTitle: navTitle('Log activity') }} />
     </HomeNav.Navigator>
   );
 }
@@ -184,7 +187,7 @@ function activeRouteName(state: NavigationState | undefined): string {
 }
 
 export default function RootNavigator() {
-  const { user, loading, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   // First-run walkthrough: shown once, when the account has never been onboarded.
   const [showTutorial, setShowTutorial] = useState(false);
   React.useEffect(() => {
@@ -201,7 +204,6 @@ export default function RootNavigator() {
     }
   }
 
-  if (loading) return <BootLoader />;
   return (
     <>
       <NavigationContainer

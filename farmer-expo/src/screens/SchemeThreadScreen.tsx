@@ -7,7 +7,7 @@ import { api, ApiError } from '../api/client';
 import { alertT } from '../i18n/alert';
 import type { SchemeThreadDetail } from '../api/types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Icon, LoaderScreen, PressableScale, Row, Text, palette, radius, space, tone } from '../ui';
+import { ErrorState, Icon, LoaderScreen, PressableScale, Row, Text, palette, radius, space, tone } from '../ui';
 
 export default function SchemeThreadScreen() {
   const insets = useSafeAreaInsets();
@@ -24,7 +24,9 @@ export default function SchemeThreadScreen() {
   const [busy, setBusy] = useState(false);
   const scroller = useRef<ScrollView>(null);
 
-  const { data, reload } = useApi<SchemeThreadDetail>(threadId ? `/api/schemes/threads/${threadId}` : null);
+  const { data, error, reload } = useApi<SchemeThreadDetail>(
+    threadId ? `/api/schemes/threads/${threadId}` : null,
+  );
 
   useEffect(() => {
     if (!threadId) return;
@@ -63,6 +65,13 @@ export default function SchemeThreadScreen() {
     }
   }
 
+  if (threadId && error && !data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: palette.canvas, justifyContent: 'center' }}>
+        <ErrorState message={error} onRetry={reload} />
+      </View>
+    );
+  }
   if (threadId && !data) return <LoaderScreen label="Loading conversation" />;
 
   const title = data?.thread.subject ?? schemeTitle ?? 'New question';
