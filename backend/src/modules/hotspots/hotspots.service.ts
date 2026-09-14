@@ -124,6 +124,40 @@ export async function getHotspotSummary(q: HotspotQuery): Promise<HotspotSummary
   );
 }
 
+export interface HotspotHistoryBucket {
+  bucket: string; // ISO date — the start of the day/week
+  count: number;
+  highCount: number;
+}
+
+/**
+ * The same confirmed-scan set as getHotspotPoints/getHotspotSummary, bucketed
+ * over time instead of collapsed to one aggregate — the real, observed case
+ * trend an outbreak-escalation projection starts from.
+ */
+export async function getHotspotHistory(
+  q: HotspotQuery,
+  granularity: 'day' | 'week',
+): Promise<HotspotHistoryBucket[]> {
+  if (!q.bbox && !q.center) {
+    throw AppError.badRequest('Provide either bbox or center+radiusKm');
+  }
+  const { where, params } = buildFilters(q);
+  params.push(granularity);
+  const gIdx = params.length;
+  return query<HotspotHistoryBucket>(
+    `SELECT to_char(date_trunc($${gIdx}, s.created_at), 'YYYY-MM-DD') AS bucket,
+            count(*)::int AS count,
+            count(*) FILTER (WHERE s.severity = 'high')::int AS high_count
+       FROM scans s
+       LEFT JOIN fields f ON f.id = s.field_id
+      WHERE ${where}
+      GROUP BY 1
+      ORDER BY 1`,
+    params,
+  );
+}
+
 export interface NearbyOutbreaks {
   radiusKm: number;
   days: number;

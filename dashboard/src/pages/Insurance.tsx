@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   Umbrella,
   ClipboardList,
@@ -21,7 +22,8 @@ import type {
   DirectoryRow,
   Rung,
 } from '../lib/types';
-import { Loading, ErrorBox, timeAgo } from '../components/ui';
+import { Loading, ErrorBox, StatCard, DataTable, Badge, type Tone, type Column } from '../components/ui';
+import { timeAgo } from '../lib/format';
 
 const STAGE_LABEL: Record<string, string> = {
   intimation: 'Loss reported',
@@ -40,12 +42,12 @@ const RUNG_LABEL: Record<Rung, string> = {
   krph: 'KRPH 14447',
   cpgrams: 'CPGRAMS',
 };
-const STATUS_STYLE: Record<EscalationStatus, string> = {
-  sent: 'bg-amber-100 text-amber-700',
-  acknowledged: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-slate-100 text-slate-600',
+const STATUS_TONE: Record<EscalationStatus, Tone> = {
+  sent: 'warning',
+  acknowledged: 'info',
+  in_progress: 'info',
+  resolved: 'success',
+  closed: 'neutral',
 };
 const CAUSE: Record<string, string> = {
   flood: 'Flood',
@@ -110,20 +112,14 @@ function Inbox() {
 
   return (
     <>
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <SummaryCard icon={ShieldAlert} label="Open" value={s?.open ?? '—'} tint="amber" />
-        <SummaryCard
-          icon={ClipboardList}
-          label="In progress"
-          value={s?.byStatus?.in_progress ?? 0}
-          tint="blue"
-        />
-        <SummaryCard icon={CheckCircle2} label="Resolved" value={s?.resolved ?? '—'} tint="emerald" />
-        <SummaryCard
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <StatCard icon={ShieldAlert} label="Open" value={s?.open ?? '—'} />
+        <StatCard icon={ClipboardList} label="In progress" value={s?.byStatus?.in_progress ?? 0} />
+        <StatCard icon={CheckCircle2} label="Resolved" value={s?.resolved ?? '—'} tone="accent" />
+        <StatCard
           icon={Umbrella}
           label="Top rung"
           value={s?.byRung?.[0] ? RUNG_LABEL[s.byRung[0].rung as Rung] ?? s.byRung[0].rung : '—'}
-          tint="slate"
         />
       </div>
 
@@ -145,60 +141,46 @@ function Inbox() {
             ))}
           </div>
 
-          {list.loading ? (
-            <Loading />
-          ) : list.error ? (
+          {list.error ? (
             <ErrorBox message={list.error} onRetry={list.reload} />
           ) : (
-            <div className="bg-white rounded-xl border overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b text-slate-500">
-                  <tr>
-                    {['Farmer', 'Claim', 'Escalated to', 'Status', 'Age'].map((h) => (
-                      <th key={h} className="px-4 py-3 font-medium">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(list.data?.items ?? []).map((e) => (
-                    <tr
-                      key={e.id}
-                      onClick={() => setSel(e.id)}
-                      className={`border-b hover:bg-slate-50 cursor-pointer ${
-                        sel === e.id ? 'bg-agri-primary/5' : ''
-                      }`}
-                    >
-                      <td className="px-4 py-3">
+            <DataTable<EscalationRow>
+              loading={list.loading}
+              rows={list.data?.items ?? []}
+              keyField="id"
+              selectedKey={sel}
+              onRowClick={(e) => setSel(e.id)}
+              emptyState={<div className="p-8 text-center text-slate-500 text-sm">No escalations.</div>}
+              columns={
+                [
+                  {
+                    key: 'farmer',
+                    header: 'Farmer',
+                    render: (e) => (
+                      <>
                         <div className="font-medium text-slate-800">{e.farmer_name}</div>
                         <div className="text-xs text-slate-500">{e.district ?? e.farmer_phone}</div>
-                      </td>
-                      <td className="px-4 py-3">
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'claim',
+                    header: 'Claim',
+                    render: (e) => (
+                      <>
                         <div className="capitalize">
                           {CAUSE[e.cause] ?? e.cause} · {e.crop}
                         </div>
-                        <div className="text-xs text-slate-500">
-                          stuck at {STAGE_LABEL[e.stage] ?? e.stage}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{RUNG_LABEL[e.rung] ?? e.rung}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${STATUS_STYLE[e.status]}`}
-                        >
-                          {e.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">{timeAgo(e.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {(list.data?.items ?? []).length === 0 && (
-                <div className="p-8 text-center text-slate-500">No escalations.</div>
-              )}
-            </div>
+                        <div className="text-xs text-slate-500">stuck at {STAGE_LABEL[e.stage] ?? e.stage}</div>
+                      </>
+                    ),
+                  },
+                  { key: 'rung', header: 'Escalated to', render: (e) => <span className="text-slate-700">{RUNG_LABEL[e.rung] ?? e.rung}</span> },
+                  { key: 'status', header: 'Status', render: (e) => <Badge tone={STATUS_TONE[e.status]}>{e.status.replace('_', ' ')}</Badge> },
+                  { key: 'age', header: 'Age', render: (e) => <span className="text-slate-500">{timeAgo(e.created_at)}</span> },
+                ] satisfies Column<EscalationRow>[]
+              }
+            />
           )}
         </div>
 
@@ -242,8 +224,9 @@ function EscalationPanel({
       setNote('');
       reload();
       onChange();
+      toast.success('Status updated');
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : 'Failed');
+      toast.error(err instanceof ApiError ? err.message : 'Failed');
     } finally {
       setBusy(null);
     }
@@ -493,7 +476,7 @@ function DirectoryEditor({
   const set = (k: keyof DirectoryRow, v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
   async function save() {
-    if (!f.designation?.trim() || !f.rung) return alert('Designation and rung are required');
+    if (!f.designation?.trim() || !f.rung) return toast.error('Designation and rung are required');
     setBusy(true);
     try {
       await api.post('/api/official/insurance-directory', {
@@ -509,9 +492,10 @@ function DirectoryEditor({
         note: f.note?.trim() || null,
         verified: !!f.verified,
       });
+      toast.success('Contact saved');
       onSaved();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed');
+      toast.error(e instanceof ApiError ? e.message : 'Failed');
     } finally {
       setBusy(false);
     }
@@ -593,32 +577,3 @@ function DirectoryEditor({
   );
 }
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  tint,
-}: {
-  icon: typeof Umbrella;
-  label: string;
-  value: string | number;
-  tint: string;
-}) {
-  const bg =
-    tint === 'emerald'
-      ? 'bg-emerald-50 text-emerald-600'
-      : tint === 'amber'
-        ? 'bg-amber-50 text-amber-600'
-        : tint === 'blue'
-          ? 'bg-blue-50 text-blue-600'
-          : 'bg-slate-100 text-slate-600';
-  return (
-    <div className="bg-white rounded-xl border p-5">
-      <div className={`w-10 h-10 rounded-lg grid place-items-center mb-3 ${bg}`}>
-        <Icon size={20} />
-      </div>
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
-    </div>
-  );
-}

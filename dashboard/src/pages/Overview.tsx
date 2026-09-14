@@ -6,7 +6,6 @@ import {
   FileWarning,
   BellRing,
   IndianRupee,
-  ArrowUpRight,
   ChevronRight,
   ShieldCheck,
   MapPin,
@@ -17,11 +16,11 @@ import type {
   QueueItem,
   SchemeSummary,
   DistrictRow,
+  Trends,
 } from '../lib/types';
-import { Loading, ErrorBox, timeAgo } from '../components/ui';
-
-const rupee = (n: number) =>
-  n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : `₹${Math.round(n).toLocaleString('en-IN')}`;
+import { Loading, ErrorBox, StatCard } from '../components/ui';
+import { rupee, timeAgo } from '../lib/format';
+import { TrendsChart } from '../components/TrendsChart';
 
 const sevDot = (s: string | null) =>
   s === 'high' ? 'bg-red-500' : s === 'medium' ? 'bg-amber-500' : 'bg-green-500';
@@ -35,6 +34,7 @@ export function Overview() {
   );
   const subs = useApi<SchemeSummary>('/api/official/scheme-summary');
   const districts = useApi<{ districts: DistrictRow[] }>('/api/official/districts?days=30');
+  const trends = useApi<Trends>('/api/official/trends?days=90');
 
   if (ov.loading) return <Loading label="Loading overview…" />;
   if (ov.error) return <ErrorBox message={ov.error} onRetry={ov.reload} />;
@@ -49,41 +49,31 @@ export function Overview() {
       className="p-8 space-y-6 max-w-[1400px]"
     >
       {/* ── KPI row ── */}
-      <div className="grid grid-cols-4 gap-5">
-        <div className="rounded-2xl p-6 bg-agri-dark text-white relative overflow-hidden">
-          <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/15 grid place-items-center mb-5">
-            <Leaf size={22} />
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
-            Scans · last 30 days
-          </p>
-          <p className="text-4xl font-bold mt-1">{d.scans.total.toLocaleString()}</p>
-          <p className="text-sm mt-2 text-emerald-300 flex items-center gap-1">
-            <ArrowUpRight size={14} />
-            {d.scans.last7d} in the last week
-          </p>
-          <Leaf size={120} className="absolute -bottom-6 -right-4 text-white/5" />
-        </div>
-
-        <Kpi
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <StatCard
+          icon={Leaf}
+          tone="dark"
+          label="Scans · last 30 days"
+          value={d.scans.total}
+          trend={{ direction: 'up', label: `${d.scans.last7d} in the last week` }}
+        />
+        <StatCard
           icon={FileWarning}
-          tint="amber"
           label="Pending validations"
           value={d.scans.needs_validation}
           hint={d.scans.needs_validation ? 'Needs review' : 'All clear'}
           onClick={() => nav('/queue')}
         />
-        <Kpi
+        <StatCard
           icon={BellRing}
-          tint="red"
           label="Active alerts · 14 days"
           value={d.activeAlerts}
           hint="Broadcasts in effect"
           onClick={() => nav('/alerts')}
         />
-        <Kpi
+        <StatCard
           icon={IndianRupee}
-          tint="emerald"
+          tone="accent"
           label="Subsidies disbursed"
           value={s ? rupee(s.totalDisbursed) : '—'}
           hint={s ? `${s.pendingReview} awaiting review` : ''}
@@ -92,9 +82,9 @@ export function Overview() {
       </div>
 
       {/* ── attention + activity ── */}
-      <div className="grid grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <SectionCard
-          className="col-span-2"
+          className="xl:col-span-2"
           title="Validation queue"
           subtitle={
             (queue.data?.items.length ?? 0) === 1
@@ -181,7 +171,7 @@ export function Overview() {
       <SectionCard
         title="Outbreak load by district"
         subtitle="Scans attributed to their exact GPS district · last 30 days"
-        action={{ label: 'Hotspot map', onClick: () => nav('/hotspots') }}
+        action={{ label: 'Hotspot map', onClick: () => nav('/map') }}
       >
         {districts.loading ? (
           <Loading />
@@ -240,8 +230,13 @@ export function Overview() {
         )}
       </SectionCard>
 
+      {/* ── trends ── */}
+      <SectionCard title="Case trends" subtitle="Weekly volume by category · last 90 days">
+        {trends.loading ? <Loading /> : <TrendsChart data={trends.data?.weekly ?? []} />}
+      </SectionCard>
+
       {/* ── analytics ── */}
-      <div className="grid grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <SectionCard title="Top diagnoses" subtitle="Confirmed problems · 30 days">
           <BarList
             rows={d.topDiagnoses.map((t) => ({
@@ -303,49 +298,6 @@ export function Overview() {
 }
 
 /* ── small components ─────────────────────────────────────────────── */
-
-function Kpi({
-  icon: Icon,
-  tint,
-  label,
-  value,
-  hint,
-  onClick,
-}: {
-  icon: typeof Leaf;
-  tint: 'amber' | 'red' | 'emerald';
-  label: string;
-  value: string | number;
-  hint?: string;
-  onClick?: () => void;
-}) {
-  const bg =
-    tint === 'amber'
-      ? 'bg-amber-50 text-amber-600'
-      : tint === 'red'
-        ? 'bg-red-50 text-red-600'
-        : 'bg-emerald-50 text-emerald-600';
-  return (
-    <button
-      onClick={onClick}
-      className="text-left rounded-2xl p-6 bg-white border border-slate-200/70 hover:border-slate-300 hover:shadow-sm transition group"
-    >
-      <div className="flex items-start justify-between">
-        <div className={`w-11 h-11 rounded-xl grid place-items-center mb-5 ${bg}`}>
-          <Icon size={22} />
-        </div>
-        {onClick && (
-          <ChevronRight size={18} className="text-slate-300 group-hover:text-slate-400 mt-1" />
-        )}
-      </div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="text-4xl font-bold mt-1 text-slate-800">
-        {typeof value === 'number' ? value.toLocaleString() : value}
-      </p>
-      {hint && <p className="text-xs text-slate-400 mt-2">{hint}</p>}
-    </button>
-  );
-}
 
 function SectionCard({
   title,

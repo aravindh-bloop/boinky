@@ -64,6 +64,7 @@ export interface OfficerScanDetail {
   farmer_note: string | null;
   farmer_note_language: string | null;
   risk_score: number | null;
+  risk_level: 'low' | 'medium' | 'high' | null;
   district: string | null;
   location_accuracy_m: number | null;
   lat: number | null;
@@ -121,9 +122,70 @@ export interface AlertRow {
   official_name?: string | null;
 }
 
+export interface Weather {
+  place: { lat: number; lng: number; label: string | null };
+  current: { tempC: number | null; condition: string; isDay: boolean; code: number | null };
+  daily: { date: string; precipMm: number | null; tempMaxC: number | null; tempMinC: number | null }[];
+  advisories: { key: string; severity: 'info' | 'watch' | 'warning'; title: string; detail: string }[];
+}
+
 export interface Trends {
   weekly: { week: string; category: string | null; count: number }[];
   byDiagnosis: { label: string | null; count: number; high: number }[];
+}
+
+// ── outbreak escalation prediction ──
+
+export interface OutbreakProjectionRequest {
+  bbox?: [number, number, number, number];
+  center?: { lat: number; lng: number; radiusKm: number };
+  days?: number;
+  crop?: string;
+  district?: string;
+  severity?: 'low' | 'medium' | 'high';
+  category?: string;
+  horizonDays?: number;
+}
+
+export type ProjectionPhase = 'observed' | 'forecast' | 'extrapolated';
+
+export interface ProjectionSeriesPoint {
+  date: string;
+  phase: ProjectionPhase;
+  observedCount: number | null;
+  projectedCount: number;
+  riskScore: number | null;
+  riskLevel: 'low' | 'medium' | 'high' | null;
+  tempMeanC: number | null;
+  humidityMeanPct: number | null;
+  rainfallMm: number | null;
+}
+
+export interface OutbreakNarrative {
+  headline: string;
+  summary: string;
+  keyDrivers: { label: string; basis: string }[];
+  recommendedActions: string[];
+  confidenceCaveat: string;
+}
+
+export interface OutbreakProjectionResponse {
+  query: OutbreakProjectionRequest;
+  generatedAt: string;
+  crop: string | null;
+  population: { fieldsInArea: number; farmersInArea: number; areaAcresTotal: number };
+  carryingCapacity: number;
+  medianDaysSinceSown: number | null;
+  series: ProjectionSeriesPoint[];
+  yieldLossEstimate: {
+    areaAcres: number;
+    estimatedLossPctLow: number;
+    estimatedLossPctHigh: number;
+    basis: string;
+    disclaimer: string;
+  };
+  narrative: OutbreakNarrative | null;
+  modelDisclosure: { method: string; sources: string[] };
 }
 
 export interface CropsList {

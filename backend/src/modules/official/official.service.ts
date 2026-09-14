@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { getManagementGuidance, type DiagnosisResult } from '../../integrations/gemini.js';
 import { generateAdvisory, toSarvamLang } from '../../integrations/sarvam.js';
 import { recordEvent } from '../insights/profile.service.js';
+import { levelOf } from '../risk/risk.model.js';
 
 // ── Overview stats ──
 
@@ -201,7 +202,10 @@ export async function getScanForOfficer(scanId: string) {
        FROM scan_media WHERE scan_id = $1 ORDER BY position, created_at`,
     [scanId],
   );
-  return { ...scan, media };
+  // risk_level has no column of its own — it's always derived from risk_score via the
+  // same thresholds risk.model.ts uses, so officers see one consistent scale everywhere.
+  const risk_level = scan.risk_score != null ? levelOf(scan.risk_score) : null;
+  return { ...scan, risk_level, media };
 }
 
 // ── Validate / correct a scan ──

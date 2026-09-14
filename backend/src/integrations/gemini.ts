@@ -704,6 +704,139 @@ export async function generateFarmBrief(
   };
 }
 
+// ── Outbreak escalation narrative (explains a projection computed elsewhere) ──
+
+export interface OutbreakNarrative {
+  headline: string;
+  summary: string;
+  keyDrivers: { label: string; basis: string }[];
+  recommendedActions: string[];
+  confidenceCaveat: string;
+}
+
+const outbreakNarrativeSchema = {
+  type: Type.OBJECT,
+  properties: {
+    headline: { type: Type.STRING, description: 'One short sentence — the core finding' },
+    summary: {
+      type: Type.STRING,
+      description: '2-4 sentences explaining the projected trajectory in plain language',
+    },
+    keyDrivers: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          label: { type: Type.STRING, description: 'Short label for one driving factor' },
+          basis: {
+            type: Type.STRING,
+            description: 'The exact data point from the snapshot that justifies it',
+          },
+        },
+        required: ['label', 'basis'],
+      },
+    },
+    recommendedActions: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Officer-facing actions: field verification, farmer advisories, escalation',
+    },
+    confidenceCaveat: {
+      type: Type.STRING,
+      description: "An honest caveat about the projection's uncertainty given the data available",
+    },
+  },
+  required: ['headline', 'summary', 'keyDrivers', 'recommendedActions', 'confidenceCaveat'],
+} as const;
+
+const OUTBREAK_NARRATIVE_SYSTEM = `You are an agricultural extension analyst writing a short briefing
+for a government agriculture officer about a projected crop-disease/pest outbreak trajectory in their
+district. You are given a JSON snapshot: the confirmed case history, a quantitative projection already
+computed by a transparent logistic-growth model (NOT by you), the crop and its known threats, the
+weather driving the projection, and population/area context.
+
+Hard rules:
+- Use ONLY facts present in the snapshot. Never invent a number, date, location or diagnosis not present.
+- Every entry in keyDrivers must cite the exact snapshot fact behind it (for example "humidity 89% and
+  3 confirmed cases already this week"). Never a vague reason.
+- You are explaining a projection someone else computed, not generating the numbers yourself. Do not
+  state a case count or percentage that is not already present in the snapshot's series or
+  yieldLossEstimate fields.
+- recommendedActions are for an OFFICER (field verification, farmer advisories, escalating to a
+  specialist), not instructions for a farmer.
+- confidenceCaveat must name a real limitation honestly (for example: a short observation window,
+  weather-only extrapolation beyond the 7-day forecast, or no ground-truth spread rate for this exact
+  pathogen/pest in this area).
+- Plain, direct English. No markdown, no jargon, no emoji.`;
+
+/**
+ * Generate the officer-facing narrative for an outbreak-escalation projection.
+ * Takes the context as a JSON string, same leaf-module convention as
+ * generateFarmBrief — the caller assembles all real data, this function only
+ * explains it.
+ */
+export async function generateOutbreakNarrative(
+  contextJson: string,
+): Promise<{ narrative: OutbreakNarrative; raw: unknown; model: string }> {
+  let raw: string;
+  try {
+    const res = await ai().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${OUTBREAK_NARRATIVE_SYSTEM}\n\nProjection snapshot:\n${contextJson}` }],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: outbreakNarrativeSchema as unknown as Record<string, unknown>,
+        temperature: 0.3,
+      },
+    });
+    raw = res.text ?? '';
+  } catch (err) {
+    logger.error({ err }, 'gemini outbreak narrative failed');
+    throw AppError.upstream('Narrative generation failed', { reason: (err as Error).message });
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    logger.error({ raw: raw.slice(0, 500) }, 'gemini outbreak narrative returned unparseable JSON');
+    throw AppError.upstream('Narrative generation returned an invalid response');
+  }
+
+  const o = parsed as Record<string, unknown>;
+  const headline = String(o.headline ?? '').trim();
+  const summary = String(o.summary ?? '').trim();
+  const keyDrivers = Array.isArray(o.keyDrivers)
+    ? o.keyDrivers
+        .map((d) => {
+          const dd = d as Record<string, unknown>;
+          const label = String(dd?.label ?? '').trim();
+          const basis = String(dd?.basis ?? '').trim();
+          return label && basis ? { label, basis } : null;
+        })
+        .filter((x): x is { label: string; basis: string } => x !== null)
+    : [];
+  const recommendedActions = Array.isArray(o.recommendedActions)
+    ? o.recommendedActions.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  const confidenceCaveat = String(o.confidenceCaveat ?? '').trim();
+
+  if (!headline || !summary) {
+    throw AppError.upstream('Narrative generation returned an empty result');
+  }
+
+  return {
+    narrative: { headline, summary, keyDrivers, recommendedActions, confidenceCaveat },
+    raw: parsed,
+    model: env.GEMINI_MODEL,
+  };
+}
+
 // ── Farmer AI profile (a rolling portrait distilled from the event log) ──
 
 export interface FarmerProfile {

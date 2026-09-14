@@ -7,7 +7,7 @@ export const weatherRouter = Router();
 
 weatherRouter.get(
   '/',
-  requireAuth('farmer'),
+  requireAuth('farmer', 'official'),
   asyncHandler(async (req, res) => {
     const { fieldId, lat, lng } = z
       .object({

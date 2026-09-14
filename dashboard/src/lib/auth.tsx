@@ -92,7 +92,7 @@ export function LoginGate({ children }: { children: ReactNode }) {
             <Leaf size={20} className="text-agri-dark" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">AgriPod</h1>
+            <h1 className="text-xl font-bold text-slate-800">Agrian</h1>
             <p className="text-xs text-slate-500">Officer dashboard</p>
           </div>
         </div>

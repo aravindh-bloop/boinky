@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { IndianRupee, ClipboardList, CheckCircle2, MessagesSquare, Send, X } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
@@ -10,14 +11,15 @@ import type {
   SchemeThread,
   SchemeMessage,
 } from '../lib/types';
-import { Loading, ErrorBox, timeAgo } from '../components/ui';
+import { Loading, ErrorBox, StatCard, DataTable, Badge, type Tone, type Column } from '../components/ui';
+import { rupee, timeAgo } from '../lib/format';
 
-const STATUS_STYLE: Record<AppStatus, string> = {
-  submitted: 'bg-slate-100 text-slate-700',
-  under_review: 'bg-blue-100 text-blue-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  disbursed: 'bg-emerald-600 text-white',
+const STATUS_TONE: Record<AppStatus, Tone> = {
+  submitted: 'neutral',
+  under_review: 'info',
+  approved: 'success',
+  rejected: 'danger',
+  disbursed: 'success',
 };
 const STATUS_LABEL: Record<AppStatus, string> = {
   submitted: 'Submitted',
@@ -26,7 +28,6 @@ const STATUS_LABEL: Record<AppStatus, string> = {
   rejected: 'Rejected',
   disbursed: 'Disbursed',
 };
-const rupee = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 
 export function Subsidies() {
   const [tab, setTab] = useState<'applications' | 'queries'>('applications');
@@ -57,11 +58,11 @@ export function Subsidies() {
     >
       <h2 className="text-2xl font-bold mb-6">Subsidies &amp; Schemes</h2>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <SummaryCard icon={IndianRupee} label="Total disbursed" value={s ? rupee(s.totalDisbursed) : '—'} tint="emerald" />
-        <SummaryCard icon={ClipboardList} label="Pending review" value={s?.pendingReview ?? '—'} tint="amber" />
-        <SummaryCard icon={CheckCircle2} label="Approved, not paid" value={s?.approvedNotDisbursed ?? '—'} tint="blue" />
-        <SummaryCard icon={MessagesSquare} label="Open queries" value={s?.openQueries ?? '—'} tint="red" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <StatCard icon={IndianRupee} label="Total disbursed" value={s ? rupee(s.totalDisbursed) : '—'} tone="accent" />
+        <StatCard icon={ClipboardList} label="Pending review" value={s?.pendingReview ?? '—'} />
+        <StatCard icon={CheckCircle2} label="Approved, not paid" value={s?.approvedNotDisbursed ?? '—'} />
+        <StatCard icon={MessagesSquare} label="Open queries" value={s?.openQueries ?? '—'} />
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -95,49 +96,35 @@ export function Subsidies() {
                 </button>
               ))}
             </div>
-            {apps.loading ? (
-              <Loading />
-            ) : apps.error ? (
+            {apps.error ? (
               <ErrorBox message={apps.error} onRetry={apps.reload} />
             ) : (
-              <div className="bg-white rounded-xl border overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b text-slate-500">
-                    <tr>
-                      {['Farmer', 'Scheme', 'Status', 'Amount', 'Updated'].map((h) => (
-                        <th key={h} className="px-4 py-3 font-medium">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(apps.data?.items ?? []).map((a) => (
-                      <tr
-                        key={a.id}
-                        onClick={() => setSel(a)}
-                        className={`border-b hover:bg-slate-50 cursor-pointer ${sel?.id === a.id ? 'bg-agri-primary/5' : ''}`}
-                      >
-                        <td className="px-4 py-3">
+              <DataTable<SchemeApplication>
+                loading={apps.loading}
+                rows={apps.data?.items ?? []}
+                keyField="id"
+                selectedKey={sel?.id}
+                onRowClick={setSel}
+                emptyState={<div className="p-8 text-center text-slate-500 text-sm">No applications.</div>}
+                columns={
+                  [
+                    {
+                      key: 'farmer',
+                      header: 'Farmer',
+                      render: (a) => (
+                        <>
                           <div className="font-medium text-slate-800">{a.farmer_name}</div>
                           <div className="text-xs text-slate-500">{a.farmer_phone ?? a.region}</div>
-                        </td>
-                        <td className="px-4 py-3">{a.scheme_title}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_STYLE[a.status]}`}>
-                            {STATUS_LABEL[a.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{a.amount != null ? rupee(a.amount) : '—'}</td>
-                        <td className="px-4 py-3 text-slate-500">{timeAgo(a.updated_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(apps.data?.items ?? []).length === 0 && (
-                  <div className="p-8 text-center text-slate-500">No applications.</div>
-                )}
-              </div>
+                        </>
+                      ),
+                    },
+                    { key: 'scheme', header: 'Scheme', render: (a) => a.scheme_title },
+                    { key: 'status', header: 'Status', render: (a) => <Badge tone={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Badge> },
+                    { key: 'amount', header: 'Amount', render: (a) => (a.amount != null ? rupee(a.amount) : '—') },
+                    { key: 'updated', header: 'Updated', render: (a) => <span className="text-slate-500">{timeAgo(a.updated_at)}</span> },
+                  ] satisfies Column<SchemeApplication>[]
+                }
+              />
             )}
           </div>
 
@@ -211,36 +198,6 @@ export function Subsidies() {
   );
 }
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  tint,
-}: {
-  icon: typeof IndianRupee;
-  label: string;
-  value: string | number;
-  tint: string;
-}) {
-  const bg =
-    tint === 'emerald'
-      ? 'bg-emerald-50 text-emerald-600'
-      : tint === 'amber'
-        ? 'bg-amber-50 text-amber-600'
-        : tint === 'blue'
-          ? 'bg-blue-50 text-blue-600'
-          : 'bg-red-50 text-red-600';
-  return (
-    <div className="bg-white rounded-xl border p-5">
-      <div className={`w-10 h-10 rounded-lg grid place-items-center mb-3 ${bg}`}>
-        <Icon size={20} />
-      </div>
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
-    </div>
-  );
-}
-
 function DecisionPanel({
   app,
   onClose,
@@ -262,9 +219,10 @@ function DecisionPanel({
         ...(note ? { note } : {}),
         ...(status === 'disbursed' ? { amount: Number(amount) } : {}),
       });
+      toast.success(`Marked ${STATUS_LABEL[status].toLowerCase()}`);
       onDone();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed');
+      toast.error(e instanceof ApiError ? e.message : 'Failed');
     } finally {
       setBusy(null);
     }
@@ -379,7 +337,7 @@ function ThreadPanel({
       reload();
       onReply();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to send');
+      toast.error(e instanceof ApiError ? e.message : 'Failed to send');
     } finally {
       setBusy(false);
     }

@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { AlertCircle, CheckCircle, XCircle, PencilLine, MapPin, X, Video, ImageOff } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import type { QueueItem, OfficerScanDetail } from '../lib/types';
-import { Loading, ErrorBox, SeverityBadge } from '../components/ui';
+import { Loading, ErrorBox, SeverityBadge, RiskBadge, DataTable, type Column } from '../components/ui';
 
 const ANGLE_LABEL: Record<string, string> = {
   whole_plant: 'Whole plant',
@@ -58,12 +59,13 @@ export function ValidationQueue() {
         ...(action === 'correct' && correctLabel ? { correctedLabel: correctLabel } : {}),
         ...(note ? { note } : {}),
       });
+      toast.success(action === 'confirm' ? 'Confirmed' : action === 'correct' ? 'Correction sent' : 'Rejected');
       setSelected(null);
       setCorrectLabel('');
       setNote('');
       reload();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Action failed');
+      toast.error(e instanceof ApiError ? e.message : 'Action failed');
     } finally {
       setBusy(null);
     }
@@ -94,54 +96,32 @@ export function ValidationQueue() {
           </div>
           <span className="text-sm text-slate-500">{items.length} awaiting review</span>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                {['Scan', 'Diagnosis', 'Farmer', 'Confidence', 'Severity', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-sm font-medium text-slate-500">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((s, i) => (
-                <motion.tr
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(i, 10) * 0.03 }}
-                  key={s.id}
-                  onClick={() => setSelected(s)}
-                  className={`border-b hover:bg-slate-50 cursor-pointer ${
-                    selected?.id === s.id ? 'bg-agri-primary/5' : ''
-                  } ${(s.confidence ?? 1) < 0.6 ? 'border-l-4 border-l-amber-500' : ''}`}
-                >
-                  <td className="px-4 py-3">
-                    <img src={s.image_url} alt="" className="w-12 h-12 rounded object-cover bg-slate-100" />
-                  </td>
-                  <td className="px-4 py-3 font-medium">{s.diagnosis_label ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{s.farmer_name}</td>
-                  <td className="px-4 py-3">
-                    {(s.confidence ?? 1) < 0.6 && (
-                      <AlertCircle size={14} className="inline text-amber-500 mr-1" />
-                    )}
+        <DataTable<QueueItem>
+          rows={items}
+          keyField="id"
+          selectedKey={selected?.id}
+          onRowClick={setSelected}
+          emptyState={<div className="p-10 text-center text-slate-500 text-sm">Queue is clear — nothing to review.</div>}
+          columns={
+            [
+              { key: 'scan', header: 'Scan', render: (s) => <img src={s.image_url} alt="" className="w-12 h-12 rounded object-cover bg-slate-100" /> },
+              { key: 'diagnosis', header: 'Diagnosis', render: (s) => <span className="font-medium">{s.diagnosis_label ?? '—'}</span> },
+              { key: 'farmer', header: 'Farmer', render: (s) => <span className="text-slate-600">{s.farmer_name}</span> },
+              {
+                key: 'confidence',
+                header: 'Confidence',
+                render: (s) => (
+                  <>
+                    {(s.confidence ?? 1) < 0.6 && <AlertCircle size={14} className="inline text-amber-500 mr-1" />}
                     {s.confidence != null ? `${Math.round(s.confidence * 100)}%` : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <SeverityBadge severity={s.severity} />
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-500">
-                    {new Date(s.created_at).toLocaleDateString()}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-          {items.length === 0 && (
-            <div className="p-10 text-center text-slate-500">Queue is clear — nothing to review.</div>
-          )}
-        </div>
+                  </>
+                ),
+              },
+              { key: 'severity', header: 'Severity', render: (s) => <SeverityBadge severity={s.severity} /> },
+              { key: 'date', header: 'Date', render: (s) => <span className="text-slate-500">{new Date(s.created_at).toLocaleDateString()}</span> },
+            ] satisfies Column<QueueItem>[]
+          }
+        />
       </div>
 
       {selected && (
@@ -198,6 +178,7 @@ export function ValidationQueue() {
               {selected.crop ?? 'crop not linked'} · {selected.farmer_name}
               {selected.farmer_phone ? ` · ${selected.farmer_phone}` : ''}
             </p>
+            {detail?.risk_level && <RiskBadge level={detail.risk_level} score={detail.risk_score} />}
             {selected.district && (
               <p className="text-xs text-slate-500 flex items-center gap-1">
                 <MapPin size={12} /> {selected.district} district

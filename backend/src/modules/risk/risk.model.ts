@@ -22,7 +22,7 @@ function clamp(n: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function levelOf(score: number): RiskLevel {
+export function levelOf(score: number): RiskLevel {
   if (score >= 67) return 'high';
   if (score >= 34) return 'medium';
   return 'low';

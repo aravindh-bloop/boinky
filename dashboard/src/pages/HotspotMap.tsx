@@ -1,14 +1,40 @@
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { useEffect } from 'react';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useApi } from '../lib/useApi';
 import type { HotspotPoint, HotspotSummary, CropsList } from '../lib/types';
-import { Loading, ErrorBox, timeAgo } from '../components/ui';
+import { Loading, ErrorBox, Button } from '../components/ui';
+import { timeAgo } from '../lib/format';
+import { RegionalWeatherWidget } from '../components/RegionalWeatherWidget';
+import { EscalationPredictionPanel } from '../components/EscalationPredictionPanel';
+import type { OutbreakProjectionRequest } from '../lib/types';
+import { Sparkles } from 'lucide-react';
 
-const CHENNAI: [number, number] = [13.05, 80.25];
+// India-wide bounding box — an honest "show everything" default rather than
+// another hardcoded point. The view then fits to whatever real points come
+// back (see FitBounds below), so an officer outside Chennai isn't silently
+// shown zero data (the old default was centerLat/centerLng/radiusKm=80 around
+// Chennai, which scoped the *query itself*, not just the map's initial view).
+const INDIA_CENTER: [number, number] = [22.5, 80];
+const INDIA_BBOX_NUMS: [number, number, number, number] = [68, 6, 97.5, 37.5];
+const INDIA_BBOX = INDIA_BBOX_NUMS.join(',');
+
 const sevColor = (s: string | null) =>
   s === 'high' ? '#ef4444' : s === 'medium' ? '#f59e0b' : '#22c55e';
+
+/** Recenters/zooms the map to fit whatever points the current filters return. */
+function FitBounds({ points }: { points: { lat: number; lng: number }[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 0) return;
+    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number]));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+  }, [map, points]);
+  return null;
+}
 
 export function HotspotMap() {
   const [crop, setCrop] = useState('');
@@ -17,9 +43,7 @@ export function HotspotMap() {
 
   const path = useMemo(() => {
     const p = new URLSearchParams({
-      centerLat: '13.05',
-      centerLng: '80.25',
-      radiusKm: '80',
+      bbox: INDIA_BBOX,
       days: String(days),
       includePending: 'true',
     });
@@ -34,6 +58,29 @@ export function HotspotMap() {
   }>(path);
   const crops = useApi<CropsList>('/api/official/crops');
   const cropOptions = crops.data?.inRegion.length ? crops.data.inRegion : (crops.data?.known ?? []);
+
+  // Centroid of the current result set — recomputed only when the underlying
+  // data changes (a new filter/query), never on the user just panning/zooming
+  // the map, so the weather call fires once per data set, not per gesture.
+  const weatherCenter = useMemo(() => {
+    const pts = data?.points ?? [];
+    if (pts.length === 0) return null;
+    const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+    const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+    return { lat, lng };
+  }, [data?.points]);
+
+  const [showPrediction, setShowPrediction] = useState(false);
+  const projectionQuery: OutbreakProjectionRequest = useMemo(
+    () => ({
+      bbox: INDIA_BBOX_NUMS,
+      days,
+      crop: crop || undefined,
+      severity: (severity as 'low' | 'medium' | 'high') || undefined,
+      horizonDays: 21,
+    }),
+    [crop, severity, days],
+  );
 
   return (
     <motion.div
@@ -65,17 +112,33 @@ export function HotspotMap() {
         <span className="text-sm text-slate-500">
           {loading ? 'loading…' : `${data?.points.length ?? 0} scans`}
         </span>
+        <Button
+          variant="primary"
+          size="sm"
+          icon={Sparkles}
+          className="ml-auto"
+          disabled={!data?.points.length}
+          onClick={() => setShowPrediction(true)}
+        >
+          Predict escalation
+        </Button>
       </div>
 
       {error ? (
         <ErrorBox message={error} onRetry={reload} />
       ) : (
         <div className="flex-1 relative z-0 flex">
-          <MapContainer center={CHENNAI} zoom={11} scrollWheelZoom className="h-full flex-1">
+          {weatherCenter && (
+            <div className="absolute top-3 left-3 z-[1000]">
+              <RegionalWeatherWidget lat={weatherCenter.lat} lng={weatherCenter.lng} />
+            </div>
+          )}
+          <MapContainer center={INDIA_CENTER} zoom={5} scrollWheelZoom className="h-full flex-1">
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <FitBounds points={data?.points ?? []} />
             {(data?.points ?? []).map((p) => (
               <CircleMarker
                 key={p.id}
@@ -119,6 +182,10 @@ export function HotspotMap() {
               </div>
             )}
           </div>
+
+          {showPrediction && (
+            <EscalationPredictionPanel query={projectionQuery} onClose={() => setShowPrediction(false)} />
+          )}
         </div>
       )}
     </motion.div>

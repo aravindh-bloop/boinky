@@ -1,9 +1,20 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, HandCoins, Umbrella, Leaf, ChevronRight, MapPin, LogOut } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
+import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, HandCoins, Umbrella, Leaf, Menu, X, MapPin, LogOut } from 'lucide-react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { AuthProvider, LoginGate, useAuth } from './lib/auth';
 import { api } from './lib/api';
+import { useBreakpoint } from './lib/useBreakpoint';
+import { cn } from './lib/utils';
+
+/** Sidebar collapse state, shared between the sidebar itself and the topbar's toggle. */
+const SidebarCtx = createContext<{ isLg: boolean; isMd: boolean; drawerOpen: boolean; toggle: () => void }>({
+  isLg: true,
+  isMd: true,
+  drawerOpen: false,
+  toggle: () => {},
+});
 
 function SystemStatus() {
   const [state, setState] = useState<'checking' | 'ok' | 'down'>('checking');
@@ -72,50 +83,73 @@ const NAV_ITEMS = [
 
 function Sidebar() {
   const location = useLocation();
-  
-  return (
-    <aside className="w-64 bg-agri-dark text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="p-6">
-        <h2 className="text-3xl font-bold flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-agri-primary/40 border border-agri-primary flex items-center justify-center">
-             <Leaf size={22} className="text-agri-light" />
-          </div>
-          <span className="text-white">AgriPod</span>
-        </h2>
-        <p className="text-[10px] text-agri-light/60 uppercase tracking-widest mt-1 ml-[52px]">
-          Crop Health Intelligence
-        </p>
-      </div>
-      
-      <nav className="flex-1 px-4 py-4 space-y-2">
-        {NAV_ITEMS.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-colors ${
-                isActive ? 'text-agri-dark font-semibold' : 'text-white/80 hover:bg-white/10'
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="active-pill"
-                  className="absolute inset-0 bg-agri-light rounded-xl shadow-sm"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <item.icon size={20} className="relative z-10" />
-              <span className="relative z-10">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-      
-      <SystemStatus />
+  const { isLg, isMd, drawerOpen, toggle } = useContext(SidebarCtx);
+  // full labelled rail on desktop, icon-only rail on tablet, off-canvas drawer on phone
+  const mode: 'full' | 'rail' | 'drawer' = isLg ? 'full' : isMd ? 'rail' : 'drawer';
 
-      <OfficerFooter />
-    </aside>
+  return (
+    <>
+      {mode === 'drawer' && drawerOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={toggle} />
+      )}
+      <aside
+        className={cn(
+          'bg-agri-dark text-white flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform',
+          mode === 'full' && 'w-64',
+          mode === 'rail' && 'w-20',
+          mode === 'drawer' && cn('w-64', drawerOpen ? 'translate-x-0' : '-translate-x-full'),
+        )}
+      >
+        <div className={cn('p-6 flex items-center gap-3', mode === 'rail' && 'px-0 justify-center')}>
+          <div className="w-10 h-10 rounded-full bg-agri-primary/40 border border-agri-primary flex items-center justify-center shrink-0">
+            <Leaf size={22} className="text-agri-light" />
+          </div>
+          {mode !== 'rail' && (
+            <div>
+              <h2 className="text-2xl font-bold text-white leading-tight">Agrian</h2>
+              <p className="text-[10px] text-agri-light/60 uppercase tracking-widest">Crop Health Intelligence</p>
+            </div>
+          )}
+          {mode === 'drawer' && (
+            <button onClick={toggle} className="ml-auto text-white/60 hover:text-white">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        <nav className="flex-1 px-4 py-4 space-y-2">
+          {NAV_ITEMS.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => mode === 'drawer' && toggle()}
+                title={mode === 'rail' ? item.label : undefined}
+                className={cn(
+                  'relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-colors',
+                  mode === 'rail' && 'justify-center px-0 mx-2',
+                  isActive ? 'text-agri-dark font-semibold' : 'text-white/80 hover:bg-white/10',
+                )}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-agri-light rounded-xl shadow-sm"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <item.icon size={20} className="relative z-10 shrink-0" />
+                {mode !== 'rail' && <span className="relative z-10">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {mode !== 'rail' && <SystemStatus />}
+        <OfficerFooter compact={mode === 'rail'} />
+      </aside>
+    </>
   );
 }
 
@@ -123,8 +157,23 @@ function initials(name: string) {
   return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 }
 
-function OfficerFooter() {
+function OfficerFooter({ compact = false }: { compact?: boolean }) {
   const { officer, logout } = useAuth();
+  if (compact) {
+    return (
+      <div className="p-4 border-t border-white/10 flex flex-col items-center gap-3">
+        <div
+          title={officer?.name ?? 'Officer'}
+          className="w-9 h-9 rounded-full bg-agri-light text-agri-dark flex items-center justify-center font-bold text-xs shadow-sm shrink-0"
+        >
+          {initials(officer?.name ?? 'Officer')}
+        </div>
+        <button onClick={logout} title="Sign out" className="text-agri-light/60 hover:text-white shrink-0">
+          <LogOut size={16} />
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="p-4 border-t border-white/10 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
@@ -152,33 +201,39 @@ function greeting() {
 
 function TopBar() {
   const { officer } = useAuth();
+  const { isMd, toggle } = useContext(SidebarCtx);
   const first = officer?.name?.split(' ')[0] ?? 'Officer';
   return (
-    <header className="h-20 border-b bg-white flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
-      <div className="flex gap-4 items-center">
-        <button className="w-8 h-8 rounded-full bg-agri-dark text-white flex items-center justify-center">
-          <ChevronRight size={16} className="rotate-180" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
+    <header className="h-20 border-b bg-white flex items-center justify-between px-4 md:px-8 sticky top-0 z-20 shadow-sm">
+      <div className="flex gap-4 items-center min-w-0">
+        {!isMd && (
+          <button
+            onClick={toggle}
+            className="w-8 h-8 rounded-full bg-agri-dark text-white flex items-center justify-center shrink-0"
+          >
+            <Menu size={16} />
+          </button>
+        )}
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800 truncate">
             {greeting()}, {first} 👋
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <p className="text-slate-500 text-sm mt-0.5 truncate hidden sm:block">
             What's happening across {officer?.region ?? 'your region'} today.
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+      <div className="flex items-center gap-3 md:gap-6 shrink-0">
+        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
           <MapPin size={16} className="text-green-600" />
           <span className="text-sm font-medium">{officer?.region ?? 'All regions'}</span>
         </div>
         <button className="relative p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600">
           <Bell size={20} />
         </button>
-        <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-          <div className="w-9 h-9 rounded-full bg-agri-dark text-white flex items-center justify-center font-bold text-sm shadow-sm">
+        <div className="flex items-center gap-3 pl-3 md:pl-6 md:border-l border-slate-200">
+          <div className="w-9 h-9 rounded-full bg-agri-dark text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
             {initials(officer?.name ?? 'Officer')}
           </div>
           <div className="hidden md:block">
@@ -191,12 +246,30 @@ function TopBar() {
   );
 }
 
+function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const isLg = useBreakpoint(1024);
+  const isMd = useBreakpoint(768);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // a manual toggle only matters below the `lg` tier — auto-close the drawer if the
+  // viewport grows back past it so it doesn't stay "open" behind a now-visible rail
+  useEffect(() => {
+    if (isLg) setDrawerOpen(false);
+  }, [isLg]);
+  return (
+    <SidebarCtx.Provider value={{ isLg, isMd, drawerOpen, toggle: () => setDrawerOpen((v) => !v) }}>
+      {children}
+    </SidebarCtx.Provider>
+  );
+}
+
 function Shell() {
+  const { isLg, isMd } = useContext(SidebarCtx);
+  const contentMargin = isLg ? 'ml-64' : isMd ? 'ml-20' : 'ml-0';
   return (
     <Router>
       <div className="flex min-h-screen bg-slate-50 font-sans">
         <Sidebar />
-        <main className="flex-1 ml-64 flex flex-col min-h-screen">
+        <main className={cn('flex-1 flex flex-col min-h-screen transition-[margin]', contentMargin)}>
           <TopBar />
           <div className="flex-1 overflow-auto relative">
             <AnimatePresence mode="wait">
@@ -222,8 +295,11 @@ function App() {
   return (
     <AuthProvider>
       <LoginGate>
-        <Shell />
+        <SidebarProvider>
+          <Shell />
+        </SidebarProvider>
       </LoginGate>
+      <Toaster richColors position="top-right" />
     </AuthProvider>
   );
 }
