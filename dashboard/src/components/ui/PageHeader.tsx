@@ -8,17 +8,16 @@ interface PageHeaderProps {
   action?: ReactNode;
 }
 
-/** The one page-top pattern every page opens with — icon badge, title, subtitle, optional action. */
 export function PageHeader({ icon: Icon, title, subtitle, action }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl bg-agri-light text-agri-primary grid place-items-center shrink-0">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eafaf0] text-[#1d6b46] ring-1 ring-[#cfead7]">
           <Icon size={22} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
-          {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
       </div>
       {action}

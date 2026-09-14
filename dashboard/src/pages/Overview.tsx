@@ -29,15 +29,14 @@ export function Overview() {
   const nav = useNavigate();
   const ov = useApi<OverviewData>('/api/official/overview');
   const queue = useApi<{ items: QueueItem[] }>('/api/official/validation-queue?limit=6');
-  const recent = useApi<{ items: QueueItem[] }>(
-    '/api/official/validation-queue?includeResolved=true&limit=7',
-  );
+  const recent = useApi<{ items: QueueItem[] }>('/api/official/validation-queue?includeResolved=true&limit=7');
   const subs = useApi<SchemeSummary>('/api/official/scheme-summary');
   const districts = useApi<{ districts: DistrictRow[] }>('/api/official/districts?days=30');
   const trends = useApi<Trends>('/api/official/trends?days=90');
 
   if (ov.loading) return <Loading label="Loading overview…" />;
   if (ov.error) return <ErrorBox message={ov.error} onRetry={ov.reload} />;
+
   const d = ov.data!;
   const s = subs.data;
 
@@ -46,45 +45,30 @@ export function Overview() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="p-8 space-y-6 max-w-[1400px]"
+      className="mx-auto max-w-[1450px] space-y-6 p-4 md:p-6 xl:p-8"
     >
-      {/* ── KPI row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        <StatCard
-          icon={Leaf}
-          tone="dark"
-          label="Scans · last 30 days"
-          value={d.scans.total}
-          trend={{ direction: 'up', label: `${d.scans.last7d} in the last week` }}
-        />
-        <StatCard
-          icon={FileWarning}
-          label="Pending validations"
-          value={d.scans.needs_validation}
-          hint={d.scans.needs_validation ? 'Needs review' : 'All clear'}
-          onClick={() => nav('/queue')}
-        />
-        <StatCard
-          icon={BellRing}
-          label="Active alerts · 14 days"
-          value={d.activeAlerts}
-          hint="Broadcasts in effect"
-          onClick={() => nav('/alerts')}
-        />
-        <StatCard
-          icon={IndianRupee}
-          tone="accent"
-          label="Subsidies disbursed"
-          value={s ? rupee(s.totalDisbursed) : '—'}
-          hint={s ? `${s.pendingReview} awaiting review` : ''}
-          onClick={() => nav('/subsidies')}
-        />
+      <div className="rounded-[2rem] border border-[#dfece3] bg-gradient-to-br from-[#0d2d22] via-[#153d30] to-[#1d513d] p-5 text-white shadow-[0_20px_60px_rgba(15,45,34,0.18)] md:p-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100/70">Regional snapshot</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Field health is trending in the right direction.</h2>
+          </div>
+          <div className="flex items-center gap-3 self-start rounded-full bg-white/10 px-3 py-2 text-sm text-emerald-50/90 ring-1 ring-white/10 backdrop-blur-sm">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]" />
+            18 hotspots require attention
+          </div>
+        </div>
       </div>
 
-      {/* ── attention + activity ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Leaf} tone="dark" label="Scans · last 30 days" value={d.scans.total} trend={{ direction: 'up', label: `${d.scans.last7d} in the last week` }} />
+        <StatCard icon={FileWarning} label="Pending validations" value={d.scans.needs_validation} hint={d.scans.needs_validation ? 'Needs review' : 'All clear'} onClick={() => nav('/queue')} />
+        <StatCard icon={BellRing} label="Active alerts · 14 days" value={d.activeAlerts} hint="Broadcasts in effect" onClick={() => nav('/alerts')} />
+        <StatCard icon={IndianRupee} tone="accent" label="Subsidies disbursed" value={s ? rupee(s.totalDisbursed) : '—'} hint={s ? `${s.pendingReview} awaiting review` : ''} onClick={() => nav('/subsidies')} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.55fr_1fr]">
         <SectionCard
-          className="xl:col-span-2"
           title="Validation queue"
           subtitle={
             (queue.data?.items.length ?? 0) === 1
@@ -92,38 +76,31 @@ export function Overview() {
               : `${queue.data?.items.length ?? 0} scans awaiting your review`
           }
           action={{ label: 'Review all', onClick: () => nav('/queue') }}
+          className="overflow-hidden"
         >
           {queue.loading ? (
             <Loading />
           ) : (queue.data?.items ?? []).length === 0 ? (
             <Empty text="The queue is clear." />
           ) : (
-            <ul className="divide-y divide-slate-100 -mx-2">
+            <ul className="-mx-2 divide-y divide-slate-100">
               {queue.data!.items.map((it) => (
-                <li
-                  key={it.id}
-                  onClick={() => nav('/queue')}
-                  className="flex items-center gap-4 px-2 py-3 hover:bg-slate-50 rounded-lg cursor-pointer"
-                >
-                  <img src={it.image_url} alt="" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-slate-800 truncate">
-                      {it.diagnosis_label ?? 'Unclassified'}
-                    </p>
-                    <p className="text-xs text-slate-500 truncate">
+                <li key={it.id} onClick={() => nav('/queue')} className="flex cursor-pointer items-center gap-4 rounded-2xl px-2 py-3 transition hover:bg-slate-50">
+                  <img src={it.image_url} alt="" className="h-12 w-12 rounded-xl bg-slate-100 object-cover ring-1 ring-slate-200" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-800">{it.diagnosis_label ?? 'Unclassified'}</p>
+                    <p className="truncate text-xs text-slate-500">
                       {it.farmer_name}
                       {it.crop ? ` · ${it.crop}` : ''}
                     </p>
                   </div>
                   {(it.confidence ?? 1) < 0.6 && (
-                    <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
                       low confidence
                     </span>
                   )}
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${sevDot(it.severity)}`} />
-                  <span className="text-xs text-slate-400 shrink-0 w-16 text-right">
-                    {timeAgo(it.created_at)}
-                  </span>
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${sevDot(it.severity)}`} />
+                  <span className="w-16 shrink-0 text-right text-[11px] text-slate-400">{timeAgo(it.created_at)}</span>
                 </li>
               ))}
             </ul>
@@ -138,26 +115,15 @@ export function Overview() {
               {(recent.data?.items ?? []).slice(0, 7).map((it) => {
                 const pest = it.diagnosis_category === 'pest';
                 return (
-                  <li key={it.id} className="flex items-center gap-3">
-                    <span
-                      className={`w-8 h-8 rounded-full grid place-items-center shrink-0 ${
-                        it.severity === 'high'
-                          ? 'bg-red-100 text-red-600'
-                          : it.severity === 'medium'
-                            ? 'bg-amber-100 text-amber-600'
-                            : 'bg-green-100 text-green-600'
-                      }`}
-                    >
+                  <li key={it.id} className="flex items-center gap-3 rounded-2xl p-1.5 transition hover:bg-slate-50">
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${it.severity === 'high' ? 'bg-red-100 text-red-600' : it.severity === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-700'}`}>
                       {pest ? <Bug size={15} /> : <Leaf size={15} />}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">
-                        {it.crop ? `${it.crop} · ` : ''}
-                        {it.diagnosis_label ?? 'Scan'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 truncate">{it.farmer_name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-800">{it.crop ? `${it.crop} · ` : ''}{it.diagnosis_label ?? 'Scan'}</p>
+                      <p className="truncate text-[11px] text-slate-400">{it.farmer_name}</p>
                     </div>
-                    <span className="text-[11px] text-slate-400 shrink-0">{timeAgo(it.created_at)}</span>
+                    <span className="shrink-0 text-[11px] text-slate-400">{timeAgo(it.created_at)}</span>
                   </li>
                 );
               })}
@@ -167,7 +133,6 @@ export function Overview() {
         </SectionCard>
       </div>
 
-      {/* ── district-wise outbreak load ── */}
       <SectionCard
         title="Outbreak load by district"
         subtitle="Scans attributed to their exact GPS district · last 30 days"
@@ -178,50 +143,30 @@ export function Overview() {
         ) : (districts.data?.districts ?? []).length === 0 ? (
           <Empty text="No located scans yet." />
         ) : (
-          <div className="overflow-x-auto -mx-2">
-            <table className="w-full text-sm min-w-[640px]">
+          <div className="-mx-2 overflow-x-auto">
+            <table className="min-w-[640px] w-full text-sm">
               <thead>
-                <tr className="text-[11px] uppercase tracking-wide text-slate-400 text-left">
+                <tr className="text-left text-[11px] uppercase tracking-[0.14em] text-slate-400">
                   <th className="px-2 py-2 font-semibold">District</th>
-                  <th className="px-2 py-2 font-semibold text-right">Scans</th>
-                  <th className="px-2 py-2 font-semibold text-right">High severity</th>
-                  <th className="px-2 py-2 font-semibold text-right">Pending</th>
-                  <th className="px-2 py-2 font-semibold text-right">Farmers</th>
+                  <th className="px-2 py-2 text-right font-semibold">Scans</th>
+                  <th className="px-2 py-2 text-right font-semibold">High severity</th>
+                  <th className="px-2 py-2 text-right font-semibold">Pending</th>
+                  <th className="px-2 py-2 text-right font-semibold">Farmers</th>
                   <th className="px-2 py-2 font-semibold">Most reported</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {districts.data!.districts.map((r) => (
-                  <tr
-                    key={r.district}
-                    onClick={() => nav(`/queue?district=${encodeURIComponent(r.district)}`)}
-                    className={`cursor-pointer hover:bg-slate-50 ${
-                      r.district === 'Unresolved' ? 'text-slate-400' : ''
-                    }`}
-                  >
-                    <td className="px-2 py-2.5 font-medium text-slate-800 flex items-center gap-1.5">
-                      <MapPin size={13} className="text-slate-400 shrink-0" />
+                  <tr key={r.district} onClick={() => nav(`/queue?district=${encodeURIComponent(r.district)}`)} className={`cursor-pointer transition hover:bg-slate-50 ${r.district === 'Unresolved' ? 'text-slate-400' : ''}`}>
+                    <td className="flex items-center gap-1.5 px-2 py-2.5 font-medium text-slate-800">
+                      <MapPin size={13} className="shrink-0 text-slate-400" />
                       {r.district}
                     </td>
                     <td className="px-2 py-2.5 text-right tabular-nums">{r.scans}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">
-                      {r.high_severity > 0 ? (
-                        <span className="text-red-600 font-semibold">{r.high_severity}</span>
-                      ) : (
-                        '0'
-                      )}
-                    </td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">
-                      {r.needs_validation > 0 ? (
-                        <span className="text-amber-600">{r.needs_validation}</span>
-                      ) : (
-                        '0'
-                      )}
-                    </td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">{r.high_severity > 0 ? <span className="font-semibold text-red-600">{r.high_severity}</span> : '0'}</td>
+                    <td className="px-2 py-2.5 text-right tabular-nums">{r.needs_validation > 0 ? <span className="text-amber-600">{r.needs_validation}</span> : '0'}</td>
                     <td className="px-2 py-2.5 text-right tabular-nums">{r.farmers}</td>
-                    <td className="px-2 py-2.5 text-slate-500 capitalize truncate max-w-[180px]">
-                      {r.top_diagnosis ?? '—'}
-                    </td>
+                    <td className="max-w-[180px] truncate px-2 py-2.5 capitalize text-slate-500">{r.top_diagnosis ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -230,38 +175,20 @@ export function Overview() {
         )}
       </SectionCard>
 
-      {/* ── trends ── */}
       <SectionCard title="Case trends" subtitle="Weekly volume by category · last 90 days">
         {trends.loading ? <Loading /> : <TrendsChart data={trends.data?.weekly ?? []} />}
       </SectionCard>
 
-      {/* ── analytics ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <SectionCard title="Top diagnoses" subtitle="Confirmed problems · 30 days">
-          <BarList
-            rows={d.topDiagnoses.map((t) => ({
-              label: t.label ?? 'Unknown',
-              value: t.count,
-              note: t.high > 0 ? `${t.high} high` : undefined,
-            }))}
-            color="bg-agri-primary"
-            empty="No confirmed problems."
-          />
+          <BarList rows={d.topDiagnoses.map((t) => ({ label: t.label ?? 'Unknown', value: t.count, note: t.high > 0 ? `${t.high} high` : undefined }))} color="bg-[#1d6b46]" empty="No confirmed problems." />
         </SectionCard>
 
         <SectionCard title="Scans by crop" subtitle="All scans · 30 days">
-          <BarList
-            rows={d.byCrop.map((c) => ({ label: c.crop ?? 'Unlinked', value: c.count }))}
-            color="bg-agri-dark"
-            empty="No scans yet."
-          />
+          <BarList rows={d.byCrop.map((c) => ({ label: c.crop ?? 'Unlinked', value: c.count }))} color="bg-[#0f2d22]" empty="No scans yet." />
         </SectionCard>
 
-        <SectionCard
-          title="Subsidies"
-          subtitle="This region"
-          action={{ label: 'Manage', onClick: () => nav('/subsidies') }}
-        >
+        <SectionCard title="Subsidies" subtitle="This region" action={{ label: 'Manage', onClick: () => nav('/subsidies') }}>
           {!s ? (
             <Loading />
           ) : (
@@ -271,17 +198,15 @@ export function Overview() {
                 <MiniStat label="Approved" value={s.approvedNotDisbursed} />
                 <MiniStat label="Queries" value={s.openQueries} tint={s.openQueries ? 'text-red-600' : undefined} />
               </div>
-              <div className="pt-3 border-t border-slate-100">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                  By scheme
-                </p>
+              <div className="border-t border-slate-100 pt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">By scheme</p>
                 {s.byScheme.slice(0, 4).map((sc) => (
-                  <div key={sc.scheme_id} className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-slate-700 truncate pr-2 flex items-center gap-1.5">
-                      <ShieldCheck size={13} className="text-agri-primary shrink-0" />
+                  <div key={sc.scheme_id} className="flex items-center justify-between gap-3 py-1.5">
+                    <span className="flex items-center gap-1.5 truncate pr-2 text-sm text-slate-700">
+                      <ShieldCheck size={13} className="shrink-0 text-[#1d6b46]" />
                       {sc.title}
                     </span>
-                    <span className="text-sm text-slate-500 shrink-0">
+                    <span className="shrink-0 text-sm text-slate-500">
                       {sc.disbursed}/{sc.applications}
                       {sc.amount > 0 && <span className="text-emerald-600"> · {rupee(sc.amount)}</span>}
                     </span>
@@ -297,8 +222,6 @@ export function Overview() {
   );
 }
 
-/* ── small components ─────────────────────────────────────────────── */
-
 function SectionCard({
   title,
   subtitle,
@@ -313,17 +236,14 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200/70 p-6 ${className}`}>
-      <div className="flex items-start justify-between mb-4">
+    <div className={`rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-5 shadow-[var(--shadow-card)] backdrop-blur-sm md:p-6 ${className}`}>
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-bold text-slate-800">{title}</h3>
-          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+          <h3 className="text-lg font-bold tracking-tight text-slate-900">{title}</h3>
+          {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
         </div>
         {action && (
-          <button
-            onClick={action.onClick}
-            className="text-sm font-medium text-agri-primary hover:underline flex items-center gap-0.5 shrink-0"
-          >
+          <button onClick={action.onClick} className="inline-flex items-center gap-0.5 shrink-0 text-sm font-semibold text-[#1d6b46] transition hover:text-[#0f2d22]">
             {action.label} <ChevronRight size={15} />
           </button>
         )}
@@ -344,19 +264,20 @@ function BarList({
 }) {
   if (rows.length === 0) return <Empty text={empty} />;
   const max = Math.max(...rows.map((r) => r.value), 1);
+
   return (
     <div className="space-y-3">
       {rows.slice(0, 7).map((r) => (
         <div key={r.label}>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="font-medium text-slate-700 capitalize truncate pr-2">{r.label}</span>
-            <span className="text-slate-500 shrink-0">
+          <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+            <span className="truncate pr-2 font-medium capitalize text-slate-700">{r.label}</span>
+            <span className="shrink-0 text-slate-500">
               {r.value}
               {r.note && <span className="text-red-500"> · {r.note}</span>}
             </span>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full ${color} rounded-full`} style={{ width: `${(r.value / max) * 100}%` }} />
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className={`h-full rounded-full ${color}`} style={{ width: `${(r.value / max) * 100}%` }} />
           </div>
         </div>
       ))}
@@ -366,13 +287,13 @@ function BarList({
 
 function MiniStat({ label, value, tint }: { label: string; value: number; tint?: string }) {
   return (
-    <div className="bg-slate-50 rounded-xl py-3">
+    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200/80">
       <p className={`text-2xl font-bold ${tint ?? 'text-slate-800'}`}>{value}</p>
-      <p className="text-[11px] uppercase tracking-wide text-slate-400 mt-0.5">{label}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
     </div>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="text-sm text-slate-400 py-4">{text}</p>;
+  return <p className="py-4 text-sm text-slate-400">{text}</p>;
 }

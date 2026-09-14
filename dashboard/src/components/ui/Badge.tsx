@@ -3,11 +3,11 @@ import { cn } from '../../lib/utils';
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 const TONE: Record<Tone, string> = {
-  success: 'bg-status-success-bg text-status-success',
-  warning: 'bg-status-warning-bg text-status-warning',
-  danger: 'bg-status-danger-bg text-status-danger',
-  info: 'bg-status-info-bg text-status-info',
-  neutral: 'bg-slate-100 text-slate-600',
+  success: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
+  warning: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+  danger: 'bg-rose-50 text-rose-700 ring-1 ring-rose-100',
+  info: 'bg-sky-50 text-sky-700 ring-1 ring-sky-100',
+  neutral: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
 };
 
 interface BadgeProps {
@@ -18,13 +18,12 @@ interface BadgeProps {
 
 export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
   return (
-    <span className={cn('px-2 py-1 rounded text-xs font-medium capitalize inline-block', TONE[tone], className)}>
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize', TONE[tone], className)}>
       {children}
     </span>
   );
 }
 
-/** severity/risk share the same three-level vocabulary — one tone mapping for both. */
 const LEVEL_TONE: Record<string, Tone> = { high: 'danger', medium: 'warning', low: 'success' };
 
 export function SeverityBadge({ severity }: { severity: string | null | undefined }) {

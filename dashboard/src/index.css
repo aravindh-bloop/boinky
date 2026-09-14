@@ -1,40 +1,75 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+:root {
+  color-scheme: light;
+}
+
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     font-family: 'Inter', sans-serif;
-    background-color: #f8fafc;
+    background:
+      radial-gradient(circle at top left, rgba(53, 129, 91, 0.12), transparent 30%),
+      linear-gradient(180deg, #f4f7f2 0%, #eef5f1 100%);
+    color: #0f172a;
+  }
+
+  ::selection {
+    background: rgba(34, 197, 94, 0.2);
   }
 }
 
 @theme {
-  /* brand — reserved for chrome and primary actions, not large colour fields */
-  --color-agri-dark: #0d3a24;
-  --color-agri-primary: #1b5e20;
-  --color-agri-light: #e8f5e9;
+  --color-agri-dark: #0f2d22;
+  --color-agri-primary: #1d6b46;
+  --color-agri-primary-soft: #dff7ea;
+  --color-agri-light: #edf9f1;
 
-  /* one status triad, used identically for severity/risk/state everywhere */
-  --color-status-success: #059669;
-  --color-status-success-bg: #ecfdf5;
-  --color-status-warning: #d97706;
-  --color-status-warning-bg: #fffbeb;
-  --color-status-danger: #dc2626;
-  --color-status-danger-bg: #fef2f2;
-  --color-status-info: #2563eb;
-  --color-status-info-bg: #eff6ff;
+  --color-status-success: #0f9f62;
+  --color-status-success-bg: #eafdf1;
+  --color-status-warning: #c77711;
+  --color-status-warning-bg: #fff7e8;
+  --color-status-danger: #d53d3d;
+  --color-status-danger-bg: #fff1f1;
+  --color-status-info: #2667d7;
+  --color-status-info-bg: #edf4ff;
 
-  /* legacy aliases — kept so existing agri-alert/warn/info references don't break */
   --color-agri-alert: var(--color-status-danger);
   --color-agri-warn: var(--color-status-warning);
   --color-agri-info: var(--color-status-info);
 
-  --radius-card: 1rem;
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 8px rgba(15, 23, 42, 0.04);
+  --radius-card: 1.5rem;
+  --shadow-card: 0 8px 30px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 @custom-variant dark (&:is(.dark *));
 
 body {
-  @apply bg-slate-50 text-slate-900 font-sans;
+  @apply bg-[#f4f7f2] text-slate-900 antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 45, 34, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 45, 34, 0.4);
 }

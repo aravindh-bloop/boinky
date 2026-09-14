@@ -6,17 +6,16 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANT: Record<Variant, string> = {
-  primary: 'bg-agri-primary text-white hover:bg-agri-dark disabled:hover:bg-agri-primary',
-  secondary: 'bg-slate-800 text-white hover:bg-slate-900 disabled:hover:bg-slate-800',
-  outline: 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:hover:bg-white',
+  primary: 'bg-[#143f2f] text-white shadow-[0_10px_20px_rgba(20,63,47,0.18)] hover:bg-[#0d3329] disabled:hover:bg-[#143f2f]',
+  secondary: 'bg-slate-900 text-white hover:bg-slate-800 disabled:hover:bg-slate-900',
+  outline: 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:hover:bg-white',
   ghost: 'text-slate-600 hover:bg-slate-100 disabled:hover:bg-transparent',
-  danger:
-    'bg-white border border-status-danger/30 text-status-danger hover:bg-status-danger-bg disabled:hover:bg-white',
+  danger: 'bg-white border border-red-200 text-red-600 hover:bg-red-50 disabled:hover:bg-white',
 };
 
 const SIZE: Record<Size, string> = {
   sm: 'text-xs px-2.5 py-1.5 gap-1.5 rounded-lg',
-  md: 'text-sm px-3.5 py-2 gap-2 rounded-lg',
+  md: 'text-sm px-3.5 py-2 gap-2 rounded-xl',
   lg: 'text-sm px-4 py-2.5 gap-2 rounded-xl',
 };
 
@@ -41,7 +40,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition disabled:opacity-40 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50',
         VARIANT[variant],
         SIZE[size],
         className,

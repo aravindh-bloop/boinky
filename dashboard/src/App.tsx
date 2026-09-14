@@ -1,14 +1,39 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'sonner';
-import { LayoutDashboard, Map, ListTodo, Users, Bell, Calendar as CalendarIcon, HandCoins, Umbrella, Leaf, Menu, X, MapPin, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Map,
+  ListTodo,
+  Users,
+  Bell,
+  Calendar as CalendarIcon,
+  HandCoins,
+  Umbrella,
+  Leaf,
+  Menu,
+  X,
+  MapPin,
+  LogOut,
+  Search,
+  ChevronRight,
+  Sparkles,
+} from 'lucide-react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { AuthProvider, LoginGate, useAuth } from './lib/auth';
 import { api } from './lib/api';
 import { useBreakpoint } from './lib/useBreakpoint';
 import { cn } from './lib/utils';
 
-/** Sidebar collapse state, shared between the sidebar itself and the topbar's toggle. */
+import { Overview } from './pages/Overview';
+import { HotspotMap } from './pages/HotspotMap';
+import { ValidationQueue } from './pages/ValidationQueue';
+import { FarmersFields } from './pages/FarmersFields';
+import { Alerts } from './pages/Alerts';
+import { CropCalendar } from './pages/CropCalendar';
+import { Subsidies } from './pages/Subsidies';
+import { Insurance } from './pages/Insurance';
+
 const SidebarCtx = createContext<{ isLg: boolean; isMd: boolean; drawerOpen: boolean; toggle: () => void }>({
   isLg: true,
   isMd: true,
@@ -48,27 +73,17 @@ function SystemStatus() {
         : down.length
           ? `${down.join(', ')} offline`
           : 'All systems operational';
-  const color = state === 'ok' && !down.length ? 'bg-green-400' : state === 'checking' ? 'bg-slate-400' : 'bg-red-400';
+  const color = state === 'ok' && !down.length ? 'bg-emerald-400' : state === 'checking' ? 'bg-slate-400' : 'bg-rose-400';
 
   return (
-    <div className="p-4 m-4 bg-[#114b30] rounded-xl border border-white/5 shadow-inner">
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <div className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(74,222,128,0.6)]`} />
+    <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-sm">
+      <div className="flex items-center gap-2 text-[11px] font-medium text-slate-200">
+        <div className={`h-2.5 w-2.5 rounded-full ${color} shadow-[0_0_12px_rgba(74,222,128,0.45)]`} />
         {label}
       </div>
     </div>
   );
 }
-
-import { Overview } from './pages/Overview';
-import { HotspotMap } from './pages/HotspotMap';
-import { ValidationQueue } from './pages/ValidationQueue';
-import { FarmersFields } from './pages/FarmersFields';
-import { Alerts } from './pages/Alerts';
-import { CropCalendar } from './pages/CropCalendar';
-import { Subsidies } from './pages/Subsidies';
-import { Insurance } from './pages/Insurance';
-// Removed placeholders
 
 const NAV_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
@@ -84,40 +99,37 @@ const NAV_ITEMS = [
 function Sidebar() {
   const location = useLocation();
   const { isLg, isMd, drawerOpen, toggle } = useContext(SidebarCtx);
-  // full labelled rail on desktop, icon-only rail on tablet, off-canvas drawer on phone
   const mode: 'full' | 'rail' | 'drawer' = isLg ? 'full' : isMd ? 'rail' : 'drawer';
 
   return (
     <>
-      {mode === 'drawer' && drawerOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40" onClick={toggle} />
-      )}
+      {mode === 'drawer' && drawerOpen && <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={toggle} />}
       <aside
         className={cn(
-          'bg-agri-dark text-white flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform',
-          mode === 'full' && 'w-64',
-          mode === 'rail' && 'w-20',
-          mode === 'drawer' && cn('w-64', drawerOpen ? 'translate-x-0' : '-translate-x-full'),
+          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-[#1d4034] bg-[#0e2c22] text-white shadow-[0_30px_80px_rgba(15,45,34,0.28)] transition-all duration-300',
+          mode === 'full' && 'w-72',
+          mode === 'rail' && 'w-24',
+          mode === 'drawer' && cn('w-72', drawerOpen ? 'translate-x-0' : '-translate-x-full'),
         )}
       >
-        <div className={cn('p-6 flex items-center gap-3', mode === 'rail' && 'px-0 justify-center')}>
-          <div className="w-10 h-10 rounded-full bg-agri-primary/40 border border-agri-primary flex items-center justify-center shrink-0">
-            <Leaf size={22} className="text-agri-light" />
+        <div className={cn('flex items-center gap-3 border-b border-white/10 px-5 py-5', mode === 'rail' && 'justify-center px-2')}>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ebfff1] via-[#d8f4df] to-[#b8ecd0] text-[#0f2d22] shadow-inner">
+            <Leaf size={22} />
           </div>
           {mode !== 'rail' && (
-            <div>
-              <h2 className="text-2xl font-bold text-white leading-tight">Agrian</h2>
-              <p className="text-[10px] text-agri-light/60 uppercase tracking-widest">Crop Health Intelligence</p>
+            <div className="min-w-0">
+              <h2 className="text-[1.7rem] font-black tracking-tight">Agrian</h2>
+              <p className="text-[9px] uppercase tracking-[0.22em] text-emerald-100/70">Crop Health Intelligence</p>
             </div>
           )}
           {mode === 'drawer' && (
-            <button onClick={toggle} className="ml-auto text-white/60 hover:text-white">
-              <X size={18} />
+            <button onClick={toggle} className="ml-auto rounded-full p-1.5 text-emerald-100/70 hover:bg-white/5 hover:text-white">
+              <X size={16} />
             </button>
           )}
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-2">
+        <nav className="flex-1 space-y-2 px-3 py-4">
           {NAV_ITEMS.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -127,26 +139,26 @@ function Sidebar() {
                 onClick={() => mode === 'drawer' && toggle()}
                 title={mode === 'rail' ? item.label : undefined}
                 className={cn(
-                  'relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-colors',
-                  mode === 'rail' && 'justify-center px-0 mx-2',
-                  isActive ? 'text-agri-dark font-semibold' : 'text-white/80 hover:bg-white/10',
+                  'group relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-3 transition-all duration-200',
+                  mode === 'rail' && 'justify-center px-0',
+                  isActive ? 'bg-[#ebfff1] text-[#0f2d22]' : 'text-emerald-50/80 hover:bg-white/5 hover:text-white',
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId="active-pill"
-                    className="absolute inset-0 bg-agri-light rounded-xl shadow-sm"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    className="absolute inset-0 rounded-2xl bg-[#ebfff1]"
+                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
                   />
                 )}
-                <item.icon size={20} className="relative z-10 shrink-0" />
-                {mode !== 'rail' && <span className="relative z-10">{item.label}</span>}
+                <item.icon size={19} className={cn('relative z-10 shrink-0', isActive ? 'text-[#0f2d22]' : 'text-emerald-100/80')} />
+                {mode !== 'rail' && <span className="relative z-10 text-sm font-medium">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {mode !== 'rail' && <SystemStatus />}
+        {!mode || mode === 'drawer' ? <SystemStatus /> : null}
         <OfficerFooter compact={mode === 'rail'} />
       </aside>
     </>
@@ -154,40 +166,44 @@ function Sidebar() {
 }
 
 function initials(name: string) {
-  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
 function OfficerFooter({ compact = false }: { compact?: boolean }) {
   const { officer, logout } = useAuth();
+
   if (compact) {
     return (
-      <div className="p-4 border-t border-white/10 flex flex-col items-center gap-3">
-        <div
-          title={officer?.name ?? 'Officer'}
-          className="w-9 h-9 rounded-full bg-agri-light text-agri-dark flex items-center justify-center font-bold text-xs shadow-sm shrink-0"
-        >
+      <div className="flex flex-col items-center gap-3 border-t border-white/10 p-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ebfff1] text-sm font-bold text-[#0f2d22]">
           {initials(officer?.name ?? 'Officer')}
         </div>
-        <button onClick={logout} title="Sign out" className="text-agri-light/60 hover:text-white shrink-0">
+        <button onClick={logout} title="Sign out" className="rounded-full p-2 text-emerald-100/70 hover:bg-white/5 hover:text-white">
           <LogOut size={16} />
         </button>
       </div>
     );
   }
+
   return (
-    <div className="p-4 border-t border-white/10 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-full bg-agri-light text-agri-dark flex items-center justify-center font-bold shadow-sm shrink-0">
+    <div className="flex items-center justify-between gap-3 border-t border-white/10 p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ebfff1] text-sm font-bold text-[#0f2d22]">
           {initials(officer?.name ?? 'Officer')}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-semibold truncate">{officer?.name ?? 'Officer'}</div>
-          <div className="text-[11px] text-agri-light/60 truncate">
+          <div className="truncate text-sm font-semibold text-white">{officer?.name ?? 'Officer'}</div>
+          <div className="truncate text-[11px] text-emerald-100/70">
             {officer?.region ? `${officer.region} • Agriculture Officer` : 'Agriculture Officer'}
           </div>
         </div>
       </div>
-      <button onClick={logout} title="Sign out" className="text-agri-light/60 hover:text-white shrink-0">
+      <button onClick={logout} title="Sign out" className="rounded-full p-2 text-emerald-100/70 hover:bg-white/5 hover:text-white">
         <LogOut size={16} />
       </button>
     </div>
@@ -203,44 +219,65 @@ function TopBar() {
   const { officer } = useAuth();
   const { isMd, toggle } = useContext(SidebarCtx);
   const first = officer?.name?.split(' ')[0] ?? 'Officer';
+
   return (
-    <header className="h-20 border-b bg-white flex items-center justify-between px-4 md:px-8 sticky top-0 z-20 shadow-sm">
-      <div className="flex gap-4 items-center min-w-0">
-        {!isMd && (
-          <button
-            onClick={toggle}
-            className="w-8 h-8 rounded-full bg-agri-dark text-white flex items-center justify-center shrink-0"
-          >
-            <Menu size={16} />
+    <header className="sticky top-0 z-20 border-b border-slate-200/90 bg-white/75 px-4 py-4 backdrop-blur-xl md:px-8">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          {!isMd && (
+            <button
+              onClick={toggle}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300"
+            >
+              <Menu size={17} />
+            </button>
+          )}
+
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d6b46]">Operations dashboard</p>
+            <h1 className="truncate text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
+              {greeting()}, {first} <span className="text-2xl">👋</span>
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm xl:flex">
+            <MapPin size={16} className="text-[#1d6b46]" />
+            <span className="font-medium">{officer?.region ?? 'All regions'}</span>
+          </div>
+
+          <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm md:flex">
+            <Search size={14} />
+            <span>Search</span>
+          </div>
+
+          <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900">
+            <Bell size={18} />
+            <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
           </button>
-        )}
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800 truncate">
-            {greeting()}, {first} 👋
-          </h1>
-          <p className="text-slate-500 text-sm mt-0.5 truncate hidden sm:block">
-            What's happening across {officer?.region ?? 'your region'} today.
-          </p>
+
+          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-2 py-2 shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0f2d22] text-sm font-bold text-white">
+              {initials(officer?.name ?? 'Officer')}
+            </div>
+            <div className="hidden md:block">
+              <div className="text-sm font-semibold text-slate-800">{officer?.name ?? 'Officer'}</div>
+              <div className="text-[11px] text-slate-500">Agriculture Officer</div>
+            </div>
+            <ChevronRight size={15} className="hidden text-slate-400 md:block" />
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 md:gap-6 shrink-0">
-        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
-          <MapPin size={16} className="text-green-600" />
-          <span className="text-sm font-medium">{officer?.region ?? 'All regions'}</span>
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#dfece3] bg-[#f5fbf7] px-4 py-3 md:px-5">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Sparkles size={14} className="text-[#1d6b46]" />
+          <span>Field intelligence refreshed 4 minutes ago</span>
         </div>
-        <button className="relative p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600">
-          <Bell size={20} />
+        <button className="hidden rounded-full bg-[#0f2d22] px-3 py-1.5 text-xs font-semibold text-white shadow-sm md:inline-flex">
+          View briefing
         </button>
-        <div className="flex items-center gap-3 pl-3 md:pl-6 md:border-l border-slate-200">
-          <div className="w-9 h-9 rounded-full bg-agri-dark text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
-            {initials(officer?.name ?? 'Officer')}
-          </div>
-          <div className="hidden md:block">
-            <div className="text-sm font-semibold text-slate-800">{officer?.name ?? 'Officer'}</div>
-            <div className="text-[11px] text-slate-500">Agriculture Officer</div>
-          </div>
-        </div>
       </div>
     </header>
   );
@@ -250,11 +287,11 @@ function SidebarProvider({ children }: { children: React.ReactNode }) {
   const isLg = useBreakpoint(1024);
   const isMd = useBreakpoint(768);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // a manual toggle only matters below the `lg` tier — auto-close the drawer if the
-  // viewport grows back past it so it doesn't stay "open" behind a now-visible rail
+
   useEffect(() => {
     if (isLg) setDrawerOpen(false);
   }, [isLg]);
+
   return (
     <SidebarCtx.Provider value={{ isLg, isMd, drawerOpen, toggle: () => setDrawerOpen((v) => !v) }}>
       {children}
@@ -264,14 +301,15 @@ function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const { isLg, isMd } = useContext(SidebarCtx);
-  const contentMargin = isLg ? 'ml-64' : isMd ? 'ml-20' : 'ml-0';
+  const contentMargin = isLg ? 'ml-72' : isMd ? 'ml-24' : 'ml-0';
+
   return (
     <Router>
-      <div className="flex min-h-screen bg-slate-50 font-sans">
+      <div className="flex min-h-screen bg-[#f4f7f2] font-sans">
         <Sidebar />
-        <main className={cn('flex-1 flex flex-col min-h-screen transition-[margin]', contentMargin)}>
+        <main className={cn('flex min-h-screen flex-1 flex-col transition-[margin]', contentMargin)}>
           <TopBar />
-          <div className="flex-1 overflow-auto relative">
+          <div className="flex-1 overflow-auto">
             <AnimatePresence mode="wait">
               <Routes>
                 <Route path="/" element={<Overview />} />
