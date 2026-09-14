@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { IndianRupee, ClipboardList, CheckCircle2, MessagesSquare, Send, X } from 'lucide-react';
+import { IndianRupee, ClipboardList, CheckCircle2, MessagesSquare, Send, X, HandCoins } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import type {
@@ -11,7 +11,22 @@ import type {
   SchemeThread,
   SchemeMessage,
 } from '../lib/types';
-import { Loading, ErrorBox, StatCard, DataTable, Badge, type Tone, type Column } from '../components/ui';
+import {
+  Loading,
+  ErrorBox,
+  StatCard,
+  DataTable,
+  Badge,
+  Card,
+  Button,
+  PageHeader,
+  FilterPill,
+  Textarea,
+  Input,
+  EmptyState,
+  type Tone,
+  type Column,
+} from '../components/ui';
 import { rupee, timeAgo } from '../lib/format';
 
 const STATUS_TONE: Record<AppStatus, Tone> = {
@@ -56,7 +71,7 @@ export function Subsidies() {
       exit={{ opacity: 0 }}
       className="p-8 h-[calc(100vh-80px)] overflow-auto"
     >
-      <h2 className="text-2xl font-bold mb-6">Subsidies &amp; Schemes</h2>
+      <PageHeader icon={HandCoins} title="Subsidies & Schemes" subtitle="Applications, disbursements and farmer queries" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard icon={IndianRupee} label="Total disbursed" value={s ? rupee(s.totalDisbursed) : '—'} tone="accent" />
@@ -65,13 +80,13 @@ export function Subsidies() {
         <StatCard icon={MessagesSquare} label="Open queries" value={s?.openQueries ?? '—'} />
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-4 w-fit">
         {(['applications', 'queries'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${
-              tab === t ? 'bg-agri-dark text-white' : 'bg-white border text-slate-600'
+            className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition ${
+              tab === t ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'
             }`}
           >
             {t}
@@ -83,17 +98,11 @@ export function Subsidies() {
       {tab === 'applications' ? (
         <div className="flex gap-6">
           <div className={sel ? 'w-2/3' : 'w-full'}>
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 flex-wrap">
               {(['', 'submitted', 'under_review', 'approved', 'disbursed', 'rejected'] as const).map((st) => (
-                <button
-                  key={st || 'all'}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                    statusFilter === st ? 'bg-agri-primary text-white border-transparent' : 'bg-white text-slate-600'
-                  }`}
-                >
+                <FilterPill key={st || 'all'} active={statusFilter === st} onClick={() => setStatusFilter(st)}>
                   {st ? STATUS_LABEL[st] : 'All'}
-                </button>
+                </FilterPill>
               ))}
             </div>
             {apps.error ? (
@@ -105,7 +114,7 @@ export function Subsidies() {
                 keyField="id"
                 selectedKey={sel?.id}
                 onRowClick={setSel}
-                emptyState={<div className="p-8 text-center text-slate-500 text-sm">No applications.</div>}
+                emptyState={<EmptyState icon={ClipboardList} title="No applications" />}
                 columns={
                   [
                     {
@@ -144,29 +153,25 @@ export function Subsidies() {
           <div className={selThread ? 'w-1/2' : 'w-full'}>
             {threads.loading ? (
               <Loading />
+            ) : (threads.data?.threads ?? []).length === 0 ? (
+              <Card>
+                <EmptyState icon={MessagesSquare} title="No questions from farmers yet" />
+              </Card>
             ) : (
               <div className="space-y-2">
                 {(threads.data?.threads ?? []).map((t) => (
-                  <button
+                  <Card
                     key={t.id}
+                    padding="md"
+                    interactive
                     onClick={() => setSelThread(t.id)}
-                    className={`w-full text-left bg-white border rounded-xl p-4 hover:border-agri-primary ${
-                      selThread === t.id ? 'border-agri-primary' : ''
-                    }`}
+                    className={selThread === t.id ? 'border-agri-primary' : ''}
                   >
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-3">
                       <span className="font-semibold text-slate-800">{t.subject}</span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          t.status === 'open'
-                            ? 'bg-red-100 text-red-700'
-                            : t.status === 'answered'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
+                      <Badge tone={t.status === 'open' ? 'danger' : t.status === 'answered' ? 'success' : 'neutral'}>
                         {t.status}
-                      </span>
+                      </Badge>
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
                       {t.farmer_name}
@@ -178,13 +183,8 @@ export function Subsidies() {
                         {t.last_message}
                       </p>
                     )}
-                  </button>
+                  </Card>
                 ))}
-                {(threads.data?.threads ?? []).length === 0 && (
-                  <div className="p-8 text-center text-slate-500 bg-white border border-dashed rounded-xl">
-                    No questions from farmers yet.
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -229,86 +229,72 @@ function DecisionPanel({
   }
 
   return (
-    <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="w-1/3 bg-white border rounded-xl p-5 h-fit sticky top-4">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="font-bold text-lg">{app.scheme_title}</h3>
-          <p className="text-sm text-slate-500">
-            {app.farmer_name} · {app.farmer_phone ?? app.region}
+    <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="w-1/3 h-fit sticky top-4">
+      <Card>
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="font-bold text-lg text-slate-800">{app.scheme_title}</h3>
+            <p className="text-sm text-slate-500">
+              {app.farmer_name} · {app.farmer_phone ?? app.region}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="text-sm space-y-2 mb-4">
+          <p>
+            <span className="text-slate-500">Indicative benefit:</span> {app.benefit_amount ?? '—'}
+          </p>
+          {app.farmer_note && (
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-xs text-slate-500 mb-1">Farmer's note</p>
+              {app.farmer_note}
+            </div>
+          )}
+          {app.officer_note && (
+            <div className="p-3 bg-status-warning-bg rounded-lg border border-amber-100">
+              <p className="text-xs text-slate-500 mb-1">Last officer note</p>
+              {app.officer_note}
+            </div>
+          )}
+          <p>
+            <span className="text-slate-500">Current status:</span> {STATUS_LABEL[app.status]}
+            {app.amount != null && ` · ${rupee(app.amount)}`}
           </p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
-          <X size={18} />
-        </button>
-      </div>
 
-      <div className="text-sm space-y-2 mb-4">
-        <p>
-          <span className="text-slate-500">Indicative benefit:</span> {app.benefit_amount ?? '—'}
-        </p>
-        {app.farmer_note && (
-          <div className="p-3 bg-slate-50 rounded-lg border">
-            <p className="text-xs text-slate-500 mb-1">Farmer's note</p>
-            {app.farmer_note}
-          </div>
-        )}
-        {app.officer_note && (
-          <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-            <p className="text-xs text-slate-500 mb-1">Last officer note</p>
-            {app.officer_note}
-          </div>
-        )}
-        <p>
-          <span className="text-slate-500">Current status:</span> {STATUS_LABEL[app.status]}
-          {app.amount != null && ` · ${rupee(app.amount)}`}
-        </p>
-      </div>
+        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note / reason (shown to the farmer)" className="mb-3" />
+        <Input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))}
+          placeholder="Amount to disburse (₹)"
+          inputMode="numeric"
+          className="mb-3"
+        />
 
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        rows={2}
-        placeholder="Note / reason (shown to the farmer)"
-        className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
-      />
-      <input
-        value={amount}
-        onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))}
-        placeholder="Amount to disburse (₹)"
-        inputMode="numeric"
-        className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
-      />
-
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          disabled={!!busy || app.status === 'disbursed'}
-          onClick={() => decide('under_review')}
-          className="py-2 text-sm border rounded-lg hover:bg-slate-50 disabled:opacity-40"
-        >
-          Under review
-        </button>
-        <button
-          disabled={!!busy || app.status === 'disbursed'}
-          onClick={() => decide('approved')}
-          className="py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50 disabled:opacity-40"
-        >
-          Approve
-        </button>
-        <button
-          disabled={!!busy}
-          onClick={() => decide('rejected')}
-          className="py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-40"
-        >
-          Reject
-        </button>
-        <button
-          disabled={!!busy || !amount}
-          onClick={() => decide('disbursed')}
-          className="py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40"
-        >
-          Mark disbursed
-        </button>
-      </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" disabled={!!busy || app.status === 'disbursed'} onClick={() => decide('under_review')}>
+            Under review
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!!busy || app.status === 'disbursed'}
+            onClick={() => decide('approved')}
+            className="border-status-success/30 text-status-success hover:bg-status-success-bg"
+          >
+            Approve
+          </Button>
+          <Button variant="danger" size="sm" disabled={!!busy} onClick={() => decide('rejected')}>
+            Reject
+          </Button>
+          <Button variant="primary" size="sm" disabled={!!busy || !amount} onClick={() => decide('disbursed')}>
+            Mark disbursed
+          </Button>
+        </div>
+      </Card>
     </motion.div>
   );
 }
@@ -347,11 +333,11 @@ function ThreadPanel({
     <motion.div
       initial={{ opacity: 0, x: 30 }}
       animate={{ opacity: 1, x: 0 }}
-      className="w-1/2 bg-white border rounded-xl flex flex-col h-[calc(100vh-220px)]"
+      className="w-1/2 bg-white border border-slate-200/70 rounded-[var(--radius-card)] shadow-[var(--shadow-card)] flex flex-col h-[calc(100vh-220px)]"
     >
-      <div className="p-4 border-b flex justify-between items-start">
+      <div className="p-4 border-b border-slate-100 flex justify-between items-start">
         <div>
-          <h3 className="font-bold">{data?.thread.subject ?? 'Conversation'}</h3>
+          <h3 className="font-bold text-slate-800">{data?.thread.subject ?? 'Conversation'}</h3>
           <p className="text-xs text-slate-500">
             {data?.thread.farmer_name}
             {data?.thread.scheme_title ? ` · ${data.thread.scheme_title}` : ''}
@@ -383,21 +369,9 @@ function ThreadPanel({
         )}
       </div>
 
-      <div className="p-3 border-t flex gap-2">
-        <input
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="Type a reply…"
-          className="flex-1 border rounded-lg px-3 py-2 text-sm"
-        />
-        <button
-          onClick={send}
-          disabled={busy || !msg.trim()}
-          className="px-3 bg-agri-primary text-white rounded-lg disabled:opacity-40"
-        >
-          <Send size={16} />
-        </button>
+      <div className="p-3 border-t border-slate-100 flex gap-2">
+        <Input value={msg} onChange={(e) => setMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Type a reply…" className="flex-1" />
+        <Button size="md" icon={Send} onClick={send} disabled={busy || !msg.trim()} className="px-3" />
       </div>
     </motion.div>
   );
