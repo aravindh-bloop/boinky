@@ -36,6 +36,7 @@ export default function EscalateScreen() {
   );
   const [reason, setReason] = useState('');
   const [sending, setSending] = useState<Rung | null>(null);
+  const [letterOpen, setLetterOpen] = useState(false);
 
   if (loading) return <LoaderScreen label="Finding the right officer" />;
   if (error || !data) return <ErrorState message={error ?? 'Not found'} onRetry={reload} />;
@@ -87,7 +88,7 @@ export default function EscalateScreen() {
         />
 
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md }}>
-          {/* the grievance letter */}
+          {/* the grievance letter — collapsed to a preview by default */}
           <Card elevation="raised" accent={palette.iris}>
             <Row between>
               <Text variant="overline">{t('Ready-to-send grievance')}</Text>
@@ -100,17 +101,31 @@ export default function EscalateScreen() {
                 </Row>
               </PressableScale>
             </Row>
-            <View
-              style={{
-                backgroundColor: palette.surfaceSunken,
-                borderRadius: radius.md,
-                padding: space.sm,
-              }}
-            >
-              <Text variant="caption" raw selectable style={{ lineHeight: 18 }}>
-                {data.letterEn}
-              </Text>
-            </View>
+            <PressableScale onPress={() => setLetterOpen((v) => !v)} feedback="tap">
+              <View
+                style={{
+                  backgroundColor: palette.surfaceSunken,
+                  borderRadius: radius.md,
+                  padding: space.sm,
+                }}
+              >
+                <Text
+                  variant="caption"
+                  raw
+                  selectable={letterOpen}
+                  numberOfLines={letterOpen ? undefined : 2}
+                  style={{ lineHeight: 18 }}
+                >
+                  {data.letterEn}
+                </Text>
+                <Row gap={4} style={{ marginTop: space.xs }}>
+                  <Text variant="label" color={palette.iris}>
+                    {letterOpen ? t('Show less') : t('Read full letter')}
+                  </Text>
+                  <Icon name={letterOpen ? 'up' : 'right'} size={12} color={palette.iris} weight="bold" />
+                </Row>
+              </View>
+            </PressableScale>
             <Text variant="caption" faint>
               {t('A Tamil version is sent with the escalation. Attach your policy slip and loss photos when you send it.')}
             </Text>

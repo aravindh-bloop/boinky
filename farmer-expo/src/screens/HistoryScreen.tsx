@@ -27,7 +27,10 @@ type Nav = NativeStackNavigationProp<HomeStackParams, 'History'>;
 export default function HistoryScreen() {
   const nav = useNavigation<Nav>();
   const { data, loading, error, refreshing, reload } = useApi<{ scans: Scan[] }>('/api/scans', { limit: 60 });
-  const scans = data?.scans ?? [];
+  // A rejected scan means the photo wasn't a plant at all (e.g. pointed at
+  // the wrong thing) — nothing was actually diagnosed, so it doesn't belong
+  // in a history of diagnoses.
+  const scans = (data?.scans ?? []).filter((s) => s.status !== 'rejected');
   const flagged = scans.filter((s) => s.severity === 'high' || s.severity === 'medium').length;
 
   return (

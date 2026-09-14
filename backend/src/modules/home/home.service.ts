@@ -22,7 +22,7 @@ export async function getHome(farmerId: string) {
       created_at: string;
     }>(
       `SELECT id, diagnosis_label, severity, status, image_url, created_at
-         FROM scans WHERE farmer_id = $1 ORDER BY created_at DESC LIMIT 3`,
+         FROM scans WHERE farmer_id = $1 AND status <> 'rejected' ORDER BY created_at DESC LIMIT 3`,
       [farmerId],
     ),
     // cache-only — never block the dashboard on a live Open-Meteo call

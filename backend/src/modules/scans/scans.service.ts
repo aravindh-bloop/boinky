@@ -380,8 +380,9 @@ export async function listScans(f: ListScansFilter): Promise<ScanRow[]> {
     params.push(f.status);
     where.push(`s.status = $${params.length}`);
   } else {
-    // Drafts are work-in-progress — never surface them in the history list.
-    where.push(`s.status <> 'draft'`);
+    // Drafts are work-in-progress, and a rejected scan means the photo
+    // wasn't even a plant — neither belongs in a history of diagnoses.
+    where.push(`s.status NOT IN ('draft', 'rejected')`);
   }
   params.push(f.limit, f.offset);
   const rows = await query<ScanRow>(

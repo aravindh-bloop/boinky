@@ -42,6 +42,8 @@ export default function ClaimTrackScreen() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [factsOpen, setFactsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (loading) return <LoaderScreen label="Loading your claim" />;
   if (error || !data) return <ErrorState message={error ?? 'Not found'} onRetry={reload} />;
@@ -263,31 +265,45 @@ export default function ClaimTrackScreen() {
             )}
           </Card>
 
-          {/* claim facts */}
+          {/* claim facts — reference info, collapsed by default */}
           <Card elevation="flat">
-            <Text variant="overline">{t('Claim details')}</Text>
-            <Fact label={t('PMFBY application')} value={claim.application_no} />
-            <Fact label={t('Docket / intimation')} value={claim.docket_id} />
-            <Fact label={t('Date of loss')} value={fmtDate(claim.incident_date)} />
-            <Fact label={t('Insurer')} value={claim.insurer_name} />
-            <Fact
-              label={t('Sum insured')}
-              value={claim.sum_insured ? `₹${claim.sum_insured.toLocaleString('en-IN')}` : null}
-            />
-            <Fact
-              label={t('Amount expected')}
-              value={claim.amount_expected ? `₹${Math.round(claim.amount_expected).toLocaleString('en-IN')}` : null}
-            />
-            <Fact
-              label={t('Amount paid')}
-              value={claim.amount_paid ? `₹${Math.round(claim.amount_paid).toLocaleString('en-IN')}` : null}
-            />
+            <PressableScale onPress={() => setFactsOpen((v) => !v)} feedback="tap">
+              <Row between>
+                <Text variant="overline">{t('Claim details')}</Text>
+                <Icon name={factsOpen ? 'up' : 'right'} size={14} color={palette.textFaint} weight="bold" />
+              </Row>
+            </PressableScale>
+            {factsOpen && (
+              <Animated.View entering={FadeIn.duration(150)} style={{ marginTop: space.xs }}>
+                <Fact label={t('PMFBY application')} value={claim.application_no} />
+                <Fact label={t('Docket / intimation')} value={claim.docket_id} />
+                <Fact label={t('Date of loss')} value={fmtDate(claim.incident_date)} />
+                <Fact label={t('Insurer')} value={claim.insurer_name} />
+                <Fact
+                  label={t('Sum insured')}
+                  value={claim.sum_insured ? `₹${claim.sum_insured.toLocaleString('en-IN')}` : null}
+                />
+                <Fact
+                  label={t('Amount expected')}
+                  value={claim.amount_expected ? `₹${Math.round(claim.amount_expected).toLocaleString('en-IN')}` : null}
+                />
+                <Fact
+                  label={t('Amount paid')}
+                  value={claim.amount_paid ? `₹${Math.round(claim.amount_paid).toLocaleString('en-IN')}` : null}
+                />
+              </Animated.View>
+            )}
           </Card>
 
-          {/* events + note */}
+          {/* events + note — history collapsed by default, adding a note always reachable */}
           <Card elevation="flat">
             <Row between>
-              <Text variant="overline">{t('History')}</Text>
+              <PressableScale onPress={() => setHistoryOpen((v) => !v)} feedback="tap" style={{ flex: 1 }}>
+                <Row gap={4}>
+                  <Text variant="overline">{t('History')}</Text>
+                  <Icon name={historyOpen ? 'up' : 'right'} size={13} color={palette.textFaint} weight="bold" />
+                </Row>
+              </PressableScale>
               <PressableScale onPress={() => setNoteOpen((v) => !v)} compact>
                 <Text variant="label" color={palette.primary}>
                   {t('Add a note')}
@@ -305,28 +321,30 @@ export default function ClaimTrackScreen() {
                 <Button title={t('Save note')} size="sm" loading={busy} onPress={submitNote} />
               </Animated.View>
             )}
-            <View style={{ gap: space.sm, marginTop: space.xs }}>
-              {events.map((e) => (
-                <Row key={e.id} gap={space.sm} style={{ alignItems: 'flex-start' }}>
-                  <Icon
-                    name={e.kind === 'escalation' ? 'shield' : e.kind === 'stage_change' ? 'check' : 'circle'}
-                    size={12}
-                    color={palette.textFaint}
-                    weight="fill"
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="caption" raw>
-                      {e.body ??
-                        (e.to_stage ? `${t('Moved to')} ${stageLabel(e.to_stage as ClaimStage, t)}` : '—')}
-                    </Text>
-                    <Text variant="caption" faint raw>
-                      {new Date(e.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      {e.source === 'officer' ? ` · ${t('officer')}` : ''}
-                    </Text>
-                  </View>
-                </Row>
-              ))}
-            </View>
+            {historyOpen && (
+              <Animated.View entering={FadeIn.duration(150)} style={{ gap: space.sm, marginTop: space.xs }}>
+                {events.map((e) => (
+                  <Row key={e.id} gap={space.sm} style={{ alignItems: 'flex-start' }}>
+                    <Icon
+                      name={e.kind === 'escalation' ? 'shield' : e.kind === 'stage_change' ? 'check' : 'circle'}
+                      size={12}
+                      color={palette.textFaint}
+                      weight="fill"
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="caption" raw>
+                        {e.body ??
+                          (e.to_stage ? `${t('Moved to')} ${stageLabel(e.to_stage as ClaimStage, t)}` : '—')}
+                      </Text>
+                      <Text variant="caption" faint raw>
+                        {new Date(e.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {e.source === 'officer' ? ` · ${t('officer')}` : ''}
+                      </Text>
+                    </View>
+                  </Row>
+                ))}
+              </Animated.View>
+            )}
           </Card>
         </View>
       </ScrollView>

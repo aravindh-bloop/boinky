@@ -42,6 +42,26 @@ export default function HomeScreen() {
   const weatherApi = useApi<Weather>(data && !data.weather ? '/api/weather' : null);
   const briefApi = useDailyBrief();
 
+  // The greeting, "X min ago" labels and the weather card are all computed
+  // at render time — nothing re-renders this screen on its own while it
+  // sits open, so they'd otherwise freeze the moment it mounts. Tick once a
+  // minute to keep the clock-driven bits honest, and quietly revalidate the
+  // weather/home data every few minutes so the temperature doesn't go stale
+  // during a long session.
+  const [, tick] = React.useState(0);
+  React.useEffect(() => {
+    const clock = setInterval(() => tick((n) => n + 1), 60_000);
+    const refresh = setInterval(() => {
+      reload();
+      weatherApi.reload();
+    }, 5 * 60_000);
+    return () => {
+      clearInterval(clock);
+      clearInterval(refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openInsight = React.useCallback(
     (c: InsightCard) => {
       const field = c.fieldName ? data?.fieldRisk.find((f) => f.name === c.fieldName) : undefined;

@@ -154,8 +154,11 @@ export default function ScanCaptureScreen() {
     }
     const key = `${step}:${angle.kind}`;
     if (spokenRef.current === key) return;
-    spokenRef.current = key;
+    // Only mark this step "spoken" once it actually is — otherwise muting
+    // silently burns the once-per-step guard, and un-muting later never
+    // catches up on the step you're currently on.
     if (voiceOn) {
+      spokenRef.current = key;
       const n = `${step + 1}`;
       voice.speak(`${t('Photo')} ${n}. ${t(angle.title)}. ${t(angle.hint)}.`);
     }
@@ -411,8 +414,12 @@ export default function ScanCaptureScreen() {
           </View>
           <Pressable
             onPress={() => {
-              if (voiceOn) voice.stop();
-              else voice.speak(`${t(angle.title)}. ${t(angle.hint)}.`);
+              if (voiceOn) {
+                voice.stop();
+              } else {
+                spokenRef.current = `${step}:${angle.kind}`;
+                voice.speak(`${t(angle.title)}. ${t(angle.hint)}.`);
+              }
               setVoiceOn((v) => !v);
             }}
             hitSlop={12}

@@ -14,7 +14,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { api, ApiError } from '../api/client';
 import { alertT } from '../i18n/alert';
 import { useT } from '../i18n';
-import { useVoice } from '../onboarding/voice';
+import { useVoice, useVoiceRecorder } from '../onboarding/voice';
 import type { AssistantMessage } from '../api/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon, PressableScale, Row, Text, palette, radius, space, tone } from '../ui';
@@ -31,12 +31,18 @@ export default function AskScreen() {
   const nav = useNavigation<any>();
   const t = useT();
   const voice = useVoice();
+  const rec = useVoiceRecorder();
 
   const [threadId, setThreadId] = useState<string | undefined>();
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const scroller = useRef<ScrollView>(null);
+
+  async function stopAndFillDraft() {
+    const res = await rec.stop();
+    if (res) setDraft((d) => (d.trim() ? `${d.trim()} ${res.text}` : res.text));
+  }
 
   async function send(text: string) {
     const body = text.trim();
@@ -211,6 +217,15 @@ export default function AskScreen() {
         )}
       </ScrollView>
 
+      {rec.recording && (
+        <Row gap={space.sm} style={{ paddingHorizontal: space.md, paddingTop: space.xs }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: palette.danger }} />
+          <Text variant="caption" color={palette.danger}>
+            {t('Listening…')} {rec.seconds}s / {rec.maxSeconds}s
+          </Text>
+        </Row>
+      )}
+
       <View
         style={{
           flexDirection: 'row',
@@ -224,14 +239,15 @@ export default function AskScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={t('Ask about your farm…')}
+          placeholder={rec.recording ? t('Listening…') : t('Ask about your farm…')}
           placeholderTextColor={palette.textFaint}
+          editable={!rec.recording && !rec.busy}
           multiline
           style={{
             flex: 1,
             maxHeight: 100,
             borderWidth: 1,
-            borderColor: palette.border,
+            borderColor: rec.recording ? palette.danger : palette.border,
             borderRadius: radius.lg,
             paddingHorizontal: space.md,
             paddingVertical: space.sm,
@@ -239,6 +255,24 @@ export default function AskScreen() {
             color: palette.text,
           }}
         />
+        <PressableScale
+          onPress={rec.recording ? stopAndFillDraft : rec.start}
+          disabled={rec.busy || thinking}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: rec.recording ? palette.danger : palette.surfaceSunken,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {rec.busy ? (
+            <ActivityIndicator size="small" color={palette.textMuted} />
+          ) : (
+            <Icon name={rec.recording ? 'stop' : 'mic'} size={18} color={rec.recording ? '#fff' : palette.textMuted} weight="fill" />
+          )}
+        </PressableScale>
         <PressableScale
           onPress={() => send(draft)}
           disabled={thinking || !draft.trim()}
